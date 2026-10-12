@@ -5,6 +5,7 @@
 // ============================================================================
 import { THREE, std, mesh, sph, TEX, TAU, V3 } from './engine.js';
 import { buildWeapon } from './weapons.js';
+import { buildArmor, buildHelmet, heroArmor, heroHelm } from './armor.js';
 import * as D from './data.js';
 
 const M = {}; // shared materials
@@ -174,6 +175,16 @@ export function buildHunter() {
   return finish(root, 2.15);
 }
 export const buildHero = cls => makeFlashable([buildWarrior, buildMage, buildHunter][cls]());
+// armor and helmet on the hero: rare and better show (null takes them off)
+export function equipHeroGear(root, cls, which, rar, tier) {
+  const u = root.userData, key = which === 'armor' ? 'wearA' : 'wearH';
+  if (u[key]) { u[key].parent.remove(u[key]); u[key] = null; }
+  const w = rar < 0 ? null : which === 'armor' ? heroArmor(cls, rar, tier) : heroHelm(cls, rar, tier);
+  if (!w) return;
+  w.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  (which === 'armor' ? u.body : u.head).add(w);
+  u[key] = w;
+}
 // put the equipped weapon in the hero's hand (rarity 0-4, tier 0-7)
 export function equipHeroWeapon(root, cls, rar, tier) {
   const u = root.userData, hold = [u.sword, u.staff, u.bow][cls];
@@ -240,6 +251,8 @@ export function animHero(root, t, s) {
     } else { u.arms[1].position.z = 0; u.string.geometry.attributes.position.setZ(1, u.stringZ ?? -0.1); u.string.geometry.attributes.position.needsUpdate = true; }
   }
   if (u.wtick) u.wtick(t);
+  if (u.wearA) u.wearA.userData.tick(t);
+  if (u.wearH) u.wearH.userData.tick(t);
 }
 
 // ---------------------------------------------------------------- monsters
@@ -799,17 +812,7 @@ export function buildItem(kind, rar, cls, tier = 0) {
       g.userData.wtick = w.userData.tick;
       break;
     }
-    case D.K_ARMOR: {
-      // a breastplate: a turned cuirass, shoulder guards, a belt and a gem
-      const prof = [[0.001, 0.5], [0.2, 0.48], [0.4, 0.42], [0.47, 0.2], [0.44, -0.05], [0.38, -0.28], [0.41, -0.42], [0.001, -0.42]].map(([x, y]) => new THREE.Vector2(x, y));
-      const t = mesh(new THREE.LatheGeometry(prof, 20), metal); t.scale.z = 0.62; model.add(t);
-      const neck = mesh(cyl(0.17, 0.2, 0.08, 16), leather); neck.position.y = 0.5; model.add(neck);
-      for (const s of [-1, 1]) { const p = mesh(new THREE.SphereGeometry(0.24, 14, 10, 0, TAU, 0, Math.PI / 2), accent); p.position.set(0.44 * s, 0.38, 0); p.rotation.z = -0.5 * s; p.scale.set(1, 0.8, 0.9); model.add(p); }
-      const belt = mesh(cyl(0.41, 0.41, 0.1, 20), leather); belt.position.y = -0.33; belt.scale.z = 0.66; model.add(belt);
-      const buckle = mesh(box(0.14, 0.12, 0.05), mat('gold', { color: '#f0b73c', metalness: 1, roughness: 0.25 })); buckle.position.set(0, -0.33, 0.28); model.add(buckle);
-      const gem = mesh(new THREE.OctahedronGeometry(0.09), accent); gem.position.set(0, 0.16, 0.3); gem.scale.z = 0.5; model.add(gem);
-      break;
-    }
+    case D.K_ARMOR: { const a = buildArmor(cls, rar, tier); a.scale.setScalar(1.05); model.add(a); g.userData.wtick = a.userData.tick; break; }
     case D.K_SHIELD:
       if (cls === 0) {
         // a heater shield: a flat top, sides curving to a point; a rim and a boss
@@ -855,14 +858,7 @@ export function buildItem(kind, rar, cls, tier = 0) {
       model.add(hand);
       break;
     }
-    case D.K_HELMET: {
-      const h = mesh(new THREE.SphereGeometry(0.45, 18, 12, 0, TAU, 0, Math.PI / 1.8), metal); model.add(h);
-      const rim = mesh(new THREE.TorusGeometry(0.44, 0.04, 8, 24), accent); rim.rotation.x = Math.PI / 2; rim.position.y = -0.05; model.add(rim);
-      const nose = mesh(box(0.08, 0.26, 0.06), metal); nose.position.set(0, -0.08, 0.44); model.add(nose);
-      const c = mesh(box(0.08, 0.3, 0.6), accent); c.position.y = 0.4; model.add(c);
-      for (const s of [-1, 1]) { const ch = mesh(box(0.06, 0.22, 0.24), metal); ch.position.set(0.4 * s, -0.13, 0.16); ch.rotation.y = 0.5 * s; model.add(ch); }
-      break;
-    }
+    case D.K_HELMET: { const h = buildHelmet(rar, tier); model.add(h); g.userData.wtick = h.userData.tick; break; }
     case D.K_TRINKET: { const r = mesh(new THREE.TorusGeometry(0.3, 0.06, 8, 20), mat('gold', { color: '#f0b73c', metalness: 1, roughness: 0.25 })); model.add(r); const gem = mesh(new THREE.OctahedronGeometry(0.22), new THREE.MeshPhysicalMaterial({ color: rc, emissive: rc, emissiveIntensity: 1, roughness: 0.05, clearcoat: 1 })); gem.position.y = -0.32; model.add(gem); break; }
     case D.K_POTION: { const b = mesh(sph(0.32, 14, 12), new THREE.MeshPhysicalMaterial({ color: '#ff3a4a', emissive: '#a0101a', emissiveIntensity: 0.8, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.92 })); model.add(b); const n = mesh(cyl(0.1, 0.12, 0.25, 8), mat('glass', { color: '#d8f0e0', roughness: 0.1 })); n.position.y = 0.32; model.add(n); const c = mesh(cyl(0.11, 0.11, 0.1, 8), mat('cork', { color: '#a87a4a' })); c.position.y = 0.48; model.add(c); break; }
     case D.K_GOLD: {

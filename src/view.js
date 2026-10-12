@@ -4,7 +4,7 @@
 // ============================================================================
 import { THREE, scene, camera, TEX, TAU, V3, R, ax, az, wx, wz, PX, CELL, buildRoom, placeCamera, shake, hemi, sun, roomGroup,
   textSprite, std, mesh, sph, THEMES, view as camView, IS_TOUCH } from './engine.js';
-import { buildHero, equipHeroWeapon, animHero, buildMonster, buildBoss, buildKingWizard, buildWife, buildMerchant, buildItem, makeFlashable } from './models.js';
+import { buildHero, equipHeroWeapon, equipHeroGear, animHero, buildMonster, buildBoss, buildKingWizard, buildWife, buildMerchant, buildItem, makeFlashable } from './models.js';
 import * as D from './data.js';
 import { G, faded, tame_zone, ANIM_LEN, ANIM_SHOT, slash_index, TAL } from './sim.js';
 
@@ -174,15 +174,20 @@ function ensureHero() {
   if (V.hero) scene.remove(V.hero);
   V.hero = buildHero(G.player_class);
   V.heroCls = G.player_class;
-  V.heroW = -1;
+  V.heroW = -1; V.hw1 = V.hw5 = -2;
   scene.add(V.hero);
 }
 // the weapon in the hero's hand is the one equipped
 function syncWeapon() {
   const key = G.eq_rar[0] * 8 + G.eq_tier[0];
-  if (key === V.heroW) return;
-  V.heroW = key;
-  equipHeroWeapon(V.hero, G.player_class, G.eq_rar[0], G.eq_tier[0]);
+  if (key !== V.heroW) { V.heroW = key; equipHeroWeapon(V.hero, G.player_class, G.eq_rar[0], G.eq_tier[0]); }
+  // armor (slot 1) and helmet (slot 5)
+  for (const [i, which] of [[1, 'armor'], [5, 'helm']]) {
+    const k = G.eq_has[i] ? G.eq_rar[i] * 8 + G.eq_tier[i] : -1;
+    if (V['hw' + i] === k) continue;
+    V['hw' + i] = k;
+    equipHeroGear(V.hero, G.player_class, which, G.eq_has[i] ? G.eq_rar[i] : -1, G.eq_tier[i]);
+  }
 }
 function monModel(n) {
   const t = G.m_type[n];

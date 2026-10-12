@@ -10,7 +10,7 @@ import { THREE, std, mesh, sph, TEX, TAU, V3 } from './engine.js';
 
 const RAR_GLOW = ['#000000', '#000000', '#3a8cff', '#b15cff', '#ffa53a'];
 // legendary looks: 0 flame, 1 frost, 2 void, 3 sun
-const LEG = [
+export const LEG = [
   { a: '#ff5a1a', b: '#ffd23a', metal: '#3a1a10', light: '#ff7a2a' },
   { a: '#5ad8ff', b: '#e8fbff', metal: '#a8d8f0', light: '#7ad8ff' },
   { a: '#a040ff', b: '#ff5ae0', metal: '#141020', light: '#b060ff' },
@@ -18,13 +18,13 @@ const LEG = [
 ];
 const box = (x, y, z) => new THREE.BoxGeometry(x, y, z);
 const cyl = (a, b, h, s = 12) => new THREE.CylinderGeometry(a, b, h, s);
-const glowMat = (c, o = 0.85) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false });
-function sprite(map, color, size, o = 0.9) {
+export const glowMat = (c, o = 0.85) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false });
+export function sprite(map, color, size, o = 0.9) {
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, color, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false }));
   s.scale.setScalar(size); return s;
 }
 // a flat blade from its outline (x across, y along), beveled
-function extrude(pts, depth, bevel = 0.012) {
+export function extrude(pts, depth, bevel = 0.012) {
   const sh = new THREE.Shape();
   sh.moveTo(pts[0][0], pts[0][1]);
   for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]);

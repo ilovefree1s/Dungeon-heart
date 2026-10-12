@@ -43,7 +43,7 @@ function shoot(obj, { size = SIZE, fill = 0.82, pitch = 0.32, w = size, h = size
 }
 // gear and potions: the model the floor shows, turned to face you
 export function itemPic(kind, rar, cls, tier = 0) {
-  if (kind !== 1) tier = 0; // (only weapons look different by tier)
+  if (kind !== 1 && kind !== 2 && kind !== 6) tier = 0; // (weapons, armor and helmets look different by tier)
   const key = 'i' + kind + '_' + rar + '_' + cls + '_' + tier;
   if (cache[key]) return cache[key];
   try {
@@ -52,7 +52,7 @@ export function itemPic(kind, rar, cls, tier = 0) {
     g.remove(m);
     m.position.set(0, 0, 0);
     m.rotation.y += 0.5;
-    return (cache[key] = shoot(m, { fill: 0.86 }));
+    return (cache[key] = shoot(m, { fill: 0.86, pitch: kind === 2 ? 0.12 : 0.32 }));
   } catch (e) { return (cache[key] = ''); }
 }
 // a hero standing, for the class choice and the character screen

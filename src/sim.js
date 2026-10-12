@@ -845,7 +845,7 @@ function level_check() {
 export function item_name(kind, rar, tier, cls = g.player_class) {
   switch (kind) {
     case K_WEAPON: return (rar === 4 ? D.LEG_WEAPON_NAME : D.WEAPON_NAME)[(cls << 3) + tier];
-    case K_ARMOR: return D.ARMOR_NAME[(cls << 3) + tier];
+    case K_ARMOR: return (rar === 4 ? D.LEG_ARMOR_NAME : D.ARMOR_NAME)[(cls << 3) + tier];
     case K_SHIELD: return D.SHIELD_NAME[(cls << 3) + tier];
     case K_BOOTS: return D.BOOTS_NAME[tier];
     case K_GLOVES: return D.GLOVES_NAME[tier];
@@ -853,7 +853,7 @@ export function item_name(kind, rar, tier, cls = g.player_class) {
     case K_POTION: return 'POTION';
     case K_GOLD: return 'GOLD';
   }
-  return D.HELMET_NAME[tier];
+  return (rar === 4 ? D.LEG_HELMET_NAME : D.HELMET_NAME)[tier];
 }
 export const stat_name = kind => (kind === K_SHIELD && g.player_class ? 'ATK' : ['ATK', 'DEF', 'DEF', 'SPD', 'ATK', 'DEF', ''][kind - 1]);
 // a trinket's talents: [[talent index, ranks], ...]
