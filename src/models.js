@@ -964,6 +964,7 @@ export function buildBoss(art) {
 }
 
 // ---------------------------------------------------------------- the wife, the merchant
+const WIFE_MATS = new Map();
 export function buildWife() {
   // after the owner's sprite: long wavy blonde hair and a silver circlet, blue eyes, a royal blue
   // gown with a white front panel and gold trim, white puffed sleeves, a gold belt, brooch and bow
@@ -1037,6 +1038,8 @@ export function buildWife() {
     arms[0].rotation.z = s.happy ? 0 : -0.12; arms[1].rotation.z = s.happy ? 0 : 0.12;
     back.rotation.x = 0.08 + Math.sin(t * (s.moving ? 9 : 2)) * (s.moving ? 0.08 : 0.03);
   } };
+  // (her silks and gold caught too much of the room's reflected light: seen from above she washed out to white)
+  g.traverse(o => { if (!o.isMesh || !o.material.isMeshStandardMaterial) return; const m = o.material; o.material = WIFE_MATS.get(m) || (WIFE_MATS.set(m, Object.assign(m.clone(), { envMapIntensity: Math.min(m.envMapIntensity, 1) * 0.12 })), WIFE_MATS.get(m)); });
   return finish(g, 1.95);
 }
 export function buildMerchant() {

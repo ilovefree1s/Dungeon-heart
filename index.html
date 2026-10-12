@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0e0c0b">
 <title>Dungeon Heart</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@600;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@900&family=Luckiest+Guy&family=Press+Start+2P&family=Nunito:wght@600;800;900&display=swap">
 <style>
 /* the 3D room fills the screen; HUD in the corners; menus are panels over the room (Pest Panic's style) */
 :root{
@@ -108,9 +108,35 @@ button{font:inherit;color:inherit}
 .logo span{display:flex;align-items:center;justify-content:center;gap:.12em;color:#ff5a5a;text-shadow:0 6px 0 #5a0c14,0 10px 30px rgba(0,0,0,.6);font-size:.62em}
 #sTitle{justify-content:space-between;background:radial-gradient(ellipse at 50% 55%,rgba(8,7,6,0) 30%,rgba(8,7,6,.7) 100%)}
 .tspace{flex:1;min-height:120px}
-.tmenu{width:min(380px,100%);padding:14px 18px}
-.tmenu .mlist{align-items:stretch}
-.tmenu .mitem{text-align:center;padding-left:14px}
+/* the title (after the owner's picture): a gold and blood-red logo run through by a sword, ending in a jeweled
+   heart; a tagline; the menu centered between gold rules with ruby studs */
+#sTitle{justify-content:space-between;background:radial-gradient(ellipse at 50% 45%,rgba(8,7,6,0) 40%,rgba(8,7,6,.55) 100%)}
+#sTitle .tspace{flex:1;min-height:40px}
+.ttop{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:clamp(40px,14vh,170px);width:100%}
+.tlogo{margin:0;font-family:"Cinzel Decorative",Georgia,serif;font-weight:900;line-height:.92;display:flex;flex-direction:column;align-items:center;pointer-events:none;text-transform:none}
+.tlogo .t1{font-size:clamp(44px,9.5vw,112px);color:#f2b230;-webkit-text-stroke:.045em #2a1406;paint-order:stroke fill;letter-spacing:.01em;
+  text-shadow:0 .03em 0 #ffe08a,0 .06em 0 #b06a10,0 .09em 0 #5a2c06,0 .12em 0 #1a0a02,0 .2em .35em rgba(0,0,0,.7)}
+.tlogo .t2row{position:relative;display:flex;align-items:center;justify-content:center;margin-top:-.08em;width:min(96vw,1100px)}
+.tlogo .t2{position:relative;z-index:1;font-size:clamp(44px,9.5vw,112px);color:#e8302a;-webkit-text-stroke:.045em #2a0404;paint-order:stroke fill;
+  text-shadow:0 .03em 0 #ff8a6a,0 .06em 0 #9a1410,0 .09em 0 #5a0606,0 .12em 0 #1a0202,0 .2em .35em rgba(0,0,0,.7)}
+.tlogo .tsword{position:absolute;left:0;right:0;top:50%;width:100%;height:clamp(22px,4.6vw,56px);transform:translateY(-35%);filter:drop-shadow(0 4px 0 rgba(0,0,0,.6))}
+.tlogo .theart{position:relative;z-index:2;width:clamp(48px,10vw,120px);height:clamp(48px,10vw,120px);margin-left:-.1em;filter:drop-shadow(0 5px 0 rgba(0,0,0,.6)) drop-shadow(0 0 14px rgba(255,60,80,.45))}
+.ttag{margin:0;font-family:"Press Start 2P",monospace;font-size:clamp(9px,1.25vw,15px);line-height:1.6;color:#f4ecdc;text-shadow:2px 2px 0 #120c08,0 0 8px #000;padding:0 8px}
+.torn{display:flex;align-items:center;gap:6px;width:min(480px,80vw);margin:0 auto}
+.torn i{flex:1;height:2px;background:linear-gradient(90deg,transparent,#e8a82a 30%,#ffd76a)}
+.torn i:last-child{background:linear-gradient(270deg,transparent,#e8a82a 30%,#ffd76a)}
+.torn b{width:12px;height:12px;background:#e8243a;transform:rotate(45deg);border:2px solid #ffd76a;box-shadow:0 0 0 2px #2a1406,0 0 10px rgba(255,60,80,.6)}
+.tmenu{display:flex;flex-direction:column;align-items:center;gap:10px;margin:0 auto 7vh;width:min(420px,100%)}
+.tmenu .torn{width:min(300px,70vw)}
+.tmenu .mlist{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:auto}
+.tmenu .mitem{position:relative;font-family:"Press Start 2P",monospace;font-size:clamp(15px,1.9vw,21px);letter-spacing:.06em;text-transform:uppercase;color:#f4ecdc;text-align:left;
+  padding:9px 16px 9px 44px;background:none;border:0;text-shadow:3px 3px 0 #120c08,0 0 10px rgba(0,0,0,.9)}
+.tmenu .mitem::before{content:none!important}
+.tmenu .mitem:hover,.tmenu .mitem:focus-visible,.tmenu .mlist:not(:has(.mitem:hover,.mitem:focus-visible)) .mitem:not([hidden]):first-child{color:#ffd24a;background:none;outline:none!important}
+.tmenu .mitem:hover::after,.tmenu .mitem:focus-visible::after,.tmenu .mlist:not(:has(.mitem:hover,.mitem:focus-visible)) .mitem:not([hidden]):first-child::after{
+  content:"";position:absolute;left:12px;top:50%;transform:translateY(-50%);border-left:16px solid #ffd24a;border-top:10px solid transparent;border-bottom:10px solid transparent;filter:drop-shadow(2px 2px 0 #120c08)}
+@media (max-width:640px){.ttop{margin-top:24vh}.tmenu{margin-bottom:5vh}}
+#titleHint{position:absolute;left:16px;bottom:calc(12px + env(safe-area-inset-bottom,0px));margin:0;max-width:44ch;text-align:left;font-size:12px;opacity:.75}
 @media (pointer:coarse){#titleHint{display:none}}
 .logo svg{width:.9em;height:.9em;filter:drop-shadow(0 5px 0 #5a0c14)}
 .sub{margin:0;font-weight:800;color:var(--dim);max-width:40ch;line-height:1.45}
@@ -302,15 +328,36 @@ h2.t{font-family:var(--display);font-size:clamp(32px,7vw,52px);margin:0;color:va
 
   <!-- title -->
   <div class="screen" id="sTitle">
-    <h1 class="logo">Dungeon<span>Heart <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-5.5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.5-8 11-8 11z" fill="#ff4a5a" stroke="#ffd0d6" stroke-width="1.2"/></svg></span></h1>
+    <div class="ttop">
+      <h1 class="tlogo" aria-label="Dungeon Heart"><span class="t1">Dungeon</span><span class="t2row"><svg class="tsword" viewBox="0 0 1000 80" preserveAspectRatio="none" aria-hidden="true">
+<defs><linearGradient id="bl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6fa"/><stop offset=".45" stop-color="#c4ccd8"/><stop offset=".55" stop-color="#8a94a6"/><stop offset="1" stop-color="#5a6274"/></linearGradient>
+<linearGradient id="gd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a0"/><stop offset=".5" stop-color="#e8a82a"/><stop offset="1" stop-color="#8a5a10"/></linearGradient></defs>
+<path d="M150 28 L930 28 L995 40 L930 52 L150 52 Z" fill="url(#bl)" stroke="#1a1820" stroke-width="5"/>
+<path d="M160 40 L900 40" stroke="#ffffff" stroke-opacity=".5" stroke-width="3"/>
+<rect x="20" y="30" width="105" height="20" rx="6" fill="#2a3a7a" stroke="#1a1820" stroke-width="5"/>
+<path d="M38 30v20M58 30v20M78 30v20M98 30v20" stroke="#e8a82a" stroke-width="7"/>
+<circle cx="18" cy="40" r="17" fill="url(#gd)" stroke="#1a1820" stroke-width="5"/><circle cx="18" cy="40" r="8" fill="#e8243a"/>
+<path d="M128 4 L146 4 L146 76 L128 76 Z" fill="url(#gd)" stroke="#1a1820" stroke-width="5"/>
+<circle cx="137" cy="40" r="10" fill="#e8243a" stroke="#1a1820" stroke-width="4"/></svg><span class="t2">Heart</span><svg class="theart" viewBox="0 0 120 120" aria-hidden="true">
+<defs><radialGradient id="hg" cx=".38" cy=".35" r=".7"><stop offset="0" stop-color="#ff8a94"/><stop offset=".35" stop-color="#ff2a3e"/><stop offset="1" stop-color="#8a0618"/></radialGradient>
+<linearGradient id="gd2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a0"/><stop offset=".5" stop-color="#e8a82a"/><stop offset="1" stop-color="#8a5a10"/></linearGradient></defs>
+<path d="M60 4 L68 20 L60 28 L52 20 Z" fill="url(#gd2)" stroke="#1a1820" stroke-width="3"/>
+<path d="M60 112 C40 96 6 74 6 46 C6 26 22 16 36 16 C46 16 55 22 60 30 C65 22 74 16 84 16 C98 16 114 26 114 46 C114 74 80 96 60 112 Z" fill="url(#gd2)" stroke="#1a1820" stroke-width="4"/>
+<path d="M60 100 C44 87 16 69 16 47 C16 32 28 25 38 25 C47 25 55 31 60 39 C65 31 73 25 82 25 C92 25 104 32 104 47 C104 69 76 87 60 100 Z" fill="url(#hg)" stroke="#5a0410" stroke-width="2"/>
+<path d="M30 44 C31 36 37 32 44 32" stroke="#ffd0d6" stroke-width="5" fill="none" stroke-linecap="round"/>
+<path d="M60 112 L60 118 M20 30 L10 22 M100 30 L110 22" stroke="#e8a82a" stroke-width="4" stroke-linecap="round"/></svg></span></h1>
+      <p class="ttag">50 Floors. Countless Monsters. One Reason to Fight.</p>
+      <div class="torn" aria-hidden="true"><i></i><b></b><i></i></div>
+    </div>
     <div class="tspace"></div>
-    <div class="frame tmenu">
-      <p class="hint" style="text-align:center;margin:0 auto 8px">The Tower King took your wife to the top of his tower. Fifty floors stand in the way.</p>
+    <div class="tmenu">
+      <div class="torn" aria-hidden="true"><i></i><b></b><i></i></div>
       <div class="mlist">
-        <button class="mitem" id="bNew">New game</button>
+        <button class="mitem" id="bNew">Start</button>
         <button class="mitem" id="bCont" hidden>Continue</button>
         <button class="mitem" id="bOpt">Options</button>
       </div>
+      <div class="torn" aria-hidden="true"><i></i><b></b><i></i></div>
     </div>
     <p class="hint" id="titleHint">Move with <kbd>WASD</kbd> or the arrows, <kbd>SPACE</kbd> attacks, <kbd>SHIFT</kbd> rolls / blinks / tames, <kbd>Q</kbd> drinks a potion, <kbd>TAB</kbd> opens your bag. PS5 / Xbox controllers work too.</p>
   </div>
