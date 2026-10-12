@@ -10,7 +10,8 @@ import { LEG, glowMat, sprite, extrude } from './weapons.js';
 const box = (x, y, z) => new THREE.BoxGeometry(x, y, z);
 const cyl = (a, b, h, s = 12) => new THREE.CylinderGeometry(a, b, h, s);
 const half = r => new THREE.SphereGeometry(r, 16, 10, 0, TAU, 0, Math.PI / 2);
-const lathe = pts => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), 24);
+// (profiles are written top to bottom; a lathe faces out when built bottom to top)
+const lathe = pts => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)).reverse(), 24);
 
 // the materials for a rarity: the main surface, the trim, a glowing core
 export function kit(cls, rar, tier) {

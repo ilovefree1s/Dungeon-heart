@@ -787,25 +787,79 @@ export function buildBoss(art) {
 
 // ---------------------------------------------------------------- the wife, the merchant
 export function buildWife() {
+  // after the owner's sprite: long wavy blonde hair and a silver circlet, blue eyes, a royal blue
+  // gown with a white front panel and gold trim, white puffed sleeves, a gold belt, brooch and bow
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
-  const dress = mat('dress', { color: '#e8607a', roughness: 0.6 }), trim = mat('dressT', { color: '#ffd0da', roughness: 0.6 });
-  const skirt = mesh(new THREE.ConeGeometry(0.75, 1.5, 18, 1, true), dress); skirt.position.y = 0.75; body.add(skirt);
-  const hem = mesh(new THREE.TorusGeometry(0.75, 0.05, 6, 24), trim); hem.rotation.x = Math.PI / 2; hem.position.y = 0.04; body.add(hem);
-  const torso = mesh(cap(0.27, 0.35, 12), dress); torso.position.y = 1.62; body.add(torso);
+  const blue = mat('wBlue', { color: '#2f5fd0', roughness: 0.5, envMapIntensity: 0.6 });
+  const white = mat('wWhite', { color: '#f6f2ea', roughness: 0.6 });
+  const gold = mat('gold', { color: '#f0b73c', metalness: 1, roughness: 0.25, envMapIntensity: 1.3 });
+  const skin = mat('wSkin', { color: '#f2c6a0', roughness: 0.55 });
+  const hairM = mat('wHair', { color: '#f2c14e', roughness: 0.45, metalness: 0.05, envMapIntensity: 0.8 });
+  const silver = mat('wSilver', { color: '#e8eef6', metalness: 1, roughness: 0.2 });
+  // the gown: a flared skirt, a white panel down the front edged in gold, a gold hem
+  const prof = [[0.001, 1.34], [0.34, 1.34], [0.4, 1.1], [0.55, 0.6], [0.74, 0.12], [0.78, 0.03], [0.001, 0.03]].map(([x, y]) => new THREE.Vector2(x, y));
+  // (two pieces of one surface: the blue all round, the white panel at the front)
+  prof.reverse(); // (bottom to top, so the surface faces out)
+  const skirt = mesh(new THREE.LatheGeometry(prof, 26, 0.42, TAU - 0.84), blue); body.add(skirt);
+  const panelProf = prof.slice(1).reverse().map(v => new THREE.Vector2(v.x + 0.012, v.y));
+  const panel = mesh(new THREE.LatheGeometry(prof, 6, -0.42, 0.84), white); body.add(panel);
+  for (const a of [-0.42, 0.42]) {
+    const pts = panelProf.slice(1).map(v => new V3(Math.sin(a) * (v.x + 0.012), v.y, Math.cos(a) * (v.x + 0.012)));
+    body.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.022, 6), gold));
+  }
+  const hem = mesh(new THREE.TorusGeometry(0.775, 0.035, 8, 40), gold); hem.rotation.x = Math.PI / 2; hem.position.y = 0.06; body.add(hem);
+  // sandals peeking out
+  for (const s of [-1, 1]) { const f = mesh(box(0.13, 0.07, 0.22), mat('wSandal', { color: '#2a4aa0', roughness: 0.6 })); f.position.set(0.14 * s, 0.035, 0.66); body.add(f); const st = mesh(box(0.14, 0.03, 0.05), gold); st.position.set(0.14 * s, 0.075, 0.7); body.add(st); }
+  // bodice, the white off-shoulder top, the belt and brooch
+  const bod = mesh(new THREE.LatheGeometry([[0.001, 1.3], [0.3, 1.3], [0.27, 1.45], [0.3, 1.66], [0.32, 1.8], [0.001, 1.8]].map(([x, y]) => new THREE.Vector2(x, y)), 22), blue); bod.scale.z = 0.82; body.add(bod);
+  const top = mesh(new THREE.TorusGeometry(0.3, 0.06, 10, 28), white); top.rotation.x = Math.PI / 2; top.position.y = 1.8; top.scale.y = 0.82; body.add(top);
+  const chest = mesh(sph(0.24, 16, 12), skin); chest.position.y = 1.86; chest.scale.set(1.05, 0.5, 0.8); body.add(chest);
+  const neck = mesh(cyl(0.08, 0.09, 0.16, 10), skin); neck.position.y = 1.98; body.add(neck);
+  const belt = mesh(new THREE.TorusGeometry(0.3, 0.035, 8, 28), gold); belt.rotation.x = Math.PI / 2; belt.position.y = 1.36; belt.scale.y = 0.85; body.add(belt);
+  const brooch = mesh(new THREE.OctahedronGeometry(0.07), gold); brooch.position.set(0, 1.38, 0.27); brooch.scale.z = 0.5; body.add(brooch);
+  const tie = mesh(box(0.05, 0.22, 0.02), gold); tie.position.set(0, 1.2, 0.29); body.add(tie);
+  // the gold bow at the back
+  for (const s of [-1, 1]) { const loop = mesh(new THREE.TorusGeometry(0.08, 0.025, 6, 14), gold); loop.position.set(0.08 * s, 1.38, -0.27); loop.scale.set(1, 0.7, 1); loop.rotation.y = 0.2 * s; body.add(loop);
+    const tail = mesh(box(0.05, 0.24, 0.02), gold); tail.position.set(0.05 * s, 1.24, -0.28); tail.rotation.z = 0.25 * s; body.add(tail); }
+  const knot = mesh(sph(0.04, 8, 6), gold); knot.position.set(0, 1.38, -0.28); body.add(knot);
+  // arms: puffed white sleeves off the shoulder, bare arms, hands
   const arms = [];
-  for (const s of [-1, 1]) { const a = new THREE.Group(); a.position.set(0.33 * s, 1.82, 0); body.add(a); const m = mesh(cap(0.08, 0.38, 8), mat('skin', { color: '#eab48a', roughness: 0.6 })); m.position.y = -0.26; a.add(m); arms.push(a); }
-  const head = new THREE.Group(); head.position.y = 2.2; body.add(head);
-  head.add(mesh(sph(0.26, 16, 12), mat('skin', { color: '#eab48a', roughness: 0.6 })));
-  const hair = mesh(new THREE.SphereGeometry(0.3, 16, 12, 0, TAU, 0, Math.PI * 0.62), mat('hair', { color: '#7a3a1a', roughness: 0.7 })); hair.position.set(0, 0.04, -0.03); hair.rotation.x = -0.35; head.add(hair);
-  const long = mesh(cap(0.22, 0.5, 10), mat('hair', { color: '#7a3a1a', roughness: 0.7 })); long.position.set(0, -0.3, -0.16); head.add(long);
-  for (const s of [-1, 1]) { const e = mesh(sph(0.035, 8, 6), mat('black', { color: '#1b1a1d', roughness: 0.4 }), false); e.position.set(0.09 * s, 0.03, 0.24); head.add(e); }
-  const tiara = mesh(new THREE.TorusGeometry(0.22, 0.025, 6, 16, Math.PI), mat('gold', { color: '#f0b73c', metalness: 1, roughness: 0.25 })); tiara.position.set(0, 0.2, 0.05); tiara.rotation.x = -0.4; head.add(tiara);
+  for (const s of [-1, 1]) {
+    const puff = mesh(sph(0.15, 14, 10), white); puff.position.set(0.33 * s, 1.76, 0); puff.scale.set(1, 0.85, 1); body.add(puff);
+    const a = new THREE.Group(); a.position.set(0.37 * s, 1.74, 0); body.add(a);
+    const m = mesh(cap(0.065, 0.36, 8), skin); m.position.y = -0.28; a.add(m);
+    const h = mesh(sph(0.075, 10, 8), skin); h.position.y = -0.52; a.add(h);
+    arms.push(a);
+  }
+  // the head: blue eyes, a small smile, rosy cheeks
+  const head = new THREE.Group(); head.position.y = 2.26; body.add(head);
+  head.add(mesh(sph(0.27, 20, 16), skin));
+  eyes(head, 0.095, 0.0, 0.225, 0.055, '#2a6ae0');
+  for (const s of [-1, 1]) { const hl = new THREE.Mesh(sph(0.014, 6, 4), basic('wHl', { color: '#ffffff' })); hl.position.set(0.095 * s + 0.015, 0.02, 0.28); head.add(hl);
+    const ch = new THREE.Mesh(sph(0.04, 8, 6), basic('wBlush', { color: '#f4a0a0', transparent: true, opacity: 0.55 })); ch.position.set(0.15 * s, -0.07, 0.21); ch.scale.z = 0.4; head.add(ch); }
+  const mouth = mesh(new THREE.TorusGeometry(0.035, 0.012, 6, 10, Math.PI), mat('wLip', { color: '#d0607a', roughness: 0.4 }), false); mouth.position.set(0, -0.1, 0.25); mouth.rotation.z = Math.PI; head.add(mouth);
+  // the hair: a crown of hair, bangs, locks framing the face, and long waves down the back
+  const cap0 = mesh(new THREE.SphereGeometry(0.3, 20, 14, 0, TAU, 0, Math.PI * 0.6), hairM); cap0.position.set(0, 0.03, -0.02); cap0.rotation.x = -0.25; head.add(cap0);
+  for (let i = 0; i < 5; i++) { const bg = mesh(cap(0.06, 0.12, 6), hairM); const x = -0.16 + i * 0.08; bg.position.set(x, 0.15, 0.22 - Math.abs(x) * 0.25); bg.rotation.set(0.5, 0, -x * 1.6); head.add(bg); }
+  const wave = (x0, z0, len, ph, r) => {
+    const pts = []; for (let i = 0; i <= 10; i++) { const k = i / 10; pts.push(new V3(x0 + Math.sin(k * 7 + ph) * 0.05 * k, 0.1 - k * len, z0 - k * 0.08)); }
+    return mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, r, 7), hairM);
+  };
+  for (const s of [-1, 1]) for (let j = 0; j < 2; j++) head.add(wave(0.24 * s + 0.04 * j * s, 0.1 - j * 0.1, 0.62 + j * 0.06, j * 2 + s, 0.07));
+  const back = new THREE.Group(); back.position.set(0, 0.05, -0.12); head.add(back);
+  for (let i = 0; i < 7; i++) back.add(wave(-0.24 + i * 0.08, -0.1 - Math.sin(i / 6 * Math.PI) * 0.06, 1.0 + Math.sin(i * 1.7) * 0.12, i * 1.3, 0.085));
+  // the circlet: silver with pearls, and a blue jewel at the front
+  const circ = mesh(new THREE.TorusGeometry(0.29, 0.022, 8, 32), silver); circ.position.y = 0.12; circ.rotation.x = Math.PI / 2 - 0.25; head.add(circ);
+  for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, p = mesh(sph(0.025, 8, 6), white); p.position.set(Math.sin(a) * 0.29, 0.12 - Math.cos(a) * 0.29 * Math.sin(0.25), Math.cos(a) * 0.29 * Math.cos(0.25)); head.add(p); }
+  const jewel = mesh(new THREE.OctahedronGeometry(0.045), mat('wJewel', { color: '#4a8aff', emissive: '#2a5ad0', emissiveIntensity: 0.8, roughness: 0.1 })); jewel.position.set(0, 0.2, 0.29); jewel.scale.z = 0.5; head.add(jewel);
   g.userData = { body, arms, anim: (t, s) => {
     body.position.y = s.moving ? Math.abs(Math.sin(t * 9)) * 0.06 : Math.sin(t * 2) * 0.02;
     arms[0].rotation.x = s.happy ? -2.5 + Math.sin(t * 8) * 0.2 : (s.moving ? Math.sin(t * 9) * 0.4 : 0);
     arms[1].rotation.x = s.happy ? -2.5 - Math.sin(t * 8) * 0.2 : (s.moving ? -Math.sin(t * 9) * 0.4 : 0);
+    arms[0].rotation.z = s.happy ? 0 : -0.12; arms[1].rotation.z = s.happy ? 0 : 0.12;
+    back.rotation.x = 0.08 + Math.sin(t * (s.moving ? 9 : 2)) * (s.moving ? 0.08 : 0.03);
   } };
-  return finish(g, 2.05);
+  return finish(g, 1.95);
 }
 export function buildMerchant() {
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
