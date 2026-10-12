@@ -452,7 +452,8 @@ function update_monsters() {
         case DIR_DOWN: mon_step(n, 0, 1); mon_step(n, 0, 1); break;
         case DIR_UP: mon_step(n, 0, 2); mon_step(n, 0, 2); break;
         case DIR_RIGHT: mon_step(n, 1, 0); mon_step(n, 1, 0); break;
-        default: mon_step(n, 2, 0); mon_step(n, 2, 0);
+        case DIR_LEFT: mon_step(n, 2, 0); mon_step(n, 2, 0); break;
+        default: { const v = g.m_kdir[n] - 8; mon_step(n, v % 3, Math.floor(v / 3)); mon_step(n, v % 3, Math.floor(v / 3)); } // (a diagonal)
       }
     } else if (g.m_wander[n] && t !== M_BAT) {
       --g.m_wander[n];
@@ -738,6 +739,29 @@ export function gear_stat(t) {
   for (let i = 0; i < NGEAR; ++i) if (g.eq_has[i]) for (let j = 0; j < 3; ++j) if (g.eq_st[i * 6 + j * 2] === t) v += g.eq_st[i * 6 + j * 2 + 1];
   return v;
 }
+// how good a piece is for you: its main number plus its stats as they help your class
+// (main stat 1:1 like attack, the other damage stats a third, stamina and defense 1:1, dexterity's crit a little)
+export function item_score(kind, lvl, arr, k) {
+  let v = gear_fine(kind, lvl);
+  const main = D.MAIN_STAT[g.player_class];
+  for (let j = 0; j < 3; ++j) {
+    const t = arr[k * 6 + j * 2], a = arr[k * 6 + j * 2 + 1];
+    if (!t) continue;
+    if (t === main) v += a;
+    else if (t <= D.ST_INT) v += a / 3 + (t === D.ST_DEX ? a / 4 : 0);
+    else v += a;
+  }
+  return v;
+}
+// a bag item that beats what is worn in its slot
+export function bag_better(k) {
+  const kind = g.b_kind[k];
+  if (!kind) return false;
+  if (kind === K_TRINKET) return !g.eq_has[6] || g.b_rar[k] > g.eq_rar[6];
+  const i = kind - 1;
+  if (!g.eq_has[i]) return true;
+  return item_score(kind, g.b_lvl[k], g.b_st, k) > item_score(kind, g.eq_lvl[i], g.eq_st, i);
+}
 // the main stat from levels: 12, +3 a level (as the old strength grew)
 export const main_lvl = () => 12 + 3 * (g.lvl - 1);
 export function stat_total(t) {
@@ -939,7 +963,7 @@ function pickup(n) {
     sfx('coin'); fx('pickup', { s: n, kind, v });
     return 1;
   }
-  const better = !g.eq_has[kind - 1] || g.i_lvl[n] > g.eq_lvl[kind - 1];
+  const better = !g.eq_has[kind - 1] || item_score(kind, g.i_lvl[n], g.i_st, n) > item_score(kind, g.eq_lvl[kind - 1], g.eq_st, kind - 1);
   const slot = bag_free();
   if (slot < BAG) {
     g.b_kind[slot] = kind; g.b_rar[slot] = rar; g.b_tier[slot] = g.i_tier[n];
@@ -1578,7 +1602,7 @@ function sword_hits() {
     const w = D.MON_HIT_W[t], h = D.MON_HIT_H[t];
     if (x2 < g.m_x[n] + 2 - w || x1 > g.m_x[n] + 13 + w || y2 < g.m_y[n] + 2 - h || y1 > g.m_y[n] + 13) continue;
     const d = roll_damage();
-    hit_monster(n, d, g.pdir, roll_damage.crit);
+    hit_monster(n, d, T.WHIRL ? g.pdir : kdir(g.pdx, g.pdy), roll_damage.crit);
   }
   for (let n = 0; n < MAXP; ++n) {
     if (!g.pr_t[n]) continue;
@@ -1597,6 +1621,9 @@ function sword_hits() {
 // facing: pdx / pdy are -1, 0 or 1 (eight ways); pdir keeps the nearest of the four for
 // knockback and the like (left / right win on a diagonal)
 const sgn = c => (c === 1 ? 1 : c === 2 ? -1 : 0), code = v => (v > 0 ? 1 : v < 0 ? 2 : 0);
+// a knockback direction: the four as before, or 8 + x code + 3 * y code on a diagonal
+const kdir = (dx, dy) => (dx && dy ? 8 + code(dx) + code(dy) * 3 : dx > 0 ? DIR_RIGHT : dx < 0 ? DIR_LEFT : dy < 0 ? DIR_UP : DIR_DOWN);
+const bolt_kdir = b => kdir(sgn(g.bo_dx[b]), sgn(g.bo_dy[b]));
 export function face(dx, dy) {
   if (!dx && !dy) return;
   g.pdx = dx; g.pdy = dy;
@@ -1670,12 +1697,12 @@ function bolt_hit(b, n) {
     sfx('slam');
     for (let k = 0; k < MAXM; ++k) {
       if (k === n || !g.m_type[k]) continue;
-      if (adiff(g.m_x[k], g.m_x[n]) < 30 && adiff(g.m_y[k], g.m_y[n]) < 30) hit_monster(k, dmg >> 1, g.bo_dir[b]);
+      if (adiff(g.m_x[k], g.m_x[n]) < 30 && adiff(g.m_y[k], g.m_y[n]) < 30) hit_monster(k, dmg >> 1, bolt_kdir(b));
     }
     dmg += dmg >> 1;
   }
   fx('bolthit', { b, x: g.bo_x[b], y: g.bo_y[b] });
-  hit_monster(n, dmg, g.bo_dir[b], crit);
+  hit_monster(n, dmg, bolt_kdir(b), crit);
   if (g.bo_pierce[b]) --g.bo_pierce[b]; else g.bo_t[b] = 0;
 }
 function bolt_target(x, y, last) {

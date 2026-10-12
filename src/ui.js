@@ -178,12 +178,7 @@ export function openInv() {
 $('hBag').onclick = () => openInv();
 $('bInvClose').onclick = () => closeModal();
 $('bTalents').onclick = () => openTal();
-function isUpgrade(k) {
-  const kind = G.b_kind[k];
-  if (!kind) return false;
-  if (kind === D.K_TRINKET) return !G.eq_has[6];
-  return !G.eq_has[kind - 1] || G.b_lvl[k] > G.eq_lvl[kind - 1];
-}
+const isUpgrade = k => S.bag_better(k); // (level and stats together, weighed for your class)
 function drawInv() {
   $('invName').textContent = `${D.CLASS_NAME[G.player_class]} LV ${G.lvl}`;
   $('invXp').style.width = `calc(${Math.min(100, G.xp / G.xpnext * 100)}% - 4px)`;
@@ -263,7 +258,8 @@ function drawInfo() {
   let acts = '';
   if (worn) acts = sel.gear ? `<button class="mbtn" id="aUnequip">Unequip</button>` : '';
   else acts = `<button class="mbtn go" id="aEquip">Equip</button><button class="mbtn${UI.sellArm === sel.bag ? ' warn' : ''}" id="aSell">${UI.sellArm === sel.bag ? 'Tap again to sell for ' : 'Sell for '}<span class="coin"></span>${S.sell_price(kind, rar, val)}</button>`;
-  box.innerHTML = itemTitle(kind, rar, tier, lv) + itemLines(kind, rar, lv, spec, val, worn, sa, sk) + `<div class="acts">${acts}</div>`;
+  const verdict = worn ? '' : S.bag_better(sel.bag) ? '<p><b style="color:#7dff86">&#x25B2; Better for you than what you wear</b></p>' : '<p style="color:#8a92b0">Not better than what you wear</p>';
+  box.innerHTML = itemTitle(kind, rar, tier, lv) + itemLines(kind, rar, lv, spec, val, worn, sa, sk) + verdict + `<div class="acts">${acts}</div>`;
   if ($('aEquip')) $('aEquip').onclick = equipSel;
   if ($('aSell')) $('aSell').onclick = sellSel;
   if ($('aUnequip')) $('aUnequip').onclick = unequipSel;
