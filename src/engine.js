@@ -37,7 +37,9 @@ scene.fog = new THREE.Fog('#0b0908', 70, 130);
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
 
-export const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 300);
+// a narrow lens from farther back: the far wall shrinks little, so the room stays nearly square on screen
+const FOV = 22;
+export const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 400);
 export const hemi = new THREE.HemisphereLight('#ffe8cc', '#241c18', 0.55);
 scene.add(hemi);
 export const sun = new THREE.DirectionalLight('#ffe2bd', 1.3);
@@ -54,25 +56,25 @@ export const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.45,
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
-export const view = { w: 1, h: 1, dist: 40, pitch: 1.13, bloomOn: true, follow: false, quality: 2 };
+export const view = { w: 1, h: 1, dist: 40, pitch: 1.24, bloomOn: true, follow: false, quality: 2 };
 export function resize() {
   const w = innerWidth, h = innerHeight;
   view.w = w; view.h = h;
   renderer.setSize(w, h, false); composer.setSize(w, h);
   camera.aspect = w / h;
   // the whole room (it is 48 x 33) is always in view, as on the SNES; upright phones fit its width
-  const t = Math.tan(THREE.MathUtils.degToRad(19));
+  const t = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
   view.follow = false;
-  const S = camera.aspect >= 1.25 ? Math.max(35, 55 / camera.aspect) : Math.max(31, 43.2 / camera.aspect);
+  const S = camera.aspect >= 1.25 ? Math.max(35, 55 / camera.aspect) : Math.max(31, 42.4 / camera.aspect);
   view.dist = (S / 2) / t * 1.06;
-  camera.far = view.dist + 120;
+  camera.far = view.dist + 160;
   scene.fog.near = view.dist + 20; scene.fog.far = view.dist + 80; // (the fog starts past the room, however far the camera is)
   camera.updateProjectionMatrix();
 }
 const camFocus = new V3();
 export const shake = { x: 0, z: 0, t: 0, amp: 0 };
 export function placeCamera(x, z, snap) {
-  const t = Math.tan(THREE.MathUtils.degToRad(19));
+  const t = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
   const visW = t * view.dist * camera.aspect, visD = t * view.dist * 0.9;
   // (the room inside its thin walls is 14 cells wide: drift toward the hero only when it doesn't fit)
   const mx = Math.max(0, 14 * CELL / 2 + 0.6 - visW), mz = Math.max(0, ROOM_D / 2 - visD + 2);
