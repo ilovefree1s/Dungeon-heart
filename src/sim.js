@@ -42,7 +42,7 @@ export const G = {
   atk_timer: 0, inv_timer: 0, regen_timer: 0, hp: 20, maxhp: 20, lvl: 1, str: 2, xp: 0, xpnext: 12, gold: 0, kills: 0,
   floor_num: 1, deepest: 1, player_class: 0, potions: 1, sacc: 0, full_item: 0, last_stand_used: 0,
   roll_timer: 0, roll_cd: 0, roll_dx: 0, roll_dy: 0, slow_acc: 0,
-  blink_cd: 0, cast_cd: 0, bolt_count: 0, anim_t: 0, shot_pend: 0,
+  blink_cd: 0, cast_cd: 0, swing_cd: 0, swing_buf: 0, bolt_count: 0, anim_t: 0, shot_pend: 0,
   // gear: index kind - 1
   eq_val: u8(NGEAR), eq_rar: u8(NGEAR), eq_spec: u8(NGEAR), eq_tier: u8(NGEAR), eq_has: u8(NGEAR), eq_lvl: u8(NGEAR),
   b_kind: u8(BAG), b_rar: u8(BAG), b_tier: u8(BAG), b_val: u8(BAG), b_spec: u8(BAG), b_lvl: u8(BAG),
@@ -1587,6 +1587,10 @@ export function slash_index() {
   if (T.WHIRL) return 16 + ((SLASH_START[g.pdir] + WHIRL_STEP[st]) & 7);
   return (g.pdir << 2) + (st < 2 ? 0 : (st < 4 ? 1 : (st < 7 ? 2 : 3)));
 }
+// the warrior's sword: a swing lasts 14 frames and the next can start 26 frames after the last
+// (about two a second), each hitting half again as hard as it used to, to make up for it
+const SWING_CD = 26;
+const sword_dmg = () => { const d = roll_damage(); return d + (d >> 1); };
 function sword_hits() {
   const n0 = slash_index();
   const cl = v => (v < 64 ? 0 : (v > 319 ? 255 : v - 64));
@@ -1601,7 +1605,7 @@ function sword_hits() {
     if (!t || g.m_hit[n] || faded(n)) continue;
     const w = D.MON_HIT_W[t], h = D.MON_HIT_H[t];
     if (x2 < g.m_x[n] + 2 - w || x1 > g.m_x[n] + 13 + w || y2 < g.m_y[n] + 2 - h || y1 > g.m_y[n] + 13) continue;
-    const d = roll_damage();
+    const d = sword_dmg();
     hit_monster(n, d, T.WHIRL ? g.pdir : kdir(g.pdx, g.pdy), roll_damage.crit);
   }
   for (let n = 0; n < MAXP; ++n) {
@@ -1613,7 +1617,7 @@ function sword_hits() {
   if (g.boss_on && !g.bhit) {
     if (x2 < g.bx + 3 - g.bhw || x1 > g.bx + 28 + g.bhw) return;
     if (y2 < g.by + 4 - g.bhh || y1 > g.by + 30) return;
-    let dmg = roll_damage();
+    let dmg = sword_dmg();
     dmg += (dmg * T.SLAYER) >> 2;
     hit_boss(dmg, roll_damage.crit);
   }
@@ -2156,6 +2160,8 @@ function update_player(pad, padNew) {
   if (g.roll_cd) --g.roll_cd;
   if (g.blink_cd) --g.blink_cd;
   if (g.cast_cd) --g.cast_cd;
+  if (g.swing_cd) --g.swing_cd;
+  if (g.swing_buf) --g.swing_buf;
   if (g.anim_t) { --g.anim_t; if (g.shot_pend && g.anim_t <= ANIM_SHOT) cast_bolt(); }
   if (g.roll_timer) {
     --g.roll_timer;
@@ -2207,8 +2213,10 @@ function update_player(pad, padNew) {
       for (k = 0; k < MAXM; ++k) g.m_hit[k] = 0;
       g.atk_timer = 0;
       sfx('roll'); fx('roll');
-    } else if ((padNew & PAD_B) && !g.atk_timer && IS_WARRIOR()) {
-      g.atk_timer = 14; g.slow_acc = 0;
+    } else if (IS_WARRIOR() && (padNew & PAD_B) && (g.atk_timer || g.swing_cd)) {
+      if (g.swing_cd <= 10) g.swing_buf = 10; // (pressed just early: swing as soon as it can)
+    } else if (((padNew & PAD_B) || g.swing_buf) && !g.atk_timer && !g.swing_cd && IS_WARRIOR()) {
+      g.atk_timer = 14; g.slow_acc = 0; g.swing_cd = SWING_CD; g.swing_buf = 0;
       g.rng = (g.rng + g.frame) & 0xFFFF || 1;
       for (let i = 0; i < MAXM; ++i) g.m_hit[i] = 0;
       g.bhit = 0;
