@@ -146,11 +146,11 @@ export function* botSteps(cls = 0, floors = 5, seed = 1, opts = {}) {
       let mx = 0, my = 0, pp = null;
       if (foe && !ranged && dist < 22) {
         // face it and swing
-        G.pdir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? D.DIR_RIGHT : D.DIR_LEFT) : (dy > 0 ? D.DIR_DOWN : D.DIR_UP);
+        S.faceDir(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? D.DIR_RIGHT : D.DIR_LEFT) : (dy > 0 ? D.DIR_DOWN : D.DIR_UP));
         if ((++press & 1)) padNew |= S.PAD_B;
         if (dist < 10) { mx = dx > 0 ? -1 : 1; } // back off a little
       } else if (foe && ranged && (Math.abs(dx) < 6 || Math.abs(dy) < 6) && dist < 120 && clear(G.px + 8, G.py + 8, tx + 8, ty + 8)) {
-        G.pdir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? D.DIR_RIGHT : D.DIR_LEFT) : (dy > 0 ? D.DIR_DOWN : D.DIR_UP);
+        S.faceDir(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? D.DIR_RIGHT : D.DIR_LEFT) : (dy > 0 ? D.DIR_DOWN : D.DIR_UP));
         if ((++press & 1)) padNew |= S.PAD_B;
         if (dist < 30) { if (Math.abs(dx) < 6) mx = (G.px < 120 ? 1 : -1); else my = (G.py < 110 ? 1 : -1); }
       } else if (Math.abs(dx) + Math.abs(dy) < 60 && (pp = nearPath(foe, ranged, tx, ty))) {

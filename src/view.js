@@ -333,7 +333,7 @@ export function update(dt, input) {
   const moving = G.moving ? 1 : 0;
   V.walk += moving * dt * 11;
   // facing: where the stick points while walking, the attack direction while attacking
-  let ang = DIR_ANG[G.pdir];
+  let ang = Math.atan2(G.pdx, G.pdy);
   if (!G.atk_timer && !G.anim_t && input && (input.dx || input.dy)) ang = Math.atan2(input.dx, input.dy);
   faceTo(V.hero, ang, dt, 16);
   const swing = G.player_class === 0 && G.atk_timer > 0 ? 1 - (G.atk_timer - 1) / 13 : -1;
@@ -346,7 +346,7 @@ export function update(dt, input) {
   // the slash trail
   if (swing >= 0.25 && swing <= 0.9) {
     trail.position.set(V.heroPos.x, 1.9, V.heroPos.z);
-    trail.rotation.z = (TAL.WHIRL ? V.hero.rotation.y + swing * TAU : DIR_ANG[G.pdir]) - Math.PI / 2;
+    trail.rotation.z = (TAL.WHIRL ? V.hero.rotation.y + swing * TAU : Math.atan2(G.pdx, G.pdy)) - Math.PI / 2;
     trail.material.opacity = 0.75 * (1 - (swing - 0.25) / 0.65);
     trail.scale.setScalar(TAL.WHIRL ? 1.1 : 1);
   } else trail.material.opacity = 0;
@@ -443,7 +443,7 @@ export function update(dt, input) {
     s.g.visible = true;
     s.g.position.x = smooth(s.g.position.x, x, dt, 40); s.g.position.z = smooth(s.g.position.z, z, dt, 40);
     s.arrow.visible = hunter; s.core.visible = !hunter; s.glow.visible = !hunter; s.light.visible = !hunter && camView.quality >= 2;
-    if (hunter) s.arrow.rotation.z = -DIR_ANG[G.bo_dir[b]] + Math.PI;
+    if (hunter) { const sg = c => (c === 1 ? 1 : c === 2 ? -1 : 0); s.arrow.rotation.z = -Math.atan2(sg(G.bo_dx[b]), sg(G.bo_dy[b])) + Math.PI; }
     else {
       const big = G.bo_big[b];
       const col = big ? '#ff8a2a' : bc;

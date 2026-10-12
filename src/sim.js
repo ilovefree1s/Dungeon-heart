@@ -38,7 +38,7 @@ export const G = {
   frame: 0, rng: 1,
   map: u8(MAP_W * MAP_H),
   // hero
-  px: 16, py: PLAY_Y + 80, pdir: DIR_RIGHT, pstep: 0, panim: 0, moving: 0,
+  px: 16, py: PLAY_Y + 80, pdir: DIR_RIGHT, pdx: 1, pdy: 0, dacc: 0, pstep: 0, panim: 0, moving: 0,
   atk_timer: 0, inv_timer: 0, regen_timer: 0, hp: 20, maxhp: 20, lvl: 1, str: 2, xp: 0, xpnext: 12, gold: 0, kills: 0,
   floor_num: 1, deepest: 1, player_class: 0, potions: 1, sacc: 0, full_item: 0, last_stand_used: 0,
   roll_timer: 0, roll_cd: 0, roll_dx: 0, roll_dy: 0, slow_acc: 0,
@@ -59,7 +59,7 @@ export const G = {
   // projectiles (monsters' and bosses' shots)
   pr_x: u8(MAXP), pr_y: u8(MAXP), pr_t: u8(MAXP), pr_atk: u8(MAXP), pr_dx: i8(MAXP), pr_dy: i8(MAXP), pr_bnc: u8(MAXP), pr_src: u8(MAXP),
   // bolts and arrows
-  bo_x: u8(MAXB), bo_y: u8(MAXB), bo_t: u8(MAXB), bo_dir: u8(MAXB), bo_pierce: u8(MAXB), bo_last: u8(MAXB), bo_big: u8(MAXB), bo_bnc: u8(MAXB),
+  bo_x: u8(MAXB), bo_y: u8(MAXB), bo_t: u8(MAXB), bo_dir: u8(MAXB), bo_pierce: u8(MAXB), bo_last: u8(MAXB), bo_big: u8(MAXB), bo_bnc: u8(MAXB), bo_dx: u8(MAXB), bo_dy: u8(MAXB),
   // floor items
   i_kind: u8(MAXI), i_x: u8(MAXI), i_y: u8(MAXI), i_rar: u8(MAXI), i_val: u8(MAXI), i_spec: u8(MAXI), i_tier: u8(MAXI), i_lvl: u8(MAXI),
   // hazards
@@ -1551,7 +1551,11 @@ export function slash_index() {
 function sword_hits() {
   const n0 = slash_index();
   const cl = v => (v < 64 ? 0 : (v > 319 ? 255 : v - 64));
-  const x1 = cl(g.px + SB_X1[n0]), x2 = cl(g.px + SB_X2[n0]), y1 = cl(g.py + SB_Y1[n0]), y2 = cl(g.py + SB_Y2[n0]);
+  let x1 = cl(g.px + SB_X1[n0]), x2 = cl(g.px + SB_X2[n0]), y1 = cl(g.py + SB_Y1[n0]), y2 = cl(g.py + SB_Y2[n0]);
+  if (g.pdx && g.pdy && !T.WHIRL) { // a diagonal swing: the square off that corner
+    const cx = g.px + 8 + g.pdx * 19, cy = g.py + 9 + g.pdy * 19, r = 15 + (13 - Math.min(13, g.atk_timer) > 3 ? 1 : 0);
+    x1 = cl(cx - r + 64); x2 = cl(cx + r + 64); y1 = cl(cy - r + 64); y2 = cl(cy + r + 64);
+  }
   g.sw_on = 1; g.sw_x1 = x1; g.sw_y1 = y1; g.sw_x2 = x2; g.sw_y2 = y2;
   for (let n = 0; n < MAXM; ++n) {
     const t = g.m_type[n];
@@ -1575,6 +1579,15 @@ function sword_hits() {
     hit_boss(dmg, roll_damage.crit);
   }
 }
+// facing: pdx / pdy are -1, 0 or 1 (eight ways); pdir keeps the nearest of the four for
+// knockback and the like (left / right win on a diagonal)
+const sgn = c => (c === 1 ? 1 : c === 2 ? -1 : 0), code = v => (v > 0 ? 1 : v < 0 ? 2 : 0);
+export function face(dx, dy) {
+  if (!dx && !dy) return;
+  g.pdx = dx; g.pdy = dy;
+  g.pdir = dx > 0 ? DIR_RIGHT : dx < 0 ? DIR_LEFT : dy < 0 ? DIR_UP : DIR_DOWN;
+}
+export const faceDir = dir => face(dir === DIR_RIGHT ? 1 : dir === DIR_LEFT ? -1 : 0, dir === DIR_DOWN ? 1 : dir === DIR_UP ? -1 : 0);
 function hero_step(dx, dy) {
   if (dx === 1) { if (!blocked(g.px + 1, g.py)) ++g.px; }
   else if (dx === 2) { if (!blocked(g.px - 1, g.py)) --g.px; }
@@ -1584,7 +1597,7 @@ function hero_step(dx, dy) {
 function spawn_bolt(x, y, big) {
   for (let k = 0; k < MAXB; ++k) {
     if (g.bo_t[k]) continue;
-    g.bo_x[k] = x; g.bo_y[k] = y; g.bo_dir[k] = g.pdir;
+    g.bo_x[k] = x; g.bo_y[k] = y; g.bo_dir[k] = g.pdir; g.bo_dx[k] = code(g.pdx); g.bo_dy[k] = code(g.pdy);
     g.bo_t[k] = IS_HUNTER() ? 38 + T.LONG * 12 : 44;
     g.bo_pierce[k] = T.FLAMEWAVE + T.PIERCE; g.bo_last[k] = 0; g.bo_big[k] = big; g.bo_bnc[k] = 0;
     fx('bolt', { b: k });
@@ -1602,29 +1615,17 @@ function cast_bolt() {
   g.shot_pend = 0;
   g.bolt_count = (g.bolt_count + 1) & 255;
   const big = T.METEOR && !(g.bolt_count & 3) ? 1 : 0;
-  let x = g.px + 4, y = g.py + 4;
-  switch (g.pdir) {
-    case DIR_UP: y -= 8; break;
-    case DIR_DOWN: y += 8; break;
-    case DIR_RIGHT: x += 8; break;
-    default: x -= 8;
-  }
-  x &= 255; y &= 255;
-  if (T.TWIN) {
-    if (g.pdir === DIR_UP || g.pdir === DIR_DOWN) { spawn_bolt(x - 5, y, big); spawn_bolt(x + 5, y, 0); }
-    else { spawn_bolt(x, y - 5, big); spawn_bolt(x, y + 5, 0); }
-  } else spawn_bolt(x, y, big);
-  if (T.MULTI) {
-    if (g.pdir === DIR_UP || g.pdir === DIR_DOWN) { spawn_bolt(x - 8, y, 0); spawn_bolt(x + 8, y, 0); }
-    else { spawn_bolt(x, y - 8, 0); spawn_bolt(x, y + 8, 0); }
-  }
+  const dx = g.pdx, dy = g.pdy, diag = dx && dy;
+  let x = (g.px + 4 + dx * (diag ? 6 : 8)) & 255, y = (g.py + 4 + dy * (diag ? 6 : 8)) & 255;
+  // side by side, across the way it flies
+  const side = (n, b) => { const q = diag ? Math.round(n * 0.7) : n; spawn_bolt((x - dy * q) & 255, (y + dx * q) & 255, b); };
+  if (T.TWIN) { side(-5, big); side(5, 0); } else spawn_bolt(x, y, big);
+  if (T.MULTI) { side(-8, 0); side(8, 0); }
   g.rng = (g.rng + g.frame) & 0xFFFF || 1;
   sfx(IS_HUNTER() ? 'shoot' : 'cast');
 }
 function do_blink(mx, my) {
-  if (!(mx | my)) {
-    switch (g.pdir) { case DIR_UP: my = 2; break; case DIR_DOWN: my = 1; break; case DIR_RIGHT: mx = 1; break; default: mx = 2; }
-  }
+  if (!(mx | my)) { mx = code(g.pdx); my = code(g.pdy); }
   const ox = g.px, oy = g.py;
   fx('blink', { x: g.px, y: g.py, c: '#9ad8ff', hero: 1 });
   for (let k = 0; k < 48; ++k) hero_step(mx, my);
@@ -1677,15 +1678,12 @@ function update_bolts() {
   for (let b = 0; b < MAXB; ++b) {
     if (!g.bo_t[b]) continue;
     --g.bo_t[b];
-    switch (g.bo_dir[b]) {
-      case DIR_UP: g.bo_y[b] -= k; break;
-      case DIR_DOWN: g.bo_y[b] += k; break;
-      case DIR_RIGHT: g.bo_x[b] += k; break;
-      default: g.bo_x[b] -= k;
-    }
+    // (on a diagonal a step less on each axis: about the same speed)
+    const ddx = sgn(g.bo_dx[b]), ddy = sgn(g.bo_dy[b]), kk = ddx && ddy ? k - 1 : k;
+    g.bo_x[b] = (g.bo_x[b] + ddx * kk) & 255; g.bo_y[b] = (g.bo_y[b] + ddy * kk) & 255;
     if (g.bo_x[b] < 8 || g.bo_x[b] > 240 || solid(g.bo_x[b] + 4, g.bo_y[b] + 4)) {
       if (g.hz === HZ_CRYSTAL && map_at(g.bo_x[b] + 4, g.bo_y[b] + 4) === T_PILLAR && !g.bo_bnc[b] && g.bo_x[b] >= 8 && g.bo_x[b] <= 240) {
-        g.bo_bnc[b] = 1; g.bo_dir[b] ^= 1; g.bo_last[b] = 0;
+        g.bo_bnc[b] = 1; g.bo_dir[b] ^= 1; g.bo_dx[b] = code(-sgn(g.bo_dx[b])); g.bo_dy[b] = code(-sgn(g.bo_dy[b])); g.bo_last[b] = 0;
         hz_hint(); fx('crystal', { x: g.bo_x[b], y: g.bo_y[b] });
         continue;
       }
@@ -2146,10 +2144,8 @@ function update_player(pad, padNew) {
     }
     if (pad & PAD_LEFT) mx = 2; else if (pad & PAD_RIGHT) mx = 1;
     if (pad & PAD_UP) my = 2; else if (pad & PAD_DOWN) my = 1;
-    if (!g.atk_timer) {
-      if (mx === 2) g.pdir = DIR_LEFT; else if (mx === 1) g.pdir = DIR_RIGHT;
-      else if (my === 2) g.pdir = DIR_UP; else if (my === 1) g.pdir = DIR_DOWN;
-    }
+    if (!g.atk_timer) face(sgn(mx), sgn(my));
+    if (mx && my && spd) { g.dacc += 181; if (g.dacc >= 256) g.dacc -= 256; else --spd; } // (a diagonal is no faster than straight)
     if (mx | my) { moved = 1; for (k = 0; k < spd; ++k) hero_step(mx, my); }
     if (g.hz === HZ_ICE) {
       if (!g.hz_here) { g.ice_dx = 0; g.ice_dy = 0; }
@@ -2163,9 +2159,7 @@ function update_player(pad, padNew) {
     } else if ((padNew & PAD_B) && !IS_WARRIOR()) {
       if (!g.cast_cd) cast_start();
     } else if ((padNew & PAD_A) && !g.roll_cd) {
-      if (!(mx | my)) {
-        switch (g.pdir) { case DIR_UP: my = 2; break; case DIR_DOWN: my = 1; break; case DIR_RIGHT: mx = 1; break; default: mx = 2; }
-      }
+      if (!(mx | my)) { mx = code(g.pdx); my = code(g.pdy); }
       g.roll_dx = mx; g.roll_dy = my; g.roll_timer = 16;
       g.roll_cd = g.eq_spec[3] === SP_QUICK ? 20 : 40;
       for (k = 0; k < MAXM; ++k) g.m_hit[k] = 0;
@@ -2285,7 +2279,7 @@ export function start_room() {
       g.door_open = 1;
     }
   }
-  g.px = 16; g.py = PLAY_Y + 5 * 16; g.pdir = DIR_RIGHT;
+  g.px = 16; g.py = PLAY_Y + 5 * 16; g.pdir = DIR_RIGHT; g.pdx = 1; g.pdy = 0;
   g.pet_x = 16; g.pet_y = PLAY_Y + 6 * 16; g.pet_cd = 30; g.pet_inv = 0;
   g.atk_timer = 0; g.anim_t = 0; g.shot_pend = 0; g.inv_timer = 60;
   if (g.floor_num > g.deepest) g.deepest = g.floor_num;
