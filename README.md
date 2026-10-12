@@ -5,7 +5,7 @@ tower as a warrior, mage or hunter: clear rooms of monsters, grab gear that glow
 rarity, pick a boss door (easy, medium or hard) at the end of every floor, and save
 your wife from the King on floor 50.
 
-**Play:** https://ilovefree1s.github.io/dungeon-heart/ (once GitHub Pages is on)
+**Play:** https://ilovefree1s.github.io/Dungeon-heart/
 
 ## Status
 Floor 1, room 1 as a playable preview of the look: the warrior, slimes, torches,
