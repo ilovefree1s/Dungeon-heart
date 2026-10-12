@@ -765,7 +765,7 @@ export function buildMerchant() {
 export function buildItem(kind, rar, cls) {
   const g = new THREE.Group(), model = new THREE.Group(); g.add(model);
   const rc = D.RAR_COLOR[rar] || '#ffffff';
-  const metal = std({ color: rar >= 2 ? new THREE.Color(rc).lerp(new THREE.Color('#ffffff'), 0.5) : '#cfd6de', metalness: 1, roughness: 0.2, envMapIntensity: 1.4, emissive: rar >= 1 ? rc : '#000000', emissiveIntensity: rar >= 3 ? 0.35 : 0.15 });
+  const metal = std({ color: rar >= 2 ? new THREE.Color(rc).lerp(new THREE.Color('#ffffff'), 0.25) : '#b8c0c8', metalness: 1, roughness: 0.2, envMapIntensity: 1.4, emissive: rar >= 1 ? rc : '#000000', emissiveIntensity: rar >= 3 ? 0.35 : 0.15 });
   const accent = std({ color: rc, metalness: 0.6, roughness: 0.3, emissive: rc, emissiveIntensity: rar >= 2 ? 0.5 : 0.2 });
   const leather = mat('leather', { color: '#5a3a22', roughness: 0.7 });
   switch (kind) {
@@ -774,15 +774,70 @@ export function buildItem(kind, rar, cls) {
       else if (cls === 1) { const p = mesh(cyl(0.05, 0.06, 1.8, 8), mat('staffw', { color: '#6a4426', roughness: 0.7 })); model.add(p); const o = mesh(sph(0.2, 12, 10), accent); o.position.y = 0.95; model.add(o); model.rotation.z = Math.PI / 4; }
       else { const curve = new THREE.CatmullRomCurve3([new V3(0, -0.8, 0), new V3(0.2, 0, 0), new V3(0, 0.8, 0)]); model.add(mesh(new THREE.TubeGeometry(curve, 12, 0.05, 6), accent)); const s = mesh(cyl(0.01, 0.01, 1.6, 4), mat('string', { color: '#eee' })); model.add(s); model.rotation.z = Math.PI / 4; }
       break;
-    case D.K_ARMOR: { const t = mesh(cap(0.42, 0.4, 12), metal); t.scale.z = 0.7; model.add(t); for (const s of [-1, 1]) { const p = mesh(sph(0.2, 10, 8), accent); p.position.set(0.45 * s, 0.35, 0); model.add(p); } break; }
-    case D.K_SHIELD:
-      if (cls === 0) { const f = mesh(cyl(0.6, 0.6, 0.1, 20), accent); f.rotation.x = Math.PI / 2; model.add(f); const r = mesh(new THREE.TorusGeometry(0.6, 0.06, 8, 24), metal); model.add(r); }
-      else if (cls === 1) { const o = mesh(sph(0.42, 16, 12), new THREE.MeshPhysicalMaterial({ color: rc, emissive: rc, emissiveIntensity: 0.8, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.85 })); model.add(o); const s = mesh(cyl(0.25, 0.32, 0.18, 10), metal); s.position.y = -0.45; model.add(s); }
-      else { model.add(mesh(cyl(0.22, 0.18, 1.0, 10), leather)); for (let i = 0; i < 4; i++) { const f = mesh(box(0.08, 0.2, 0.02), accent); f.position.set(-0.1 + i * 0.07, 0.65, 0); model.add(f); } model.rotation.z = 0.4; }
+    case D.K_ARMOR: {
+      // a breastplate: a turned cuirass, shoulder guards, a belt and a gem
+      const prof = [[0.001, 0.5], [0.2, 0.48], [0.4, 0.42], [0.47, 0.2], [0.44, -0.05], [0.38, -0.28], [0.41, -0.42], [0.001, -0.42]].map(([x, y]) => new THREE.Vector2(x, y));
+      const t = mesh(new THREE.LatheGeometry(prof, 20), metal); t.scale.z = 0.62; model.add(t);
+      const neck = mesh(cyl(0.17, 0.2, 0.08, 16), leather); neck.position.y = 0.5; model.add(neck);
+      for (const s of [-1, 1]) { const p = mesh(new THREE.SphereGeometry(0.24, 14, 10, 0, TAU, 0, Math.PI / 2), accent); p.position.set(0.44 * s, 0.38, 0); p.rotation.z = -0.5 * s; p.scale.set(1, 0.8, 0.9); model.add(p); }
+      const belt = mesh(cyl(0.41, 0.41, 0.1, 20), leather); belt.position.y = -0.33; belt.scale.z = 0.66; model.add(belt);
+      const buckle = mesh(box(0.14, 0.12, 0.05), mat('gold', { color: '#f0b73c', metalness: 1, roughness: 0.25 })); buckle.position.set(0, -0.33, 0.28); model.add(buckle);
+      const gem = mesh(new THREE.OctahedronGeometry(0.09), accent); gem.position.set(0, 0.16, 0.3); gem.scale.z = 0.5; model.add(gem);
       break;
-    case D.K_BOOTS: for (const s of [-1, 1]) { const b = mesh(box(0.3, 0.5, 0.3), accent); b.position.set(0.22 * s, 0.1, 0); model.add(b); const f = mesh(box(0.3, 0.18, 0.55), accent); f.position.set(0.22 * s, -0.12, 0.13); model.add(f); } break;
-    case D.K_GLOVES: for (const s of [-1, 1]) { const h = mesh(sph(0.24, 12, 10), accent); h.position.set(0.28 * s, 0, 0); h.scale.set(1, 1.2, 0.6); model.add(h); const c = mesh(cyl(0.2, 0.22, 0.25, 10), metal); c.position.set(0.28 * s, -0.3, 0); model.add(c); } break;
-    case D.K_HELMET: { const h = mesh(new THREE.SphereGeometry(0.45, 16, 12, 0, TAU, 0, Math.PI / 1.8), metal); model.add(h); const c = mesh(box(0.08, 0.3, 0.6), accent); c.position.y = 0.4; model.add(c); break; }
+    }
+    case D.K_SHIELD:
+      if (cls === 0) {
+        // a heater shield: a flat top, sides curving to a point; a rim and a boss
+        const sh = new THREE.Shape(); sh.moveTo(-0.5, 0.5); sh.lineTo(0.5, 0.5); sh.quadraticCurveTo(0.5, -0.2, 0, -0.65); sh.quadraticCurveTo(-0.5, -0.2, -0.5, 0.5);
+        const f = mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.05, bevelSegments: 3, curveSegments: 16 }), accent); f.position.z = -0.04; model.add(f);
+        const bar = mesh(box(0.14, 0.95, 0.06), metal); bar.position.set(0, -0.05, 0.1); model.add(bar);
+        const bar2 = mesh(box(0.8, 0.14, 0.06), metal); bar2.position.set(0, 0.2, 0.1); model.add(bar2);
+        const boss = mesh(sph(0.14, 14, 10), metal); boss.position.set(0, 0.2, 0.12); boss.scale.z = 0.6; model.add(boss);
+      }
+      else if (cls === 1) { const o = mesh(sph(0.42, 16, 12), new THREE.MeshPhysicalMaterial({ color: rc, emissive: rc, emissiveIntensity: 0.55, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.85 })); model.add(o); const s = mesh(cyl(0.25, 0.32, 0.18, 10), metal); s.position.y = -0.45; model.add(s); for (let i = 0; i < 3; i++) { const c = mesh(box(0.06, 0.2, 0.06), metal); c.position.set(Math.cos(i * 2.1) * 0.24, -0.32, Math.sin(i * 2.1) * 0.24); c.rotation.z = Math.cos(i * 2.1) * 0.6; model.add(c); } }
+      else {
+        // a quiver of arrows on a strap
+        model.add(mesh(cyl(0.22, 0.17, 1.0, 14), leather));
+        const band = mesh(cyl(0.23, 0.23, 0.1, 14), accent); band.position.y = 0.38; model.add(band);
+        const band2 = mesh(cyl(0.2, 0.2, 0.08, 14), accent); band2.position.y = -0.3; model.add(band2);
+        for (let i = 0; i < 4; i++) { const x = -0.1 + i * 0.07, z = (i & 1) * 0.06 - 0.03; const sft = mesh(cyl(0.015, 0.015, 0.4, 5), mat('shaft', { color: '#c8a070' })); sft.position.set(x, 0.6, z); model.add(sft); const fl = mesh(box(0.1, 0.18, 0.015), mat('fletch', { color: '#f2ece0', roughness: 0.8 })); fl.position.set(x, 0.75, z); model.add(fl); }
+        model.rotation.z = 0.4;
+      }
+      break;
+    case D.K_BOOTS: {
+      // two boots from a side profile: shaft, heel, rounded toe; a cuff in the rarity's color
+      const sh = new THREE.Shape(); sh.moveTo(-0.18, 0.45); sh.lineTo(0.12, 0.45); sh.lineTo(0.12, 0.0); sh.quadraticCurveTo(0.45, -0.02, 0.48, -0.18); sh.lineTo(0.48, -0.28); sh.lineTo(-0.22, -0.28); sh.lineTo(-0.2, 0.0); sh.lineTo(-0.18, 0.45);
+      const g2 = new THREE.ExtrudeGeometry(sh, { depth: 0.2, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2, curveSegments: 10 });
+      for (const s of [-1, 1]) {
+        const bt = new THREE.Group();
+        bt.add(mesh(g2, rar ? mat('bootl' + rar, { color: new THREE.Color('#6a4426').lerp(new THREE.Color(rc), 0.35), roughness: 0.6 }) : leather));
+        const cuff = mesh(box(0.36, 0.1, 0.3), accent); cuff.position.set(-0.03, 0.45, 0.1); bt.add(cuff);
+        const sole = mesh(box(0.74, 0.06, 0.3), mat('sole', { color: '#2a1a10', roughness: 0.9 })); sole.position.set(0.13, -0.3, 0.1); bt.add(sole);
+        bt.position.set(s * 0.12, 0, s * 0.22 - 0.1); bt.rotation.y = -0.9;
+        model.add(bt);
+      }
+      break;
+    }
+    case D.K_GLOVES: {
+      // a gauntlet: palm, four fingers, a thumb, a flared cuff
+      const hand = new THREE.Group();
+      const palm = mesh(box(0.42, 0.42, 0.16), accent); hand.add(palm);
+      for (let i = 0; i < 4; i++) { const f = mesh(cap(0.055, 0.22 - Math.abs(i - 1.5) * 0.04, 6), accent); f.position.set(-0.15 + i * 0.1, 0.34 - Math.abs(i - 1.5) * 0.02, 0); hand.add(f); }
+      const th = mesh(cap(0.06, 0.18, 6), accent); th.position.set(0.26, 0.04, 0.03); th.rotation.z = -0.8; hand.add(th);
+      const cuff = mesh(cyl(0.3, 0.23, 0.3, 14), metal); cuff.position.y = -0.34; cuff.scale.z = 0.55; hand.add(cuff);
+      const knuck = mesh(box(0.44, 0.08, 0.06), metal); knuck.position.set(0, 0.16, 0.09); hand.add(knuck);
+      hand.rotation.z = 0.25;
+      model.add(hand);
+      break;
+    }
+    case D.K_HELMET: {
+      const h = mesh(new THREE.SphereGeometry(0.45, 18, 12, 0, TAU, 0, Math.PI / 1.8), metal); model.add(h);
+      const rim = mesh(new THREE.TorusGeometry(0.44, 0.04, 8, 24), accent); rim.rotation.x = Math.PI / 2; rim.position.y = -0.05; model.add(rim);
+      const nose = mesh(box(0.08, 0.26, 0.06), metal); nose.position.set(0, -0.08, 0.44); model.add(nose);
+      const c = mesh(box(0.08, 0.3, 0.6), accent); c.position.y = 0.4; model.add(c);
+      for (const s of [-1, 1]) { const ch = mesh(box(0.06, 0.22, 0.24), metal); ch.position.set(0.4 * s, -0.13, 0.16); ch.rotation.y = 0.5 * s; model.add(ch); }
+      break;
+    }
     case D.K_TRINKET: { const r = mesh(new THREE.TorusGeometry(0.3, 0.06, 8, 20), mat('gold', { color: '#f0b73c', metalness: 1, roughness: 0.25 })); model.add(r); const gem = mesh(new THREE.OctahedronGeometry(0.22), new THREE.MeshPhysicalMaterial({ color: rc, emissive: rc, emissiveIntensity: 1, roughness: 0.05, clearcoat: 1 })); gem.position.y = -0.32; model.add(gem); break; }
     case D.K_POTION: { const b = mesh(sph(0.32, 14, 12), new THREE.MeshPhysicalMaterial({ color: '#ff3a4a', emissive: '#a0101a', emissiveIntensity: 0.8, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.92 })); model.add(b); const n = mesh(cyl(0.1, 0.12, 0.25, 8), mat('glass', { color: '#d8f0e0', roughness: 0.1 })); n.position.y = 0.32; model.add(n); const c = mesh(cyl(0.11, 0.11, 0.1, 8), mat('cork', { color: '#a87a4a' })); c.position.y = 0.48; model.add(c); break; }
     case D.K_GOLD: {
