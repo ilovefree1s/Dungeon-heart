@@ -124,10 +124,10 @@ export function buildTitleWorld() {
   const wl = new GlowLight('#ffc070', 12, 12, 1.4); wl.position.set(0, topY + 4, topZ - 1.5); root.add(wl); lights.push(wl);
 
   // ---------------------------------------------------------------- the knight on the bridge
-  const knight = buildHero(0); equipHeroWeapon(knight, 0, 1, 0); knight.scale.multiplyScalar(1.15); knight.position.set(0, 0, 8); knight.rotation.y = Math.PI; root.add(knight);
+  const knight = buildHero(0); equipHeroWeapon(knight, 0, 1, 0); knight.scale.multiplyScalar(1.15); knight.position.set(0, 0, 3); knight.rotation.y = Math.PI; root.add(knight);
 
   // ---------------------------------------------------------------- the dark towers and battlements all round
-  const towers = [[-19, -16, 9, 12], [19, -15, 9, 12], [-24, 2, 8, 14], [24, 4, 8, 14], [-19, 22, 10, 10], [19, 21, 10, 10], [-12, -28, 8, 8], [12, -28, 8, 8], [-30, -12, 6, 10], [30, -10, 6, 10], [-30, 16, 6, 8], [30, 16, 6, 8]];
+  const towers = [[-19, -16, 9, 12], [19, -15, 9, 12], [-24, 2, 8, 14], [24, 4, 8, 14], [-19, 22, 10, 10], [19, 21, 10, 10], [-12, -28, 8, 8], [12, -28, 8, 8], [-30, -12, 6, 10], [30, -10, 6, 10], [-30, 16, 6, 8], [30, 16, 6, 8], [-22, -34, 10, 10], [22, -34, 10, 10], [0, -42, 14, 8], [-36, -26, 8, 10], [36, -26, 8, 10], [-10, -48, 8, 8], [10, -50, 8, 8]];
   for (const [x, z, w, d] of towers) {
     const top = -2 + r() * 8, h = top + 40;
     const tw = sbox(w, h, d, Math.abs(x) > 26 || z < -24 ? far : dark); tw.position.set(x, top - h / 2, z); root.add(tw);
@@ -162,5 +162,7 @@ export function buildTitleWorld() {
     glowS.material.opacity = 0.14 + Math.sin(t * 1.6) * 0.03;
     wl.intensity = 12 + Math.sin(t * 2) * 2;
   }
-  return { root, update };
+  // the camera: behind and above the knight, looking up the bridge and the stairs at her
+  const cam = { pos: new V3(0, 22, 23), look: new V3(0, 2.5, -7.5), fov: 50, posP: new V3(0, 27, 31), lookP: new V3(0, 2, -6), fovP: 64 };
+  return { root, update, cam };
 }

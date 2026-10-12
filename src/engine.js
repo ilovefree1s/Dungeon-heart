@@ -56,7 +56,7 @@ export const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.45,
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
-export const view = { w: 1, h: 1, dist: 40, zoom: 1, zoff: 0, pitch: 1.24, bloomOn: true, follow: false, quality: 2 };
+export const view = { w: 1, h: 1, dist: 40, cam: null, pitch: 1.24, bloomOn: true, follow: false, quality: 2 };
 export function resize() {
   const w = innerWidth, h = innerHeight;
   view.w = w; view.h = h;
@@ -73,15 +73,31 @@ export function resize() {
 }
 const camFocus = new V3();
 export const shake = { x: 0, z: 0, t: 0, amp: 0 };
+// a camera of the title screen's own (third person, behind the knight): view.cam = { pos, look, fov }
+const camLook = new V3();
+function titleCamera() {
+  const c = view.cam, t = performance.now() / 1000;
+  const portrait = camera.aspect < 0.9;
+  const fov = portrait ? c.fovP : c.fov;
+  if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
+  const p = portrait ? c.posP : c.pos;
+  camera.position.set(p.x + Math.sin(t * 0.25) * 0.6, p.y + Math.sin(t * 0.33) * 0.25, p.z);
+  camLook.copy(portrait ? c.lookP : c.look);
+  camera.lookAt(camLook);
+  scene.fog.near = 45; scene.fog.far = 140;
+  sun.position.set(-14, 40, 18); sun.target.position.set(0, 0, 0);
+}
 export function placeCamera(x, z, snap) {
+  if (view.cam) { titleCamera(); return; }
+  if (camera.fov !== FOV) { camera.fov = FOV; camera.updateProjectionMatrix(); scene.fog.near = view.dist + 20; scene.fog.far = view.dist + 80; }
   const t = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
-  const dist = view.dist * view.zoom; // (the title screen comes in closer, so the room fills a wide screen)
+  const dist = view.dist;
   const visW = t * dist * camera.aspect, visD = t * dist * 0.9;
   // (the room inside its thin walls is 14 cells wide: drift toward the hero only when it doesn't fit)
   const mx = Math.max(0, 14 * CELL / 2 + 0.6 - visW), mz = Math.max(0, ROOM_D / 2 - visD + 2);
   const tx = view.follow ? THREE.MathUtils.clamp(x, -mx, mx) : THREE.MathUtils.clamp(x * 0.12, -mx, mx);
   const tz = view.follow ? THREE.MathUtils.clamp(z, -mz, mz) : THREE.MathUtils.clamp(z * 0.12, -1.2, 1.2);
-  if (snap) camFocus.set(tx, 0, tz + view.zoff); else camFocus.lerp(new V3(tx, 0, tz + view.zoff), 0.08);
+  if (snap) camFocus.set(tx, 0, tz); else camFocus.lerp(new V3(tx, 0, tz), 0.08);
   const p = view.pitch, d = dist;
   if (shake.t > 0) { shake.x = (Math.random() - 0.5) * shake.amp; shake.z = (Math.random() - 0.5) * shake.amp; } else shake.x = shake.z = 0;
   camera.position.set(camFocus.x + shake.x, Math.sin(p) * d, camFocus.z + 1.5 + Math.cos(p) * d + shake.z);

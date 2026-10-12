@@ -331,8 +331,7 @@ function titleScene(on, t) {
   if (on && !titleWorld) { titleWorld = buildTitleWorld(); scene.add(titleWorld.root); }
   roomGroup.visible = !on;
   heroShadow.visible = !on;
-  const wide = on && camView.w > camView.h * 1.1;
-  camView.zoom = !on ? 1 : wide ? 1.12 : 0.62; camView.zoff = on ? (wide ? -10 : -7.5) : 0;
+  camView.cam = on && titleWorld ? titleWorld.cam : null;
   if (!titleWorld) return;
   titleWorld.root.visible = on;
   if (on) titleWorld.update(t);
