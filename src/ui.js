@@ -52,6 +52,7 @@ const SCREENS = ['sTitle', 'sClass', 'sStory', 'sInv', 'sShop', 'sTrade', 'sPaus
 export function show(id) {
   for (const s of SCREENS) $(s).hidden = s !== id;
   UI.modal = id;
+  if (id) { $('banner').classList.remove('on'); UI.bannerT = 0; }
   const play = !id || id === null;
   $('hud').hidden = !(G.state === 'play' || G.state === 'rescue') || (id && id !== 'sInv' && id !== 'sShop' && id !== 'sTrade' && id !== 'sPause' && id !== 'sDead');
   $('touch').hidden = !!id || !(G.state === 'play');
@@ -133,7 +134,7 @@ for (const c of document.querySelectorAll('.card')) {
   c.onmouseenter = () => UI.hooks.classPreview && UI.hooks.classPreview(+c.dataset.cls);
 }
 $('bClassBack').onclick = () => title();
-$('bStory').onclick = () => { sfx('door'); fadeThen(() => { S.new_hero(UI.cls); S.start_room(); show(null); banner('FLOOR 1', 'STONE KEEP', 2.2); }); };
+$('bStory').onclick = () => { sfx('door'); fadeThen(() => { S.new_hero(UI.cls); S.start_room(); show(null); }); };
 
 // ---------------------------------------------------------------- options
 const qBtns = [...$('oQual').querySelectorAll('button')];

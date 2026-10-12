@@ -497,7 +497,7 @@ function buildHazards(G, th, r) {
         break;
       }
       case D.HZ_ICE: {
-        const ice = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.1, CELL), new THREE.MeshPhysicalMaterial({ color: '#cfeaff', roughness: 0.04, metalness: 0.05, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.4, transparent: true, opacity: 0.85 }));
+        const ice = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.1, CELL), new THREE.MeshPhysicalMaterial({ color: '#7fb8e4', roughness: 0.3, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.25, envMapIntensity: 0.5, transparent: true, opacity: 0.7 }));
         ice.position.y = 0.05; ice.receiveShadow = true; g.add(ice);
         break;
       }
@@ -588,7 +588,7 @@ function prop(t, r) {
       for (let i = 0; i < 4; i++) {
         const h = 0.4 + r() * 0.7, x = (r() - 0.5) * 1.6, z = (r() - 0.5) * 1.6;
         const st = mesh(new THREE.CylinderGeometry(0.08, 0.1, h, 6), pm('stem', { color: '#d8e0c0', roughness: 0.6 })); st.position.set(x, h / 2, z); g.add(st);
-        const cap = mesh(new THREE.SphereGeometry(0.28 + r() * 0.2, 12, 8, 0, TAU, 0, Math.PI / 2), pm('cap', { color: '#5fe0a0', emissive: '#1fa860', emissiveIntensity: 0.9, roughness: 0.4 })); cap.position.set(x, h, z); g.add(cap);
+        const cap = mesh(new THREE.SphereGeometry(0.28 + r() * 0.2, 12, 8, 0, TAU, 0, Math.PI / 2), pm('cap', { color: '#3fae74', emissive: '#178a4c', emissiveIntensity: 0.4, roughness: 0.4 })); cap.position.set(x, h, z); g.add(cap);
       }
       break;
     case 2: // frost: ice crystals

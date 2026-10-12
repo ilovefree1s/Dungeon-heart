@@ -20,7 +20,7 @@ const ls = {
 };
 let backdrop = false; // (the title screen's room is never saved)
 S.storage.get = () => ls.get(S.SAVE_KEY);
-S.storage.set = v => { if (!backdrop) ls.set(S.SAVE_KEY, v); };
+S.storage.set = v => { if (!backdrop && G.state !== 'title') ls.set(S.SAVE_KEY, v); };
 
 // ---------------------------------------------------------------- options
 function loadOpts() {
