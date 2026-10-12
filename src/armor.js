@@ -13,7 +13,7 @@ const half = r => new THREE.SphereGeometry(r, 16, 10, 0, TAU, 0, Math.PI / 2);
 const lathe = pts => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), 24);
 
 // the materials for a rarity: the main surface, the trim, a glowing core
-function kit(cls, rar, tier) {
+export function kit(cls, rar, tier) {
   const d = tier & 3, L = LEG[d];
   const k = { d, L, rar };
   const plate = [['#7d838a', 0.7, 0.6], ['#a9b1ba', 0.85, 0.4], ['#e6edf5', 1, 0.14], ['#2e2a40', 1, 0.22]];
@@ -23,7 +23,7 @@ function kit(cls, rar, tier) {
     if (cls === 0) { const [c, m, r] = plate[rar]; k.base = std({ color: c, metalness: m, roughness: r, envMapIntensity: rar >= 2 ? 1.3 : 0.7 }); }
     else k.base = std({ color: (cls === 1 ? cloth : hide)[rar], roughness: cls === 1 ? 0.75 : 0.6 });
   } else {
-    k.base = d === 1 ? new THREE.MeshPhysicalMaterial({ color: '#bff0ff', emissive: '#2a90d0', emissiveIntensity: 0.5, roughness: 0.06, clearcoat: 1, metalness: 0 })
+    k.base = d === 1 ? new THREE.MeshPhysicalMaterial({ color: '#9fd8f0', emissive: '#2a90d0', emissiveIntensity: 0.25, roughness: 0.12, clearcoat: 1, metalness: 0 })
       : d === 2 ? std({ color: '#141020', metalness: cls === 1 ? 0.2 : 0.9, roughness: 0.2 })
       : d === 0 ? std({ color: cls === 1 ? '#8a1a0a' : '#3a1a10', metalness: cls === 1 ? 0 : 0.8, roughness: 0.3, emissive: '#5a1000', emissiveIntensity: 0.6 })
       : std({ color: cls === 1 ? '#f4ecd8' : '#ffd860', metalness: cls === 1 ? 0.1 : 1, roughness: 0.15, emissive: '#a06000', emissiveIntensity: 0.3, envMapIntensity: 1.5 });
@@ -37,7 +37,7 @@ function kit(cls, rar, tier) {
   return k;
 }
 // the legendary motion: embers rise, ice circles, void sparks spin, sun sparkles drift up
-function legendBits(g, k, center, radius, height, n = 6, haloK = 3.2) {
+export function legendBits(g, k, center, radius, height, n = 6, haloK = 3.2) {
   const { d, L } = k, bits = [];
   for (let i = 0; i < n; i++) {
     const b = d === 1 ? mesh(new THREE.OctahedronGeometry(0.05), k.base, false) : sprite(d === 0 ? TEX.flame : TEX.spark, i & 1 ? L.b : L.a, d === 0 ? 0.32 : 0.24);
@@ -56,7 +56,7 @@ function legendBits(g, k, center, radius, height, n = 6, haloK = 3.2) {
     });
   };
 }
-function orbitRing(g, k, y, r, tilt = 0) {
+export function orbitRing(g, k, y, r, tilt = 0) {
   const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.016, 8, 48), glowMat(k.L.a, 0.85)); ring.position.y = y; g.add(ring);
   return t => ring.rotation.set(Math.PI / 2 + Math.sin(t * 0.9) * 0.35 + tilt, t * 1.2, 0);
 }

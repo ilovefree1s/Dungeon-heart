@@ -174,15 +174,15 @@ function ensureHero() {
   if (V.hero) scene.remove(V.hero);
   V.hero = buildHero(G.player_class);
   V.heroCls = G.player_class;
-  V.heroW = -1; V.hw1 = V.hw5 = -2;
+  V.heroW = -1; for (let i = 1; i < 7; i++) V['hw' + i] = -2;
   scene.add(V.hero);
 }
 // the weapon in the hero's hand is the one equipped
 function syncWeapon() {
   const key = G.eq_rar[0] * 8 + G.eq_tier[0];
   if (key !== V.heroW) { V.heroW = key; equipHeroWeapon(V.hero, G.player_class, G.eq_rar[0], G.eq_tier[0]); }
-  // armor (slot 1) and helmet (slot 5)
-  for (const [i, which] of [[1, 'armor'], [5, 'helm']]) {
+  // the rest of the gear: armor, shield, boots, gloves, helmet, trinket (slots 1-6)
+  for (const [i, which] of [[1, 'armor'], [2, 'shield'], [3, 'boots'], [4, 'gloves'], [5, 'helm'], [6, 'trinket']]) {
     const k = G.eq_has[i] ? G.eq_rar[i] * 8 + G.eq_tier[i] : -1;
     if (V['hw' + i] === k) continue;
     V['hw' + i] = k;

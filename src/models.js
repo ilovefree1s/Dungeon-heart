@@ -6,6 +6,7 @@
 import { THREE, std, mesh, sph, TEX, TAU, V3 } from './engine.js';
 import { buildWeapon } from './weapons.js';
 import { buildArmor, buildHelmet, heroArmor, heroHelm } from './armor.js';
+import { buildShield, buildBoots, buildGloves, buildTrinket, heroHands, heroFeet, heroPendant } from './gear.js';
 import * as D from './data.js';
 
 const M = {}; // shared materials
@@ -171,19 +172,52 @@ export function buildHunter() {
   const strGeo = new THREE.BufferGeometry().setFromPoints([new V3(0, -0.75, -0.1), new V3(0, 0, -0.1), new V3(0, 0.75, -0.1)]);
   const string = new THREE.Line(strGeo, new THREE.LineBasicMaterial({ color: '#ece4d0' })); bow.add(string);
   bow.rotation.set(Math.PI / 2, 0, 0);
-  Object.assign(root.userData, { cape, bow, string, weapon: 'bow' });
+  Object.assign(root.userData, { cape, bow, string, quiver, weapon: 'bow' });
   return finish(root, 2.15);
 }
 export const buildHero = cls => makeFlashable([buildWarrior, buildMage, buildHunter][cls]());
-// armor and helmet on the hero: rare and better show (null takes them off)
+// gear on the hero: rare and better show (rar -1 takes it off). which: armor, helm, shield, gloves, boots, trinket
 export function equipHeroGear(root, cls, which, rar, tier) {
-  const u = root.userData, key = which === 'armor' ? 'wearA' : 'wearH';
-  if (u[key]) { u[key].parent.remove(u[key]); u[key] = null; }
-  const w = rar < 0 ? null : which === 'armor' ? heroArmor(cls, rar, tier) : heroHelm(cls, rar, tier);
-  if (!w) return;
-  w.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  (which === 'armor' ? u.body : u.head).add(w);
-  u[key] = w;
+  const u = root.userData;
+  u.wear ||= {};
+  const old = u.wear[which];
+  if (old) { for (const o of old.parts) o.parent && o.parent.remove(o); delete u.wear[which]; }
+  if (which === 'shield') { equipShield(u, cls, rar, tier); return; }
+  if (rar < 0) return;
+  let parts = null, tick = null;
+  if (which === 'armor' || which === 'helm' || which === 'trinket') {
+    const w = which === 'armor' ? heroArmor(cls, rar, tier) : which === 'helm' ? heroHelm(cls, rar, tier) : heroPendant(rar, tier);
+    if (!w) return;
+    (which === 'helm' ? u.head : u.body).add(w);
+    parts = [w]; tick = w.userData.tick;
+  } else {
+    const arr = which === 'gloves' ? heroHands(rar, tier) : heroFeet(rar, tier);
+    if (!arr) return;
+    arr.forEach((g, i) => (which === 'gloves' ? u.arms : u.legs)[i].add(g));
+    parts = arr; tick = arr.tick;
+  }
+  // (one soft aura is enough on a hero: the armor keeps its own, the rest go)
+  for (const p of parts) p.traverse(o => { if (o.isMesh) o.castShadow = true; if (which !== 'armor' && o.isSprite && o.material.map === TEX.soft) o.visible = false; });
+  u.wear[which] = { parts, tick };
+}
+// the warrior's shield in hand, the hunter's quiver on the back, the mage's orb floating by
+function equipShield(u, cls, rar, tier) {
+  const r = Math.max(0, rar);
+  if (cls === 0 && u.shield) {
+    for (const c of [...u.shield.children]) u.shield.remove(c);
+    const sh = buildShield(0, r, tier); sh.scale.setScalar(0.74); u.shield.add(sh);
+    u.wear.shield = { parts: [sh], tick: sh.userData.tick };
+  } else if (cls === 2 && u.quiver) {
+    for (const c of [...u.quiver.children]) u.quiver.remove(c);
+    const q = buildShield(2, r, tier); q.rotation.z = 0; q.scale.setScalar(0.62); q.position.y = 0.05; u.quiver.add(q);
+    u.wear.shield = { parts: [q], tick: q.userData.tick };
+  } else if (cls === 1 && rar >= 2) {
+    const o = buildShield(1, r, tier); o.scale.setScalar(0.42); o.position.set(-0.62, 1.15, 0.25); u.body.add(o);
+    const base = o.userData.tick;
+    u.wear.shield = { parts: [o], tick: t => { base(t); o.position.y = 1.15 + Math.sin(t * 2) * 0.06; o.rotation.y = t * 0.6; } };
+  }
+  const parts = u.wear.shield ? u.wear.shield.parts : [];
+  for (const p of parts) p.traverse(o => { if (o.isMesh) o.castShadow = true; if (o.isSprite && o.material.map === TEX.soft && cls !== 1) o.visible = false; });
 }
 // put the equipped weapon in the hero's hand (rarity 0-4, tier 0-7)
 export function equipHeroWeapon(root, cls, rar, tier) {
@@ -251,8 +285,7 @@ export function animHero(root, t, s) {
     } else { u.arms[1].position.z = 0; u.string.geometry.attributes.position.setZ(1, u.stringZ ?? -0.1); u.string.geometry.attributes.position.needsUpdate = true; }
   }
   if (u.wtick) u.wtick(t);
-  if (u.wearA) u.wearA.userData.tick(t);
-  if (u.wearH) u.wearH.userData.tick(t);
+  if (u.wear) for (const w in u.wear) u.wear[w].tick && u.wear[w].tick(t);
 }
 
 // ---------------------------------------------------------------- monsters
@@ -813,53 +846,11 @@ export function buildItem(kind, rar, cls, tier = 0) {
       break;
     }
     case D.K_ARMOR: { const a = buildArmor(cls, rar, tier); a.scale.setScalar(1.05); model.add(a); g.userData.wtick = a.userData.tick; break; }
-    case D.K_SHIELD:
-      if (cls === 0) {
-        // a heater shield: a flat top, sides curving to a point; a rim and a boss
-        const sh = new THREE.Shape(); sh.moveTo(-0.5, 0.5); sh.lineTo(0.5, 0.5); sh.quadraticCurveTo(0.5, -0.2, 0, -0.65); sh.quadraticCurveTo(-0.5, -0.2, -0.5, 0.5);
-        const f = mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.05, bevelSegments: 3, curveSegments: 16 }), accent); f.position.z = -0.04; model.add(f);
-        const bar = mesh(box(0.14, 0.95, 0.06), metal); bar.position.set(0, -0.05, 0.1); model.add(bar);
-        const bar2 = mesh(box(0.8, 0.14, 0.06), metal); bar2.position.set(0, 0.2, 0.1); model.add(bar2);
-        const boss = mesh(sph(0.14, 14, 10), metal); boss.position.set(0, 0.2, 0.12); boss.scale.z = 0.6; model.add(boss);
-      }
-      else if (cls === 1) { const o = mesh(sph(0.42, 16, 12), new THREE.MeshPhysicalMaterial({ color: rc, emissive: rc, emissiveIntensity: 0.55, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.85 })); model.add(o); const s = mesh(cyl(0.25, 0.32, 0.18, 10), metal); s.position.y = -0.45; model.add(s); for (let i = 0; i < 3; i++) { const c = mesh(box(0.06, 0.2, 0.06), metal); c.position.set(Math.cos(i * 2.1) * 0.24, -0.32, Math.sin(i * 2.1) * 0.24); c.rotation.z = Math.cos(i * 2.1) * 0.6; model.add(c); } }
-      else {
-        // a quiver of arrows on a strap
-        model.add(mesh(cyl(0.22, 0.17, 1.0, 14), leather));
-        const band = mesh(cyl(0.23, 0.23, 0.1, 14), accent); band.position.y = 0.38; model.add(band);
-        const band2 = mesh(cyl(0.2, 0.2, 0.08, 14), accent); band2.position.y = -0.3; model.add(band2);
-        for (let i = 0; i < 4; i++) { const x = -0.1 + i * 0.07, z = (i & 1) * 0.06 - 0.03; const sft = mesh(cyl(0.015, 0.015, 0.4, 5), mat('shaft', { color: '#c8a070' })); sft.position.set(x, 0.6, z); model.add(sft); const fl = mesh(box(0.1, 0.18, 0.015), mat('fletch', { color: '#f2ece0', roughness: 0.8 })); fl.position.set(x, 0.75, z); model.add(fl); }
-        model.rotation.z = 0.4;
-      }
-      break;
-    case D.K_BOOTS: {
-      // two boots from a side profile: shaft, heel, rounded toe; a cuff in the rarity's color
-      const sh = new THREE.Shape(); sh.moveTo(-0.18, 0.45); sh.lineTo(0.12, 0.45); sh.lineTo(0.12, 0.0); sh.quadraticCurveTo(0.45, -0.02, 0.48, -0.18); sh.lineTo(0.48, -0.28); sh.lineTo(-0.22, -0.28); sh.lineTo(-0.2, 0.0); sh.lineTo(-0.18, 0.45);
-      const g2 = new THREE.ExtrudeGeometry(sh, { depth: 0.2, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2, curveSegments: 10 });
-      for (const s of [-1, 1]) {
-        const bt = new THREE.Group();
-        bt.add(mesh(g2, rar ? mat('bootl' + rar, { color: new THREE.Color('#6a4426').lerp(new THREE.Color(rc), 0.35), roughness: 0.6 }) : leather));
-        const cuff = mesh(box(0.36, 0.1, 0.3), accent); cuff.position.set(-0.03, 0.45, 0.1); bt.add(cuff);
-        const sole = mesh(box(0.74, 0.06, 0.3), mat('sole', { color: '#2a1a10', roughness: 0.9 })); sole.position.set(0.13, -0.3, 0.1); bt.add(sole);
-        bt.position.set(s * 0.12, 0, s * 0.22 - 0.1); bt.rotation.y = -0.9;
-        model.add(bt);
-      }
-      break;
-    }
-    case D.K_GLOVES: {
-      // a gauntlet: palm, four fingers, a thumb, a flared cuff
-      const hand = new THREE.Group();
-      const palm = mesh(box(0.42, 0.42, 0.16), accent); hand.add(palm);
-      for (let i = 0; i < 4; i++) { const f = mesh(cap(0.055, 0.22 - Math.abs(i - 1.5) * 0.04, 6), accent); f.position.set(-0.15 + i * 0.1, 0.34 - Math.abs(i - 1.5) * 0.02, 0); hand.add(f); }
-      const th = mesh(cap(0.06, 0.18, 6), accent); th.position.set(0.26, 0.04, 0.03); th.rotation.z = -0.8; hand.add(th);
-      const cuff = mesh(cyl(0.3, 0.23, 0.3, 14), metal); cuff.position.y = -0.34; cuff.scale.z = 0.55; hand.add(cuff);
-      const knuck = mesh(box(0.44, 0.08, 0.06), metal); knuck.position.set(0, 0.16, 0.09); hand.add(knuck);
-      hand.rotation.z = 0.25;
-      model.add(hand);
-      break;
-    }
+    case D.K_SHIELD: { const sh = buildShield(cls, rar, tier); sh.scale.setScalar(0.9); model.add(sh); g.userData.wtick = sh.userData.tick; break; }
+    case D.K_BOOTS: { const b = buildBoots(rar, tier); model.add(b); g.userData.wtick = b.userData.tick; break; }
+    case D.K_GLOVES: { const gl = buildGloves(rar, tier); model.add(gl); g.userData.wtick = gl.userData.tick; break; }
     case D.K_HELMET: { const h = buildHelmet(rar, tier); model.add(h); g.userData.wtick = h.userData.tick; break; }
-    case D.K_TRINKET: { const r = mesh(new THREE.TorusGeometry(0.3, 0.06, 8, 20), mat('gold', { color: '#f0b73c', metalness: 1, roughness: 0.25 })); model.add(r); const gem = mesh(new THREE.OctahedronGeometry(0.22), new THREE.MeshPhysicalMaterial({ color: rc, emissive: rc, emissiveIntensity: 1, roughness: 0.05, clearcoat: 1 })); gem.position.y = -0.32; model.add(gem); break; }
+    case D.K_TRINKET: { const tr = buildTrinket(rar, tier); tr.scale.setScalar(1.3); model.add(tr); g.userData.wtick = tr.userData.tick; break; }
     case D.K_POTION: { const b = mesh(sph(0.32, 14, 12), new THREE.MeshPhysicalMaterial({ color: '#ff3a4a', emissive: '#a0101a', emissiveIntensity: 0.8, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.92 })); model.add(b); const n = mesh(cyl(0.1, 0.12, 0.25, 8), mat('glass', { color: '#d8f0e0', roughness: 0.1 })); n.position.y = 0.32; model.add(n); const c = mesh(cyl(0.11, 0.11, 0.1, 8), mat('cork', { color: '#a87a4a' })); c.position.y = 0.48; model.add(c); break; }
     case D.K_GOLD: {
       const coin = mat('coin', { color: '#f5c242', metalness: 1, roughness: 0.22, emissive: '#5a3a00', emissiveIntensity: 0.7, envMapIntensity: 1.4 });

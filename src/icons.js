@@ -43,7 +43,7 @@ function shoot(obj, { size = SIZE, fill = 0.82, pitch = 0.32, w = size, h = size
 }
 // gear and potions: the model the floor shows, turned to face you
 export function itemPic(kind, rar, cls, tier = 0) {
-  if (kind !== 1 && kind !== 2 && kind !== 6) tier = 0; // (weapons, armor and helmets look different by tier)
+  if (kind > 7) tier = 0; // (gear looks different by tier: the legendary looks)
   const key = 'i' + kind + '_' + rar + '_' + cls + '_' + tier;
   if (cache[key]) return cache[key];
   try {

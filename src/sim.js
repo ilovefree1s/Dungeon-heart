@@ -816,7 +816,7 @@ function drop_trinket(x, y) {
   let r = rnd();
   r = r < 102 ? 1 : (r < 192 ? 2 : (r < 238 ? 3 : 4));
   roll_gear(K_TRINKET, r, 0);
-  g.i_kind[k] = K_TRINKET; g.i_rar[k] = r; g.i_tier[k] = 0; g.i_val[k] = g.g_val; g.i_spec[k] = g.g_spec; g.i_lvl[k] = g.g_lvl;
+  g.i_kind[k] = K_TRINKET; g.i_rar[k] = r; g.i_tier[k] = (g.g_val + g.g_spec) & 3; g.i_val[k] = g.g_val; g.i_spec[k] = g.g_spec; g.i_lvl[k] = g.g_lvl; // (a trinket's tier only picks its look)
   if (wsolid(x + 4, y + 4)) {
     if (!wsolid(x + 20, y + 4)) x += 16;
     else if (!wsolid(x - 12, y + 4)) x -= 16;
@@ -846,10 +846,10 @@ export function item_name(kind, rar, tier, cls = g.player_class) {
   switch (kind) {
     case K_WEAPON: return (rar === 4 ? D.LEG_WEAPON_NAME : D.WEAPON_NAME)[(cls << 3) + tier];
     case K_ARMOR: return (rar === 4 ? D.LEG_ARMOR_NAME : D.ARMOR_NAME)[(cls << 3) + tier];
-    case K_SHIELD: return D.SHIELD_NAME[(cls << 3) + tier];
-    case K_BOOTS: return D.BOOTS_NAME[tier];
-    case K_GLOVES: return D.GLOVES_NAME[tier];
-    case K_TRINKET: return D.TRINKET_NAME[rar];
+    case K_SHIELD: return (rar === 4 ? D.LEG_SHIELD_NAME : D.SHIELD_NAME)[(cls << 3) + tier];
+    case K_BOOTS: return (rar === 4 ? D.LEG_BOOTS_NAME : D.BOOTS_NAME)[tier];
+    case K_GLOVES: return (rar === 4 ? D.LEG_GLOVES_NAME : D.GLOVES_NAME)[tier];
+    case K_TRINKET: return rar === 4 ? D.LEG_TRINKET_NAME[tier & 3] : D.TRINKET_NAME[rar];
     case K_POTION: return 'POTION';
     case K_GOLD: return 'GOLD';
   }
