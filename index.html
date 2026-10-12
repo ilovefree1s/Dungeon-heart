@@ -98,7 +98,7 @@ button{font:inherit;color:inherit}
 .pill:active,.pill.on{transform:translateY(2px);box-shadow:0 1px 0 #0c0a08}
 @media (pointer:fine){#touch{display:none}}
 @media (max-width:520px){#hud{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}.hp{width:34vw}.meter,.pet{width:30vw}.where{font-size:16px}.where small{font-size:9px;letter-spacing:.08em;white-space:normal;max-width:120px;margin:0 auto}}
-@media (pointer:coarse){#hPot{display:none}#minimap{display:none}#loot{bottom:calc(216px + env(safe-area-inset-bottom,0px))}#msg{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(262px + env(safe-area-inset-bottom,0px));font-size:13px;padding:4px 10px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}}
+@media (pointer:coarse){#hPot{display:none}#minimap{display:none}#loot{bottom:auto;top:calc(150px + env(safe-area-inset-top,0px))}#msg{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(262px + env(safe-area-inset-bottom,0px));font-size:13px;padding:4px 10px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}}
 
 /* ---------- screens */
 .screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:14px;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));
