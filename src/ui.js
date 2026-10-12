@@ -455,7 +455,7 @@ export function lootCard(e) {
   $('lootT').style.color = D.RAR_COLOR[rar];
   const st = statText(G.b_st, k);
   if (kind === D.K_TRINKET) $('lootS').textContent = (st ? st + ' · ' : '') + S.trinket_talents(G.b_spec[k], G.b_val[k]).map(([t, c]) => `+${c} ${tc(D.TAL_NAME[G.player_class * D.NTAL + t])}`).join(', ');
-  else $('lootS').textContent = `Level ${G.b_lvl[k]} · ${S.stat_name(kind)} ${S.gear_fine(kind, G.b_lvl[k])}${st ? ' · ' + st : ''}${e.better ? ' · UPGRADE! Open your bag to equip' : ''}`;
+  else $('lootS').textContent = `LV${G.b_lvl[k]} · ${S.stat_name(kind)} ${S.gear_fine(kind, G.b_lvl[k])}${st ? ' · ' + st : ''}${e.better ? ' · UPGRADE!' : ''}`;
   $('loot').style.boxShadow = `inset 0 0 0 2px ${D.RAR_COLOR[rar]}, 0 10px 24px rgba(0,0,0,.45)`;
   $('loot').classList.add('on');
   UI.toastT = 3.2;
@@ -537,3 +537,9 @@ export function frame(dt) {
 }
 $('hPot').onclick = () => { S.drink_potion(); };
 $('hBag').addEventListener('click', () => $('hBag').classList.remove('alert'));
+// the touch controller's SELECT (the bag) and START (pause), as on the SNES pad
+for (const [id, go] of [['tSel', () => openInv()], ['tStart', () => openPause()]]) {
+  const b = $(id);
+  b.addEventListener('pointerdown', e => { e.preventDefault(); input.lastDevice = 'touch'; b.classList.add('on'); if (!UI.modal && G.state === 'play') go(); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => b.classList.remove('on'));
+}

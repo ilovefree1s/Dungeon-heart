@@ -63,7 +63,7 @@ export function resize() {
   // the whole room (it is 48 x 33) is always in view, as on the SNES; upright phones fit its width
   const t = Math.tan(THREE.MathUtils.degToRad(19));
   view.follow = false;
-  const S = camera.aspect >= 1.25 ? Math.max(35, 55 / camera.aspect) : Math.max(31, 47.5 / camera.aspect);
+  const S = camera.aspect >= 1.25 ? Math.max(35, 55 / camera.aspect) : Math.max(31, 43.2 / camera.aspect);
   view.dist = (S / 2) / t * 1.06;
   camera.far = view.dist + 120;
   scene.fog.near = view.dist + 20; scene.fog.far = view.dist + 80; // (the fog starts past the room, however far the camera is)
@@ -74,7 +74,8 @@ export const shake = { x: 0, z: 0, t: 0, amp: 0 };
 export function placeCamera(x, z, snap) {
   const t = Math.tan(THREE.MathUtils.degToRad(19));
   const visW = t * view.dist * camera.aspect, visD = t * view.dist * 0.9;
-  const mx = Math.max(0, ROOM_W / 2 + 1 - visW), mz = Math.max(0, ROOM_D / 2 - visD + 2);
+  // (the room inside its thin walls is 14 cells wide: drift toward the hero only when it doesn't fit)
+  const mx = Math.max(0, 14 * CELL / 2 + 0.6 - visW), mz = Math.max(0, ROOM_D / 2 - visD + 2);
   const tx = view.follow ? THREE.MathUtils.clamp(x, -mx, mx) : THREE.MathUtils.clamp(x * 0.12, -mx, mx);
   const tz = view.follow ? THREE.MathUtils.clamp(z, -mz, mz) : THREE.MathUtils.clamp(z * 0.12, -1.2, 1.2);
   if (snap) camFocus.set(tx, 0, tz); else camFocus.lerp(new V3(tx, 0, tz), 0.08);
@@ -235,7 +236,7 @@ scene.add(roomGroup);
 const under = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), std({ color: '#050404', roughness: 1 }));
 under.rotation.x = -Math.PI / 2; under.position.y = -0.06; under.receiveShadow = false; scene.add(under);
 export const R = { torches: [], hz: [], doors: {}, objs: [], cracks: {}, pits: [], spikes: [], lava: [], anim: [] };
-const WH = 6.2, WH_FRONT = 1.1, IN_H = 3.4, WT = 0.9; // (WT: the outer walls' thickness)
+const WH = 6.2, WH_FRONT = 1.1, IN_H = 3.4, WT = 0.45; // (WT: the outer walls' thickness)
 export function cellCenter(c) { return [wx((c & 15) * 16 + 8), wz(D.PLAY_Y + (c >> 4) * 16 + 8)]; }
 
 export function buildRoom(G, seed) {

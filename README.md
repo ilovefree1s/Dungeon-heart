@@ -32,8 +32,8 @@ The whole SNES game (`ilovefree1s/dungeon-loot`, folder `snes/`), rebuilt in 3D:
 | Attack | Space, J, Z | A / ✕, X / ▢ | ATTACK |
 | Roll / blink / tame | Shift, K, X, L | B / ○ | the blue button |
 | Potion | Q, E, R | Y / △, Select | POTION |
-| Bag & talents | Tab, I, B | Start | the bag button |
-| Pause | Esc, P | | the pause button |
+| Bag & talents | Tab, I, B | Start | SELECT (or the bag button) |
+| Pause | Esc, P | | START (or the pause button) |
 
 ## How it works
 - `src/sim.js` holds the game's rules, ported from the SNES game. It runs 60 steps a
