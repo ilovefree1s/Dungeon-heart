@@ -5,7 +5,7 @@
 // ============================================================================
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildItem, buildHero, animHero, buildMerchant } from './models.js';
+import { buildItem, buildHero, equipHeroWeapon, animHero, buildMerchant } from './models.js';
 
 const SIZE = 128;
 let R = null, scene, cam;
@@ -42,11 +42,13 @@ function shoot(obj, { size = SIZE, fill = 0.82, pitch = 0.32, w = size, h = size
   return R.domElement.toDataURL('image/png');
 }
 // gear and potions: the model the floor shows, turned to face you
-export function itemPic(kind, rar, cls) {
-  const key = 'i' + kind + '_' + rar + '_' + cls;
+export function itemPic(kind, rar, cls, tier = 0) {
+  if (kind !== 1) tier = 0; // (only weapons look different by tier)
+  const key = 'i' + kind + '_' + rar + '_' + cls + '_' + tier;
   if (cache[key]) return cache[key];
   try {
-    const g = buildItem(kind, rar, cls), m = g.userData.model;
+    const g = buildItem(kind, rar, cls, tier), m = g.userData.model;
+    if (g.userData.wtick) g.userData.wtick(1.3);
     g.remove(m);
     m.position.set(0, 0, 0);
     m.rotation.y += 0.5;
@@ -59,6 +61,7 @@ export function heroPic(cls, w = 200, h = 260) {
   if (cache[key]) return cache[key];
   try {
     const hero = buildHero(cls);
+    equipHeroWeapon(hero, cls, 0, 0);
     animHero(hero, 0.4, { walk: 0, move: 0, swing: -1, whirl: false, cast: -1, roll: 0, orbColor: cls === 1 ? '#9fd8ff' : null });
     hero.rotation.y = -0.45;
     return (cache[key] = shoot(hero, { w, h, fill: 0.9, pitch: 0.12 }));

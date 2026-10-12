@@ -4,6 +4,7 @@
 //  Each returns a THREE.Group with userData.anim(t, s) for its motion.
 // ============================================================================
 import { THREE, std, mesh, sph, TEX, TAU, V3 } from './engine.js';
+import { buildWeapon } from './weapons.js';
 import * as D from './data.js';
 
 const M = {}; // shared materials
@@ -173,7 +174,25 @@ export function buildHunter() {
   return finish(root, 2.15);
 }
 export const buildHero = cls => makeFlashable([buildWarrior, buildMage, buildHunter][cls]());
+// put the equipped weapon in the hero's hand (rarity 0-4, tier 0-7)
+export function equipHeroWeapon(root, cls, rar, tier) {
+  const u = root.userData, hold = [u.sword, u.staff, u.bow][cls];
+  if (!hold) return;
+  for (const c of [...hold.children]) hold.remove(c);
+  const w = buildWeapon(cls, rar, tier);
+  if (cls === 0) w.rotation.x = Math.PI / 2;
+  w.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  hold.add(w);
+  u.wtick = w.userData.tick; u.glowK = w.userData.glowK;
+  if (cls === 0) { u.bladeMat = w.userData.bladeMat; u.bladeBase = u.bladeMat.emissive ? u.bladeMat.emissive.clone() : null; u.bladeBaseI = u.bladeMat.emissiveIntensity; }
+  if (cls === 1) { u.orbMat = w.userData.orbMat; u.orb = w.userData.orb; }
+  if (cls === 2) { u.string = w.userData.string; u.stringZ = w.userData.stringZ; }
+}
 
+function restoreBlade(u) {
+  if (u.bladeBase) { u.bladeMat.emissive.copy(u.bladeBase); u.bladeMat.emissiveIntensity = u.bladeBaseI; }
+  else u.bladeMat.emissive.set('#000000');
+}
 // the hero's motion: walking, swinging, casting, drawing, rolling, blinking
 export function animHero(root, t, s) {
   const u = root.userData;
@@ -202,11 +221,13 @@ export function animHero(root, t, s) {
         u.arms[1].rotation.z = k < 0.25 ? 0.9 * (k / 0.25) : 0.9 - (k - 0.25) / 0.75 * 1.9;
         u.body.rotation.y = k < 0.25 ? 0.35 * (k / 0.25) : 0.35 - (k - 0.25) / 0.75 * 0.8;
       }
-      u.bladeMat.emissive.set(k > 0.2 && k < 0.85 ? '#7a6a40' : '#000000');
-    } else u.bladeMat.emissive.set('#000000');
+      if (k > 0.2 && k < 0.85) { u.bladeMat.emissive.set('#7a6a40'); u.bladeMat.emissiveIntensity = Math.max(1, u.bladeBaseI || 1); }
+      else restoreBlade(u);
+    } else restoreBlade(u);
   } else if (u.weapon === 'staff') {
-    if (s.cast >= 0) { const k = s.cast; u.arms[1].rotation.x = -0.4 - Math.sin(Math.min(1, k * 1.5) * Math.PI) * 1.4; u.orbMat.emissiveIntensity = 1.4 + Math.sin(k * Math.PI) * 4; }
-    else u.orbMat.emissiveIntensity = 1.4 + Math.sin(t * 3) * 0.3;
+    const gk = u.glowK || 1;
+    if (s.cast >= 0) { const k = s.cast; u.arms[1].rotation.x = -0.4 - Math.sin(Math.min(1, k * 1.5) * Math.PI) * 1.4; u.orbMat.emissiveIntensity = (1.4 + Math.sin(k * Math.PI) * 4) * gk; }
+    else u.orbMat.emissiveIntensity = (1.4 + Math.sin(t * 3) * 0.3) * gk;
     if (s.orbColor) u.orbMat.emissive.set(s.orbColor);
   } else if (u.weapon === 'bow') {
     if (s.cast >= 0) {
@@ -215,9 +236,10 @@ export function animHero(root, t, s) {
       u.arms[1].rotation.set(-1.45, -0.2, 0);
       const pull = k < 0.6 ? k / 0.6 : Math.max(0, 1 - (k - 0.6) / 0.15);
       u.arms[1].position.z = -pull * 0.25;
-      u.string.geometry.attributes.position.setZ(1, -0.1 - pull * 0.35); u.string.geometry.attributes.position.needsUpdate = true;
-    } else { u.arms[1].position.z = 0; u.string.geometry.attributes.position.setZ(1, -0.1); u.string.geometry.attributes.position.needsUpdate = true; }
+      u.string.geometry.attributes.position.setZ(1, (u.stringZ ?? -0.1) - pull * 0.35); u.string.geometry.attributes.position.needsUpdate = true;
+    } else { u.arms[1].position.z = 0; u.string.geometry.attributes.position.setZ(1, u.stringZ ?? -0.1); u.string.geometry.attributes.position.needsUpdate = true; }
   }
+  if (u.wtick) u.wtick(t);
 }
 
 // ---------------------------------------------------------------- monsters
@@ -762,18 +784,21 @@ export function buildMerchant() {
 }
 
 // ---------------------------------------------------------------- items on the floor
-export function buildItem(kind, rar, cls) {
+export function buildItem(kind, rar, cls, tier = 0) {
   const g = new THREE.Group(), model = new THREE.Group(); g.add(model);
   const rc = D.RAR_COLOR[rar] || '#ffffff';
   const metal = std({ color: rar >= 2 ? new THREE.Color(rc).lerp(new THREE.Color('#ffffff'), 0.25) : '#b8c0c8', metalness: 1, roughness: 0.2, envMapIntensity: 1.4, emissive: rar >= 1 ? rc : '#000000', emissiveIntensity: rar >= 3 ? 0.35 : 0.15 });
   const accent = std({ color: rc, metalness: 0.6, roughness: 0.3, emissive: rc, emissiveIntensity: rar >= 2 ? 0.5 : 0.2 });
   const leather = mat('leather', { color: '#5a3a22', roughness: 0.7 });
   switch (kind) {
-    case D.K_WEAPON:
-      if (cls === 0) { const b = mesh(box(0.16, 1.5, 0.05), metal); b.position.y = 0.55; model.add(b); const gd = mesh(box(0.6, 0.1, 0.12), accent); gd.position.y = -0.22; model.add(gd); const h = mesh(cyl(0.06, 0.06, 0.4, 8), leather); h.position.y = -0.45; model.add(h); model.rotation.z = Math.PI / 4; }
-      else if (cls === 1) { const p = mesh(cyl(0.05, 0.06, 1.8, 8), mat('staffw', { color: '#6a4426', roughness: 0.7 })); model.add(p); const o = mesh(sph(0.2, 12, 10), accent); o.position.y = 0.95; model.add(o); model.rotation.z = Math.PI / 4; }
-      else { const curve = new THREE.CatmullRomCurve3([new V3(0, -0.8, 0), new V3(0.2, 0, 0), new V3(0, 0.8, 0)]); model.add(mesh(new THREE.TubeGeometry(curve, 12, 0.05, 6), accent)); const s = mesh(cyl(0.01, 0.01, 1.6, 4), mat('string', { color: '#eee' })); model.add(s); model.rotation.z = Math.PI / 4; }
+    case D.K_WEAPON: {
+      const w = buildWeapon(cls, rar, tier), piv = new THREE.Group();
+      w.position.y = cls === 1 ? -0.55 : cls === 0 ? -0.75 - (rar >= 4 ? 0.2 : 0) : 0;
+      if (cls === 2) w.rotation.y = -Math.PI / 2; // (a bow shows its side)
+      piv.add(w); piv.scale.setScalar(cls === 1 ? 0.72 : 0.9); piv.rotation.z = Math.PI / 4; model.add(piv);
+      g.userData.wtick = w.userData.tick;
       break;
+    }
     case D.K_ARMOR: {
       // a breastplate: a turned cuirass, shoulder guards, a belt and a gem
       const prof = [[0.001, 0.5], [0.2, 0.48], [0.4, 0.42], [0.47, 0.2], [0.44, -0.05], [0.38, -0.28], [0.41, -0.42], [0.001, -0.42]].map(([x, y]) => new THREE.Vector2(x, y));
@@ -859,6 +884,6 @@ export function buildItem(kind, rar, cls) {
     if (rar >= 3) { const l = new THREE.PointLight(rc, 8 + rar * 3, 8, 2); l.position.y = 1.4; g.add(l); }
   }
   g.userData.model = model;
-  g.userData.anim = (t, seed) => { model.rotation.y = t * 1.6 + seed; model.position.y = 1.0 + Math.sin(t * 3 + seed) * 0.15; if (g.userData.beam) g.userData.beam.material.opacity = 0.14 + Math.sin(t * 4 + seed) * 0.04 + (rar * 0.03); };
+  g.userData.anim = (t, seed) => { if (g.userData.wtick) g.userData.wtick(t); model.rotation.y = t * 1.6 + seed; model.position.y = 1.0 + Math.sin(t * 3 + seed) * 0.15; if (g.userData.beam) g.userData.beam.material.opacity = 0.14 + Math.sin(t * 4 + seed) * 0.04 + (rar * 0.03); };
   return g;
 }

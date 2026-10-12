@@ -4,7 +4,7 @@
 // ============================================================================
 import { THREE, scene, camera, TEX, TAU, V3, R, ax, az, wx, wz, PX, CELL, buildRoom, placeCamera, shake, hemi, sun, roomGroup,
   textSprite, std, mesh, sph, THEMES, view as camView, IS_TOUCH } from './engine.js';
-import { buildHero, animHero, buildMonster, buildBoss, buildKingWizard, buildWife, buildMerchant, buildItem, makeFlashable } from './models.js';
+import { buildHero, equipHeroWeapon, animHero, buildMonster, buildBoss, buildKingWizard, buildWife, buildMerchant, buildItem, makeFlashable } from './models.js';
 import * as D from './data.js';
 import { G, faded, tame_zone, ANIM_LEN, ANIM_SHOT, slash_index, TAL } from './sim.js';
 
@@ -174,7 +174,15 @@ function ensureHero() {
   if (V.hero) scene.remove(V.hero);
   V.hero = buildHero(G.player_class);
   V.heroCls = G.player_class;
+  V.heroW = -1;
   scene.add(V.hero);
+}
+// the weapon in the hero's hand is the one equipped
+function syncWeapon() {
+  const key = G.eq_rar[0] * 8 + G.eq_tier[0];
+  if (key === V.heroW) return;
+  V.heroW = key;
+  equipHeroWeapon(V.hero, G.player_class, G.eq_rar[0], G.eq_tier[0]);
 }
 function monModel(n) {
   const t = G.m_type[n];
@@ -200,11 +208,11 @@ function monModel(n) {
 function itemModel(i) {
   const k = G.i_kind[i];
   let it = V.items[i];
-  const key = k * 100 + G.i_rar[i] * 10 + G.player_class;
+  const key = k * 1000 + G.i_rar[i] * 100 + G.i_tier[i] * 10 + G.player_class;
   if (it && it.key === key && it.x === G.i_x[i] && it.y === G.i_y[i]) return it;
   if (it) scene.remove(it.g);
   if (!k) { V.items[i] = null; return null; }
-  const g = buildItem(k, G.i_rar[i], G.player_class);
+  const g = buildItem(k, G.i_rar[i], G.player_class, G.i_tier[i]);
   g.position.set(wx(G.i_x[i] + 4), 0, wz(G.i_y[i] + 6));
   scene.add(g);
   it = { g, key, x: G.i_x[i], y: G.i_y[i], seed: Math.random() * 10, pop: 0 };
@@ -325,6 +333,7 @@ export function update(dt, input) {
   faceTo(V.hero, ang, dt, 16);
   const swing = G.player_class === 0 && G.atk_timer > 0 ? 1 - (G.atk_timer - 1) / 13 : -1;
   const cast = G.anim_t > 0 ? 1 - G.anim_t / ANIM_LEN : -1;
+  syncWeapon();
   animHero(V.hero, t, { walk: V.walk, move: moving, swing, whirl: TAL.WHIRL > 0, cast, roll: G.roll_timer > 0 ? G.roll_timer / 16 : 0, orbColor: G.player_class === 1 ? boltColor() : null });
   V.hero.visible = !(G.inv_timer > 0 && (Math.floor(t * 18) & 1) && !G.roll_timer) || G.state !== 'play';
   heroShadow.position.set(V.heroPos.x, 0.04, V.heroPos.z);

@@ -844,7 +844,7 @@ function level_check() {
 
 export function item_name(kind, rar, tier, cls = g.player_class) {
   switch (kind) {
-    case K_WEAPON: return D.WEAPON_NAME[(cls << 3) + tier];
+    case K_WEAPON: return (rar === 4 ? D.LEG_WEAPON_NAME : D.WEAPON_NAME)[(cls << 3) + tier];
     case K_ARMOR: return D.ARMOR_NAME[(cls << 3) + tier];
     case K_SHIELD: return D.SHIELD_NAME[(cls << 3) + tier];
     case K_BOOTS: return D.BOOTS_NAME[tier];

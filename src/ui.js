@@ -150,10 +150,10 @@ function slotLabel(kind) {
   if (kind === D.K_SHIELD) return ['SHIELD', 'ORB', 'QUIVER'][G.player_class];
   return D.KIND_NAME[kind];
 }
-const pic = (kind, rar) => itemPic(kind, rar, G.player_class);
+const pic = (kind, rar, tier = 0) => itemPic(kind, rar, G.player_class, tier);
 const coinTxt = n => `<span class="coin"></span>${n}`;
-function slotHTML(kind, rar, lv, ghost) {
-  return `<img alt="" src="${pic(kind, ghost ? 0 : rar)}">${!ghost && kind !== D.K_TRINKET && lv ? `<span class="lv">${lv}</span>` : ''}`;
+function slotHTML(kind, rar, lv, ghost, tier = 0) {
+  return `<img alt="" src="${pic(kind, ghost ? 0 : rar, ghost ? 0 : tier)}">${!ghost && kind !== D.K_TRINKET && lv ? `<span class="lv">${lv}</span>` : ''}`;
 }
 function styleSlot(b, rar, full) { b.style.setProperty('--rc', full ? D.RAR_COLOR[rar] : '#8a6428'); b.classList.toggle('full', !!full); }
 export function openInv() {
@@ -193,7 +193,7 @@ function drawInv() {
     const b = document.createElement('button');
     b.className = 'slot' + (has ? '' : ' ghost') + (UI.sel && UI.sel.gear === i ? ' sel' : '');
     b.style.gridColumn = cx; b.style.gridRow = cy;
-    b.innerHTML = slotHTML(kind, G.eq_rar[i], G.eq_lvl[i], !has);
+    b.innerHTML = slotHTML(kind, G.eq_rar[i], G.eq_lvl[i], !has, G.eq_tier[i]);
     styleSlot(b, G.eq_rar[i], has);
     b.onclick = () => { if (UI.sel && UI.sel.gear === i && input.lastDevice !== 'touch') { unequipSel(); return; } UI.sel = { gear: i }; UI.sellArm = -1; drawInv(); focusSel(); };
     b.setAttribute('aria-label', slotLabel(kind));
@@ -208,7 +208,7 @@ function drawInv() {
     if (kind) n++;
     const b = document.createElement('button');
     b.className = 'slot' + (UI.sel && UI.sel.bag === k ? ' sel' : '') + (isUpgrade(k) ? ' up' : '');
-    if (kind) b.innerHTML = slotHTML(kind, G.b_rar[k], G.b_lvl[k]);
+    if (kind) b.innerHTML = slotHTML(kind, G.b_rar[k], G.b_lvl[k], false, G.b_tier[k]);
     styleSlot(b, G.b_rar[k], kind);
     b.onclick = () => { if (UI.sel && UI.sel.bag === k && input.lastDevice !== 'touch') { equipSel(); return; } UI.sel = { bag: k }; UI.sellArm = -1; drawInv(); focusSel(); };
     b.setAttribute('aria-label', kind ? S.item_name(kind, G.b_rar[k], G.b_tier[k]) : 'Empty');
@@ -320,7 +320,7 @@ function drawShop(focusK) {
     else if (k === 3) { ic = pic(D.K_GOLD, 0); name = 'Mystery chest'; det = 'Rare, epic or legendary gear'; }
     else {
       const kind = G.sh_kind[k], rar = G.sh_rar[k], lv = G.sh_lvl[k];
-      ic = pic(kind, rar); col = rc = D.RAR_COLOR[rar];
+      ic = pic(kind, rar, G.sh_tier[k]); col = rc = D.RAR_COLOR[rar];
       name = `${D.RAR_NAME[rar]} ${S.item_name(kind, rar, G.sh_tier[k])}${G.sh_spec[k] ? ' · ' + D.SPEC_NAME[G.sh_spec[k]] : ''}`;
       const v = S.gear_fine(kind, lv), d = v - S.worn_fine(kind);
       det = `LV ${lv} · ${S.stat_name(kind)} ${v} (${d >= 0 ? '+' : ''}${d} vs worn)`;
@@ -353,7 +353,7 @@ function drawTrade() {
   for (let i = 0; i < need; i++) {
     const d = document.createElement('div'); d.className = 'slot'; d.style.cursor = 'default';
     const k = marks[i];
-    if (k !== undefined) { d.innerHTML = slotHTML(G.b_kind[k], G.b_rar[k], G.b_lvl[k]); styleSlot(d, G.b_rar[k], 1); }
+    if (k !== undefined) { d.innerHTML = slotHTML(G.b_kind[k], G.b_rar[k], G.b_lvl[k], false, G.b_tier[k]); styleSlot(d, G.b_rar[k], 1); }
     pk.appendChild(d);
   }
   const res = $('tradeRes');
@@ -370,7 +370,7 @@ function drawTrade() {
     if (kind) n++;
     const b = document.createElement('button');
     b.className = 'slot' + (UI.marks.has(k) ? ' mark' : '') + (UI.tradeSel === k ? ' sel' : '');
-    if (kind) b.innerHTML = slotHTML(kind, G.b_rar[k], G.b_lvl[k]);
+    if (kind) b.innerHTML = slotHTML(kind, G.b_rar[k], G.b_lvl[k], false, G.b_tier[k]);
     styleSlot(b, G.b_rar[k], kind);
     b.onclick = () => {
       UI.tradeSel = k;
@@ -435,7 +435,7 @@ export function lootCard(e) {
   if (k === undefined) return;
   const kind = G.b_kind[k], rar = G.b_rar[k];
   if (!kind) return;
-  $('lootIc').innerHTML = `<img alt="" src="${itemPic(kind, rar, G.player_class)}" style="width:46px;height:46px">`;
+  $('lootIc').innerHTML = `<img alt="" src="${itemPic(kind, rar, G.player_class, G.b_tier[k])}" style="width:46px;height:46px">`;
   $('lootT').textContent = tc(`${D.RAR_NAME[rar]} ${S.item_name(kind, rar, G.b_tier[k])}`);
   $('lootT').style.color = D.RAR_COLOR[rar];
   if (kind === D.K_TRINKET) $('lootS').textContent = S.trinket_talents(G.b_spec[k], G.b_val[k]).map(([t, c]) => `+${c} ${tc(D.TAL_NAME[G.player_class * D.NTAL + t])}`).join(', ');
