@@ -334,7 +334,7 @@ function buildSlime(color = '#3fae3c', crown = false) {
     for (let i = 0; i < 6; i++) { const sp = mesh(new THREE.ConeGeometry(0.1, 0.35, 5), gold); sp.position.set(Math.cos(i / 6 * TAU) * 0.45, 0.25, Math.sin(i / 6 * TAU) * 0.45); c.add(sp); }
     for (let i = 0; i < 3; i++) { const j = mesh(sph(0.07, 8, 6), mat('ruby', { color: '#ff2a4a', emissive: '#a00020', emissiveIntensity: 0.6, roughness: 0.2 })); j.position.set(Math.cos(i / 3 * TAU + 0.5) * 0.48, 0.05, Math.sin(i / 3 * TAU + 0.5) * 0.48); c.add(j); }
   }
-  g.userData = { body, base: 1, anim: (t, s) => {
+  g.userData = { body, mat: m, base: 1, anim: (t, s) => {
     const ph = (s.timer & 63) / 64; // its hop rhythm (game.c: 40 of 64 frames moving)
     let y = 0, sq = 1;
     if (s.moving) { const k = (t * 2.2 + s.seed) % 1; y = Math.abs(Math.sin(k * Math.PI)) * 0.55; sq = 1 + Math.sin(k * Math.PI) * 0.18; }
@@ -694,7 +694,28 @@ function buildOgre() {
   const club = new THREE.Group(); club.position.set(0.25, -2.0, 0.6); arms[1].add(club);
   club.add(seg([0, 0, 0], [0, 0, 2.2], 0.13, 0.32, mat('clubw', { color: '#5a3a1e', roughness: 0.8 })));
   for (let i = 0; i < 6; i++) { const sp = mesh(new THREE.ConeGeometry(0.08, 0.3, 5), iron); const a = i / 6 * TAU; sp.position.set(Math.cos(a) * 0.3, Math.sin(a) * 0.3, 1.8); sp.lookAt(Math.cos(a) * 2, Math.sin(a) * 2, 1.8); sp.rotateX(Math.PI / 2); club.add(sp); }
-  g.userData = { body, legs, arms, head };
+  // the war gear: spiked shoulder plates, wrist bands, a strap across the chest, a necklace of skulls
+  const bone = mat('hornW', { color: '#e8dcc0', roughness: 0.5 }), leather = mat('ogreStrap', { color: '#5a3a22', roughness: 0.75 });
+  for (const [i, s] of [[0, -1], [1, 1]]) {
+    const pad = mesh(new THREE.SphereGeometry(0.55, 14, 10, 0, TAU, 0, Math.PI / 2), iron); pad.position.set(0.05 * s, 0.15, 0); pad.rotation.z = -0.35 * s; arms[i].add(pad);
+    const rim = mesh(new THREE.TorusGeometry(0.53, 0.05, 6, 20), iron); rim.rotation.x = Math.PI / 2; pad.add(rim);
+    for (let k = 0; k < 3; k++) { const sp = mesh(new THREE.ConeGeometry(0.08, 0.38, 6), bone); sp.position.set((k - 1) * 0.25, 0.48, 0); pad.add(sp); }
+    const band = mesh(cyl(0.3, 0.3, 0.22, 12), iron); band.position.set(0.28 * s, -1.65, 0.38); band.rotation.x = -0.35; arms[i].add(band);
+    const stud = mesh(sph(0.06, 6, 4), bone); stud.position.set(0.28 * s + 0.3 * s, -1.65, 0.38); arms[i].add(stud);
+  }
+  const strapGeo = new THREE.TorusGeometry(1.22, 0.09, 6, 28); const strap = mesh(strapGeo, leather); strap.position.y = 2.5; strap.rotation.set(Math.PI / 2, 0.75, 0); strap.scale.set(1.05, 0.95, 1); body.add(strap);
+  const buckle = mesh(box(0.28, 0.28, 0.08), iron); buckle.position.set(0, 2.55, 1.15); buckle.rotation.z = 0.75; body.add(buckle);
+  const neck = mesh(new THREE.TorusGeometry(0.62, 0.035, 6, 24), leather); neck.position.set(0, 3.25, 0.2); neck.rotation.x = Math.PI / 2 - 0.35; body.add(neck);
+  for (let k = 0; k < 5; k++) {
+    const a = (k - 2) * 0.42, sk = new THREE.Group(); sk.position.set(Math.sin(a) * 0.66, 3.05 - Math.abs(k - 2) * 0.04, 0.25 + Math.cos(a) * 0.6); sk.rotation.y = a; body.add(sk);
+    const cr = mesh(sph(0.13, 10, 8), bone); cr.scale.set(1, 0.95, 0.9); sk.add(cr);
+    const jaw = mesh(box(0.14, 0.07, 0.1), bone); jaw.position.set(0, -0.11, 0.02); sk.add(jaw);
+    for (const e of [-1, 1]) { const hole = new THREE.Mesh(sph(0.035, 6, 4), basic('void', { color: '#05030a' })); hole.position.set(0.045 * e, 0.01, 0.11); sk.add(hole); }
+  }
+  // a heavy brow and a flat nose
+  const brow = mesh(box(0.7, 0.12, 0.2), skin); brow.position.set(0, 0.24, 0.45); brow.rotation.x = 0.3; head.add(brow);
+  const nose = mesh(sph(0.13, 8, 6), skin); nose.position.set(0, 0.0, 0.6); nose.scale.set(1.2, 0.8, 0.8); head.add(nose);
+  g.userData = { body, legs, arms, head, club };
   return g;
 }
 function buildSpiderDemon() {
@@ -702,9 +723,27 @@ function buildSpiderDemon() {
   const body = g.userData.body;
   const horns = mat('horn', { color: '#2a1a14', roughness: 0.5 });
   for (const s of [-1, 1]) { const h = mesh(new THREE.ConeGeometry(0.1, 0.6, 6), horns); h.position.set(0.18 * s, 1.0, 0.35); h.rotation.x = -0.6; body.add(h); }
-  const glow = new THREE.Mesh(sph(0.3, 10, 8), new THREE.MeshBasicMaterial({ color: '#ff5a2a' })); glow.position.set(0, 1.25, -0.5); glow.scale.set(1, 0.3, 1.4); body.add(glow);
+  const glowM = new THREE.MeshBasicMaterial({ color: '#ff5a2a' });
+  const glow = new THREE.Mesh(sph(0.3, 10, 8), glowM); glow.position.set(0, 1.25, -0.5); glow.scale.set(1, 0.3, 1.4); body.add(glow);
+  // a scorched shell: black-red plates with ember cracks, spines down the back, a cluster of burning eyes, fangs
+  const shell = mat('dShell', { color: '#1a0a0c', roughness: 0.3, metalness: 0.2, envMapIntensity: 1 }), plate = mat('dPlate', { color: '#3a1014', roughness: 0.35, metalness: 0.2 });
+  const leg = mat('dLeg', { color: '#24080c', roughness: 0.45 });
+  g.traverse(o => { if (!o.isMesh) return; if (o.material === M.spider) o.material = shell; else if (o.material === M.spider2) o.material = plate; else if (o.material === M.spleg) o.material = leg; });
+  const ember = new THREE.MeshStandardMaterial({ color: '#ff7a2a', emissive: '#ff4a10', emissiveIntensity: 2.2, roughness: 0.4 });
+  for (let k = 0; k < 3; k++) { const crack = mesh(new THREE.TorusGeometry(0.5 - k * 0.08, 0.025, 4, 24, Math.PI * 0.9), ember, false); crack.position.set(0, 0.78 + k * 0.05, -0.2 - k * 0.3); crack.rotation.set(0.15, 0, Math.PI * 0.05); crack.scale.set(1.15, 1, 1); body.add(crack); }
+  for (let k = 0; k < 5; k++) { const sp = mesh(new THREE.ConeGeometry(0.07, 0.42 - Math.abs(k - 1.5) * 0.06, 6), mat('horn', { color: '#2a1a14', roughness: 0.5 })); sp.position.set(0, 1.28 - k * 0.04 - (k > 2 ? (k - 2) * 0.08 : 0), -0.15 - k * 0.22); sp.rotation.x = -0.35 - k * 0.12; body.add(sp);
+    const tip = new THREE.Mesh(sph(0.035, 6, 4), glowM); tip.position.set(0, 0.2, 0); sp.add(tip); }
+  const eyeM = new THREE.MeshBasicMaterial({ color: '#ff4a2a' });
+  for (const [x, y, r] of [[0.08, 0.93, 0.05], [0.17, 0.9, 0.04], [0.06, 1.01, 0.035]]) for (const sd of [-1, 1]) { const e = new THREE.Mesh(sph(r, 8, 6), eyeM); e.position.set(x * sd, y, 0.55 - Math.abs(x) * 0.3); body.add(e); }
+  for (const sd of [-1, 1]) { const f = mesh(new THREE.ConeGeometry(0.05, 0.28, 6), mat('hornW', { color: '#e8dcc0', roughness: 0.5 })); f.position.set(0.09 * sd, 0.42, 0.55); f.rotation.set(Math.PI - 0.3, 0, 0.2 * sd); body.add(f); }
+  const heat = new THREE.PointLight('#ff5a20', 6, 5, 2); heat.position.set(0, 1.4, -0.4); body.add(heat);
   g.scale.setScalar(2.4);
-  const w = new THREE.Group(); w.add(g); w.userData = { body: g.userData.body, anim: g.userData.anim };
+  const base = g.userData.anim;
+  const w = new THREE.Group(); w.add(g); w.userData = { body: g.userData.body, anim: (t, s) => {
+    base(t, s);
+    const p = 0.5 + 0.5 * Math.sin(t * 4);
+    ember.emissiveIntensity = 1.6 + p * 1.6; heat.intensity = 4 + p * 4 + (s.attack ? 8 : 0);
+  } };
   return w;
 }
 function buildFlameLord() {
@@ -726,19 +765,110 @@ function buildFlameLord() {
     orb.position.set(0.45 * s, -1.6, 0.5); arm.add(orb); arms.push(arm);
   }
   const light = new THREE.PointLight('#ff6a20', 30, 16, 1.8); light.position.y = 4; body.add(light);
-  g.userData = { body, arms, head, flames, anim: (t) => { flames.forEach((f, i) => { f.scale.y = 1.2 + Math.sin(t * 10 + i) * 0.3; }); } };
+  // blackened armour over the robe: pauldrons with horns, a breastplate with a burning heart, a belt; lava cracks
+  const steel = mat('flSteel', { color: '#24181a', metalness: 0.8, roughness: 0.35, envMapIntensity: 1.1 });
+  const lava = new THREE.MeshStandardMaterial({ color: '#ffb040', emissive: '#ff5a10', emissiveIntensity: 2.5, roughness: 0.4 });
+  for (const [i, s] of [[0, -1], [1, 1]]) {
+    const pad = mesh(new THREE.SphereGeometry(0.55, 14, 10, 0, TAU, 0, Math.PI / 2), steel); pad.position.set(0.05 * s, 0.1, 0); pad.rotation.z = -0.4 * s; arms[i].add(pad);
+    const edge = mesh(new THREE.TorusGeometry(0.54, 0.04, 6, 20), lava, false); edge.rotation.x = Math.PI / 2; pad.add(edge);
+    const horn = mesh(new THREE.ConeGeometry(0.1, 0.6, 6), steel); horn.position.set(0.15 * s, 0.55, -0.05); horn.rotation.z = -0.5 * s; pad.add(horn);
+  }
+  const plate = mesh(new THREE.SphereGeometry(0.98, 16, 10, -1.1, 2.2, 0.35, 1.4), steel); plate.position.y = 3.2; plate.scale.set(1.12, 1.02, 0.95); body.add(plate);
+  const heart = mesh(new THREE.OctahedronGeometry(0.2), lava, false); heart.position.set(0, 3.3, 0.92); heart.scale.set(0.8, 1.2, 0.5); body.add(heart);
+  for (const s of [-1, 1]) { const c = mesh(box(0.04, 0.5, 0.04), lava, false); c.position.set(0.32 * s, 3.05, 0.86); c.rotation.z = 0.5 * s; body.add(c); }
+  const belt = mesh(new THREE.TorusGeometry(0.98, 0.09, 6, 24), steel); belt.rotation.x = Math.PI / 2; belt.position.y = 2.55; body.add(belt);
+  for (let i = 0; i < 5; i++) { const a = (i / 5) * TAU, c = mesh(box(0.05, 1.2, 0.04), lava, false); c.position.set(Math.cos(a) * 0.95, 1.0, Math.sin(a) * 0.95); c.rotation.y = -a; c.rotation.z = 0.15; body.add(c); }
+  for (const s of [-1, 1]) { const h = mesh(new THREE.ConeGeometry(0.1, 0.55, 6), steel); h.position.set(0.35 * s, 0.4, 0); h.rotation.z = -0.55 * s; head.add(h); }
+  // burning rocks circling him
+  const orbit = new THREE.Group(); orbit.position.y = 2.6; body.add(orbit);
+  const rocks = [];
+  for (let i = 0; i < 4; i++) {
+    const r = new THREE.Group(); orbit.add(r);
+    const rk = mesh(new THREE.DodecahedronGeometry(0.28, 0), mat('flRock', { color: '#2a1a14', roughness: 0.9, emissive: '#5a1004', emissiveIntensity: 0.6 })); r.add(rk);
+    const core = new THREE.Mesh(new THREE.DodecahedronGeometry(0.2, 0), lava); core.position.set(0.12, 0.05, 0.12); r.add(core);
+    const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.flame, color: '#ff8a2a', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); f.scale.set(0.6, 1.0, 1); f.position.y = 0.3; r.add(f);
+    rocks.push(r);
+  }
+  g.userData = { body, arms, head, flames, anim: (t, s) => {
+    flames.forEach((f, i) => { f.scale.y = 1.2 + Math.sin(t * 10 + i) * 0.3; });
+    rocks.forEach((r, i) => { const a = t * (s.attack ? 3.5 : 1.2) + i / 4 * TAU; r.position.set(Math.cos(a) * 2.2, Math.sin(t * 2 + i) * 0.4, Math.sin(a) * 2.2); r.rotation.set(t + i, t * 1.3, 0); });
+    lava.emissiveIntensity = 2 + Math.sin(t * 5) * 0.6 + (s.attack ? 2 : 0);
+  } };
   return g;
 }
 function buildShadowWraith() {
   const g = buildGhost(true);
+  const body = g.userData.body, m = g.userData.ghostMat;
+  // torn strips of shroud trailing from the shoulders and hem
+  const rag = new THREE.MeshStandardMaterial({ color: '#1a1430', roughness: 0.9, emissive: '#2a1050', emissiveIntensity: 0.4, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
+  const strips = [];
+  for (let i = 0; i < 10; i++) {
+    const a = i / 10 * TAU + 0.3, len = 0.7 + (i * 37 % 5) * 0.12;
+    const geo = new THREE.PlaneGeometry(0.22, len, 1, 4); geo.translate(0, -len / 2, 0);
+    { const pa = geo.attributes.position; for (let k = 0; k < pa.count; k++) { const y = pa.getY(k); if (y < -len * 0.85) pa.setX(k, pa.getX(k) * 0.3); } }
+    const st = mesh(geo, rag, false); st.position.set(Math.cos(a) * 0.82, i & 1 ? 0.1 : 1.4, Math.sin(a) * 0.82); st.rotation.y = -a + Math.PI / 2; body.add(st); strips.push(st);
+  }
+  // a crown of black thorns on the hood
+  for (let i = 0; i < 6; i++) { const a = i / 6 * TAU, th = mesh(new THREE.ConeGeometry(0.05, 0.4, 5), mat('wthorn', { color: '#120c1c', roughness: 0.4, metalness: 0.4 })); th.position.set(Math.cos(a) * 0.38, 2.45, Math.sin(a) * 0.38); th.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5); body.add(th); }
+  // the scythe
+  const scy = new THREE.Group(); scy.position.set(1.15, 0.9, 0.35); scy.rotation.z = -0.15; body.add(scy);
+  scy.add(mesh(cyl(0.045, 0.055, 3.4, 8), mat('blackwood', { color: '#1a1214', roughness: 0.6 })));
+  for (const y of [-0.6, 0.4]) { const b = mesh(cyl(0.07, 0.07, 0.1, 8), mat('wsilver', { color: '#b8b0d0', metalness: 1, roughness: 0.3 })); b.position.y = y; scy.add(b); }
+  const bs = new THREE.Shape(); bs.moveTo(0, 0); bs.quadraticCurveTo(-0.9, 0.5, -1.7, -0.25); bs.quadraticCurveTo(-0.95, 0.15, 0, -0.25); bs.lineTo(0, 0);
+  const blade = mesh(new THREE.ExtrudeGeometry(bs, { depth: 0.04, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 1 }), mat('wblade', { color: '#c8c4e0', metalness: 1, roughness: 0.18, envMapIntensity: 1.4 }));
+  blade.position.set(0, 1.62, -0.02); scy.add(blade);
+  const edge = new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(new V3(0, -0.25, 0.02), new V3(-0.95, 0.15, 0.02), new V3(-1.7, -0.25, 0.02)), 16, 0.018, 4), new THREE.MeshBasicMaterial({ color: '#c08aff' }));
+  edge.position.copy(blade.position); scy.add(edge);
+  // wisps of lost souls circling it
+  const wisps = [];
+  const wm = new THREE.SpriteMaterial({ map: TEX.soft, color: '#b080ff', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
+  for (let i = 0; i < 5; i++) { const w = new THREE.Group(); body.add(w); const sp = new THREE.Sprite(wm); sp.scale.setScalar(0.5); w.add(sp); const c = new THREE.Mesh(sph(0.06, 6, 4), basic('eyeViolet', { color: '#c08aff' })); w.add(c); wisps.push(w); }
+  const glow = new THREE.PointLight('#8a4aff', 5, 6, 2); glow.position.set(0, 1.8, 0.8); body.add(glow);
   g.scale.setScalar(2.3);
-  const w = new THREE.Group(); w.add(g); w.userData = { body: g.userData.body, anim: g.userData.anim };
+  const base = g.userData.anim;
+  const w = new THREE.Group(); w.add(g); w.userData = { body, anim: (t, s) => {
+    base(t, s);
+    strips.forEach((st, i) => { st.rotation.x = Math.sin(t * 3 + i * 1.7) * 0.35 + (s.moving ? 0.5 : 0); });
+    wisps.forEach((wp, i) => { const a = t * 1.6 + i / 5 * TAU; wp.position.set(Math.cos(a) * 1.5, 1.2 + Math.sin(t * 3 + i * 2) * 0.5, Math.sin(a) * 1.5); });
+    scy.rotation.x = s.attack ? -1.2 : Math.sin(t * 1.5) * 0.08;
+    m.emissiveIntensity = 0.4 + (s.attack ? 0.6 : 0) + Math.sin(t * 3) * 0.1;
+  } };
   return w;
 }
 function buildSlimeKingBoss() {
   const g = buildSlime('#5a2ac0', true);
+  const body = g.userData.body, m = g.userData.mat;
+  // see-through jelly with what it ate inside: a skull, bones, a lost sword, coins, and bubbles
+  m.transparent = true; m.opacity = 0.72; m.depthWrite = false; m.clearcoat = 1; m.roughness = 0.15;
+  const bone = mat('hornW', { color: '#e8dcc0', roughness: 0.5 });
+  const skull = new THREE.Group(); skull.position.set(0.15, 0.62, 0.1); skull.rotation.set(0.3, -0.4, 0.2); body.add(skull);
+  const cr = mesh(sph(0.26, 14, 10), bone); cr.scale.set(1, 0.95, 1.05); skull.add(cr);
+  const jaw = mesh(box(0.26, 0.1, 0.2), bone); jaw.position.set(0, -0.2, 0.08); skull.add(jaw);
+  for (const e of [-1, 1]) { const hole = new THREE.Mesh(sph(0.07, 8, 6), basic('void', { color: '#05030a' })); hole.position.set(0.09 * e, 0.0, 0.22); skull.add(hole); }
+  for (const [x, z, r] of [[-0.45, 0.25, 0.8], [-0.2, -0.4, -0.5]]) { const b = mesh(cyl(0.04, 0.04, 0.55, 6), bone); b.position.set(x, 0.42, z); b.rotation.set(1.2, r, 0.4); body.add(b); for (const e of [-1, 1]) { const k = mesh(sph(0.06, 6, 4), bone); k.position.set(0, 0.28 * e, 0); b.add(k); } }
+  const sword = new THREE.Group(); sword.position.set(-0.5, 0.75, -0.2); sword.rotation.set(0.4, 0.3, 0.9); body.add(sword);
+  sword.add(mesh(box(0.08, 0.9, 0.02), mat('steel', { color: '#d8dce4', metalness: 1, roughness: 0.25 })));
+  const guard = mesh(box(0.3, 0.05, 0.06), mat('gold', { color: '#f0b73c', metalness: 1, roughness: 0.25, envMapIntensity: 1.3 })); guard.position.y = -0.45; sword.add(guard);
+  for (let i = 0; i < 6; i++) { const c = mesh(cyl(0.07, 0.07, 0.02, 10), mat('gold', {})); c.position.set(Math.cos(i * 2.1) * 0.55, 0.12 + (i % 3) * 0.05, Math.sin(i * 2.1) * 0.5); c.rotation.set(i, i * 0.7, 0); body.add(c); }
+  const bubM = new THREE.MeshBasicMaterial({ color: '#d8c0ff', transparent: true, opacity: 0.5 });
+  const bubbles = [];
+  for (let i = 0; i < 9; i++) { const b = new THREE.Mesh(sph(0.04 + (i % 3) * 0.025, 8, 6), bubM); body.add(b); bubbles.push({ b, x: Math.cos(i * 2.4) * 0.6, z: Math.sin(i * 2.4) * 0.55, o: i / 9 }); }
+  // a grander crown: taller points tipped with pearls, a big gem in front
+  const crown = body.children.find(o => o.isGroup && o.position.y === 1.55);
+  if (crown) {
+    crown.scale.setScalar(1.25);
+    crown.children.forEach(o => { if (o.geometry && o.geometry.type === 'ConeGeometry') { const p = mesh(sph(0.06, 8, 6), mat('pearl', { color: '#fff8f0', roughness: 0.2 })); p.position.y = 0.19; o.add(p); } });
+    const gem = mesh(new THREE.OctahedronGeometry(0.14), new THREE.MeshStandardMaterial({ color: '#40e0ff', emissive: '#108aff', emissiveIntensity: 1.2, roughness: 0.1, metalness: 0.3 })); gem.position.set(0, 0.08, 0.5); gem.scale.z = 0.5; crown.add(gem);
+  }
+  // a puddle of ooze it leaves round itself
+  const pud = new THREE.Mesh(new THREE.CircleGeometry(1.25, 24), new THREE.MeshBasicMaterial({ color: '#5a2ac0', transparent: true, opacity: 0.3, depthWrite: false })); pud.rotation.x = -Math.PI / 2; pud.position.y = 0.03; g.add(pud);
   g.scale.setScalar(2.6);
-  const w = new THREE.Group(); w.add(g); w.userData = { body: g.userData.body, anim: g.userData.anim };
+  const base = g.userData.anim;
+  const w = new THREE.Group(); w.add(g); w.userData = { body, anim: (t, s) => {
+    base(t, s);
+    bubbles.forEach(q => { const k = (t * 0.35 + q.o) % 1; q.b.position.set(q.x * (1 - k * 0.5), 0.15 + k * 1.15, q.z * (1 - k * 0.5)); });
+    skull.rotation.y = -0.4 + Math.sin(t * 0.7) * 0.3;
+  } };
   return w;
 }
 function buildTowerKingBrute() {
@@ -753,6 +883,20 @@ function buildTowerKingBrute() {
   const capeGeo = new THREE.PlaneGeometry(2.6, 3.2, 6, 8); capeGeo.translate(0, -1.6, 0);
   { const pa = capeGeo.attributes.position; for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), y = pa.getY(i); pa.setZ(i, -x * x * 0.25 + y * 0.08); } capeGeo.computeVertexNormals(); }
   const cape = mesh(capeGeo, mat('kcape', { color: '#6a0a20', roughness: 0.7, side: THREE.DoubleSide })); cape.position.set(0, 3.5, -1.0); g.userData.body.add(cape);
+  // royal war gear: the iron turns gold, an ermine collar, a crest on the chest, a great mace for the club
+  g.traverse(o => { if (o.isMesh && o.material === M.iron) o.material = gold; });
+  const ermine = mesh(new THREE.TorusGeometry(0.85, 0.2, 10, 28), mat('ermine', { color: '#f4f0ea', roughness: 0.95 })); ermine.position.set(0, 3.3, -0.1); ermine.rotation.x = Math.PI / 2 - 0.2; g.userData.body.add(ermine);
+  for (let i = 0; i < 7; i++) { const a = -1.4 + i * 0.47, sp = mesh(sph(0.05, 6, 4), mat('ermSpot', { color: '#141014' })); sp.position.set(Math.sin(a) * 0.92, 3.42, -0.1 + Math.cos(a) * 0.92); g.userData.body.add(sp); }
+  const crest = new THREE.Group(); crest.position.set(0, 2.55, 1.2); g.userData.body.add(crest);
+  const cs = new THREE.Shape(); cs.moveTo(-0.35, 0.3); cs.lineTo(0.35, 0.3); cs.lineTo(0.35, -0.05); cs.quadraticCurveTo(0.3, -0.3, 0, -0.45); cs.quadraticCurveTo(-0.3, -0.3, -0.35, -0.05);
+  crest.add(mesh(new THREE.ExtrudeGeometry(cs, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 2 }), gold));
+  const ruby = mesh(new THREE.OctahedronGeometry(0.13), new THREE.MeshStandardMaterial({ color: '#ff2a4a', emissive: '#c0002a', emissiveIntensity: 1.2, roughness: 0.1 })); ruby.position.z = 0.14; ruby.scale.z = 0.5; crest.add(ruby);
+  const club = g.userData.club; club.clear();
+  club.add(seg([0, 0, -0.4], [0, 0, 2.0], 0.1, 0.12, mat('blackwood', { color: '#1a1214', roughness: 0.6 })));
+  for (const z of [-0.35, 0.3, 0.9]) { const r = mesh(cyl(0.15, 0.15, 0.12, 10), gold); r.rotation.x = Math.PI / 2; r.position.z = z; club.add(r); }
+  const mace = mesh(new THREE.IcosahedronGeometry(0.5, 1), gold); mace.position.z = 2.3; club.add(mace);
+  for (let i = 0; i < 12; i++) { const v = new V3().setFromSphericalCoords(1, Math.acos(1 - 2 * (i + 0.5) / 12), i * 2.4); const sp = mesh(new THREE.ConeGeometry(0.1, 0.42, 6), gold); sp.position.copy(v.clone().multiplyScalar(0.55)).add(new V3(0, 0, 2.3)); sp.quaternion.setFromUnitVectors(new V3(0, 1, 0), v); club.add(sp); }
+  const mg = mesh(sph(0.16, 10, 8), new THREE.MeshStandardMaterial({ color: '#c9a2ff', emissive: '#8a3aff', emissiveIntensity: 2 })); mg.position.z = 2.85; club.add(mg);
   return g;
 }
 export function buildKingWizard() {

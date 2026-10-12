@@ -7,6 +7,7 @@ import { THREE, scene, camera, TEX, TAU, V3, R, ax, az, wx, wz, PX, CELL, buildR
 import { buildPet } from './pets.js';
 import { buildHero, equipHeroWeapon, equipHeroGear, animHero, buildMonster, buildBoss, buildKingWizard, buildWife, buildMerchant, buildItem, makeFlashable } from './models.js';
 import * as D from './data.js';
+import { sfx } from './audio.js';
 import { G, faded, tame_zone, ANIM_LEN, ANIM_SHOT, slash_index, TAL } from './sim.js';
 
 export const V = { hero: null, heroCls: -1, mons: [], items: [], boss: null, bossArt: -1, king: null, pet: null, petType: 0, merchant: null, wife: null,
@@ -228,6 +229,7 @@ function itemModel(i) {
 
 // ---------------------------------------------------------------- events from the game
 export function onEvents(ev, ui) {
+  V.ui = ui;
   for (const e of ev) {
     switch (e.k) {
       case 'room': onRoom(); ui.roomStart(); break;
@@ -571,13 +573,29 @@ export function update(dt, input) {
   placeCamera(V.heroPos.x, V.heroPos.z, false);
 }
 
+const ENTER_T = 0.7;
+const BOSS_DUST = ['#b8a890', '#ff6a2a', '#ff8a2a', '#b080ff', '#8a5aff'];
+function entranceFx(x, z, col, soft) {
+  shake.t = soft ? 0.3 : 0.5; shake.amp = soft ? 0.8 : 1.5;
+  ring(x, z, col, 0.5, 11, 0.6); ring(x, z, '#ffffff', 0.5, 6, 0.35);
+  burst(x, 0.6, z, col, 34, 11, 1.4, false, 0.8, 4);
+  burst(x, 1.5, z, '#fff4d0', 14, 7, 0.9, true, 0.4);
+  sfx('slam'); setTimeout(() => sfx('roar'), 250);
+  if (V.ui) V.ui.flash(soft ? col : '#ffffff', 0.35);
+}
 function updateBoss(dt, t) {
   const on = G.boss_on && G.state === 'play';
   const king = on && G.floor_num === D.LAST_FLOOR;
   // the Tower King's sorcerer form (and his run, potion and change)
   const wizForm = king && G.bform !== D.BF_BRUTE;
   if (wizForm) {
-    if (!V.king) { V.king = buildKingWizard(); makeFlashable(V.king); scene.add(V.king); V.king.position.set(wx(G.bx + 16), 0, wz(G.by + 24)); }
+    if (!V.king) {
+      V.king = buildKingWizard(); makeFlashable(V.king); scene.add(V.king); V.king.position.set(wx(G.bx + 16), 0, wz(G.by + 24));
+      // he arrives in a crack of violet lightning
+      const kx = V.king.position.x, kz = V.king.position.z;
+      lightning(kx, kz, '#c9a2ff'); ring(kx, kz, '#c9a2ff', 0.5, 9, 0.7); burst(kx, 2, kz, '#c9a2ff', 30, 8, 1.2, true, 0.8, -1);
+      shake.t = 0.3; shake.amp = 0.9; if (V.ui) V.ui.flash('#c9a2ff', 0.4);
+    }
     V.king.visible = true;
     const x = wx(G.bx + 16), z = wz(G.by + 24);
     V.king.position.x = smooth(V.king.position.x, x, dt, 20); V.king.position.z = smooth(V.king.position.z, z, dt, 20);
@@ -599,15 +617,26 @@ function updateBoss(dt, t) {
     V.boss.position.set(wx(G.bx + 16), 0, wz(G.by + 24));
     const sh = new THREE.Mesh(new THREE.PlaneGeometry(7, 7), new THREE.MeshBasicMaterial({ map: TEX.shadow, transparent: true, depthWrite: false }));
     sh.rotation.x = -Math.PI / 2; sh.position.y = 0.05; V.boss.add(sh); V.boss.userData.sh = sh;
-    if (king) V.boss.userData.spawnT = 0.6;
+    if (king) { V.boss.userData.spawnT = 0.6; entranceFx(V.boss.position.x, V.boss.position.z, '#c9a2ff', true); }
+    else V.boss.userData.enterT = ENTER_T;
   }
   const b = V.boss; b.visible = true;
   const x = wx(G.bx + 16), z = wz(G.by + 24);
   b.position.x = smooth(b.position.x, x, dt, 22); b.position.z = smooth(b.position.z, z, dt, 22);
   const leap = G.bstate === D.BS_LEAP;
   const leapY = leap ? Math.sin(Math.min(1, G.btimer / 40) * Math.PI) * 9 : 0;
-  b.position.y = leapY;
-  if (b.userData.sh) { b.userData.sh.position.y = 0.05 - leapY; b.userData.sh.scale.setScalar(1 - leapY / 18); }
+  // the entrance: most bosses drop from the ceiling and land with a quake; the wraith rises out of the floor
+  let enterY = 0;
+  if (b.userData.enterT > 0) {
+    const rise = G.boss_art === 3;
+    b.userData.enterT -= dt;
+    const k = Math.min(1, Math.max(0, 1 - b.userData.enterT / ENTER_T));
+    enterY = rise ? -9 * (1 - k) * (1 - k) : 24 * (1 - k * k);
+    if (rise && Math.random() < 0.6) burst(x, 0.4, z, '#6a3aaa', 2, 3, 1.4, false, 0.7, -2);
+    if (b.userData.enterT <= 0) entranceFx(x, z, BOSS_DUST[G.boss_art] || '#b8a890', rise);
+  }
+  b.position.y = leapY + enterY;
+  if (b.userData.sh) { const h = Math.max(0, leapY + enterY); b.userData.sh.position.y = 0.05 - leapY - enterY; b.userData.sh.scale.setScalar(Math.max(0.2, 1 - h / 18)); }
   const dx = V.heroPos.x - x, dz = V.heroPos.z - z;
   if (G.bstate !== D.BS_CHARGE) faceTo(b, Math.atan2(dx, dz), dt, 5); else faceTo(b, Math.atan2(G.bdx, G.bdy), dt, 10);
   const moving = G.bstate === D.BS_WALK || G.bstate === D.BS_CHARGE;
