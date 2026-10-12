@@ -151,6 +151,17 @@ function slotLabel(kind) {
   return D.KIND_NAME[kind];
 }
 const pic = (kind, rar, tier = 0) => itemPic(kind, rar, G.player_class, tier);
+// an item's stats as colored chips: +7 STR +5 STA (arr: b_st / eq_st / sh_st / i_st, k: slot)
+export function statHTML(arr, k) {
+  let h = '';
+  for (let j = 0; j < 3; ++j) { const t = arr[k * 6 + j * 2], v = arr[k * 6 + j * 2 + 1]; if (t) h += `<b style="color:${D.STAT_COLOR[t]}">+${v} ${D.STAT_NAME[t]}</b>`; }
+  return h ? `<div class="sts">${h}</div>` : '';
+}
+export function statText(arr, k) {
+  const o = [];
+  for (let j = 0; j < 3; ++j) { const t = arr[k * 6 + j * 2]; if (t) o.push(`+${arr[k * 6 + j * 2 + 1]} ${D.STAT_NAME[t]}`); }
+  return o.join(' ');
+}
 const coinTxt = n => `<span class="coin"></span>${n}`;
 function slotHTML(kind, rar, lv, ghost, tier = 0) {
   return `<img alt="" src="${pic(kind, ghost ? 0 : rar, ghost ? 0 : tier)}">${!ghost && kind !== D.K_TRINKET && lv ? `<span class="lv">${lv}</span>` : ''}`;
@@ -183,6 +194,9 @@ function drawInv() {
   const spd = S.spd_fine();
   $('invSpd').textContent = `SPD ${spd >= 0 ? '+' : ''}${spd}`;
   $('invAtk').innerHTML = `ATK ${S.atk_fine()} &nbsp; DEF ${S.total_def()}`;
+  const main = D.MAIN_STAT[G.player_class];
+  const tip = ['', 'warrior damage', 'hunter damage · crit on gear', 'mage damage', 'max health', 'less damage taken'];
+  $('invStats').innerHTML = [1, 2, 3, 4, 5].map(t => `<span class="${t === main ? 'main' : ''}" style="--c:${D.STAT_COLOR[t]}" title="${D.STAT_LONG[t]}: ${tip[t]}">${D.STAT_NAME[t]}<b>${S.stat_total(t)}</b></span>`).join('');
   // the doll
   const dl = $('doll');
   dl.innerHTML = '';
@@ -221,13 +235,14 @@ function drawInv() {
 }
 function focusSel() { setTimeout(() => { const s = $(UI.modal || 'sInv').querySelector('.sel'); if (s && input.lastDevice !== 'touch') s.focus({ preventScroll: true }); }, 0); }
 // the box under the screen: what the picked item is, and what you can do with it
-function itemLines(kind, rar, lv, spec, val, worn) {
+function itemLines(kind, rar, lv, spec, val, worn, sa, sk) {
+  const stats = statHTML(sa, sk);
   if (kind === D.K_TRINKET) {
     const tt = S.trinket_talents(spec, val);
-    return tt.map(([t, c]) => `<p><b>+${c} ${D.TAL_NAME[G.player_class * D.NTAL + t]}</b> (talent ranks)</p>`).join('');
+    return stats + tt.map(([t, c]) => `<p><b>+${c} ${D.TAL_NAME[G.player_class * D.NTAL + t]}</b> (talent ranks)</p>`).join('');
   }
   const v = S.gear_fine(kind, lv), w = S.worn_fine(kind), d = v - w;
-  return `<p>${S.stat_name(kind)} <b>${v}</b>${worn ? ' &nbsp;WORN' : ` &nbsp;<b style="color:${d >= 0 ? '#7dff86' : '#ff6a55'}">(${d >= 0 ? '+' : ''}${d} vs worn)</b>`}</p>`
+  return stats + `<p>${S.stat_name(kind)} <b>${v}</b>${worn ? ' &nbsp;WORN' : ` &nbsp;<b style="color:${d >= 0 ? '#7dff86' : '#ff6a55'}">(${d >= 0 ? '+' : ''}${d} vs worn)</b>`}</p>`
     + `<p>${spec ? `<b style="color:${D.RAR_COLOR[4]}">${D.SPEC_NAME[spec]}</b>: ${D.SPEC_DESC[spec]}` : 'No special power'}</p>`;
 }
 function itemTitle(kind, rar, tier, lv) {
@@ -235,20 +250,20 @@ function itemTitle(kind, rar, tier, lv) {
 }
 function drawInfo() {
   const box = $('invInfo'), sel = UI.sel || {};
-  let kind, rar, tier, lv, spec, val, worn = false;
+  let kind, rar, tier, lv, spec, val, worn = false, sa, sk;
   if (sel.gear !== undefined) {
     const i = sel.gear;
     if (!G.eq_has[i]) { box.innerHTML = `<h3>${slotLabel(i + 1)}</h3><p>Nothing worn here. Pick something from your bag to wear it.</p>`; return; }
-    kind = i + 1; rar = G.eq_rar[i]; tier = G.eq_tier[i]; lv = G.eq_lvl[i]; spec = G.eq_spec[i]; val = G.eq_val[i]; worn = true;
+    kind = i + 1; rar = G.eq_rar[i]; tier = G.eq_tier[i]; lv = G.eq_lvl[i]; spec = G.eq_spec[i]; val = G.eq_val[i]; worn = true; sa = G.eq_st; sk = i;
   } else if (sel.bag !== undefined) {
     const k = sel.bag;
     if (!G.b_kind[k]) { box.innerHTML = `<h3>Empty</h3><p>Loot you pick up lands in your bag.</p>`; return; }
-    kind = G.b_kind[k]; rar = G.b_rar[k]; tier = G.b_tier[k]; lv = G.b_lvl[k]; spec = G.b_spec[k]; val = G.b_val[k];
+    kind = G.b_kind[k]; rar = G.b_rar[k]; tier = G.b_tier[k]; lv = G.b_lvl[k]; spec = G.b_spec[k]; val = G.b_val[k]; sa = G.b_st; sk = k;
   } else { box.innerHTML = ''; return; }
   let acts = '';
   if (worn) acts = sel.gear ? `<button class="mbtn" id="aUnequip">Unequip</button>` : '';
   else acts = `<button class="mbtn go" id="aEquip">Equip</button><button class="mbtn${UI.sellArm === sel.bag ? ' warn' : ''}" id="aSell">${UI.sellArm === sel.bag ? 'Tap again to sell for ' : 'Sell for '}${S.sell_price(kind, rar, val)}g</button>`;
-  box.innerHTML = itemTitle(kind, rar, tier, lv) + itemLines(kind, rar, lv, spec, val, worn) + `<div class="acts">${acts}</div>`;
+  box.innerHTML = itemTitle(kind, rar, tier, lv) + itemLines(kind, rar, lv, spec, val, worn, sa, sk) + `<div class="acts">${acts}</div>`;
   if ($('aEquip')) $('aEquip').onclick = equipSel;
   if ($('aSell')) $('aSell').onclick = sellSel;
   if ($('aUnequip')) $('aUnequip').onclick = unequipSel;
@@ -323,7 +338,7 @@ function drawShop(focusK) {
       ic = pic(kind, rar, G.sh_tier[k]); col = rc = D.RAR_COLOR[rar];
       name = `${D.RAR_NAME[rar]} ${S.item_name(kind, rar, G.sh_tier[k])}${G.sh_spec[k] ? ' · ' + D.SPEC_NAME[G.sh_spec[k]] : ''}`;
       const v = S.gear_fine(kind, lv), d = v - S.worn_fine(kind);
-      det = `LV ${lv} · ${S.stat_name(kind)} ${v} (${d >= 0 ? '+' : ''}${d} vs worn)`;
+      det = `LV ${lv} · ${S.stat_name(kind)} ${v} (${d >= 0 ? '+' : ''}${d} vs worn) · ${statText(G.sh_st, k)}`;
     }
     const b = document.createElement('button');
     b.className = 'ware' + (G.sh_sold[k] ? ' sold' : '');
@@ -438,8 +453,9 @@ export function lootCard(e) {
   $('lootIc').innerHTML = `<img alt="" src="${itemPic(kind, rar, G.player_class, G.b_tier[k])}" style="width:46px;height:46px">`;
   $('lootT').textContent = tc(`${D.RAR_NAME[rar]} ${S.item_name(kind, rar, G.b_tier[k])}`);
   $('lootT').style.color = D.RAR_COLOR[rar];
-  if (kind === D.K_TRINKET) $('lootS').textContent = S.trinket_talents(G.b_spec[k], G.b_val[k]).map(([t, c]) => `+${c} ${tc(D.TAL_NAME[G.player_class * D.NTAL + t])}`).join(', ');
-  else $('lootS').textContent = `Level ${G.b_lvl[k]} · ${S.stat_name(kind)} ${S.gear_fine(kind, G.b_lvl[k])}${e.better ? ' · UPGRADE! Open your bag to equip' : ''}`;
+  const st = statText(G.b_st, k);
+  if (kind === D.K_TRINKET) $('lootS').textContent = (st ? st + ' · ' : '') + S.trinket_talents(G.b_spec[k], G.b_val[k]).map(([t, c]) => `+${c} ${tc(D.TAL_NAME[G.player_class * D.NTAL + t])}`).join(', ');
+  else $('lootS').textContent = `Level ${G.b_lvl[k]} · ${S.stat_name(kind)} ${S.gear_fine(kind, G.b_lvl[k])}${st ? ' · ' + st : ''}${e.better ? ' · UPGRADE! Open your bag to equip' : ''}`;
   $('loot').style.boxShadow = `inset 0 0 0 2px ${D.RAR_COLOR[rar]}, 0 10px 24px rgba(0,0,0,.45)`;
   $('loot').classList.add('on');
   UI.toastT = 3.2;

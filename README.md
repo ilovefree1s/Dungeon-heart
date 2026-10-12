@@ -18,6 +18,11 @@ The whole SNES game (`ilovefree1s/dungeon-loot`, folder `snes/`), rebuilt in 3D:
 - A boss every floor behind the door you choose, and the Tower King on floor 50.
 - Gear in 7 slots and 5 rarities, trinkets, the traveling merchant and trade-ups,
   3 talent trees per class, the hunter's pets.
+- Gear stats: every piece rolls up to three of Strength, Dexterity, Intelligence, Stamina and
+  Defense (more on rarer gear, mostly your class's main stat). Strength is the warrior's damage,
+  Dexterity the hunter's (and crit chance on gear), Intelligence the mage's; the other two help a
+  third as much. Stamina is max health, Defense means less damage taken. Each level raises your main
+  stat and Stamina.
 - Saves in the browser after every room; Continue on the title screen.
 
 ## Controls

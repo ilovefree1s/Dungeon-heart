@@ -46,6 +46,12 @@ export const SP_NONE = 0, SP_VAMPIRE = 1, SP_CRIT = 2, SP_QUICK = 3, SP_REGEN = 
 export const SPEC_NAME = ['', 'VAMPIRE', 'CRIT', 'QUICK', 'REGEN', 'THORNS', 'BLOCK'];
 export const SPEC_DESC = ['', 'Heal 1 HP per hit', '25% double damage', 'Roll recharges 2x', 'Heal over time',
   'Hurt who hits you', '25% block a hit'];
+// the five gear stats (an item rolls up to three). Each class has a main stat: its damage.
+export const ST_STR = 1, ST_DEX = 2, ST_INT = 3, ST_STA = 4, ST_DEF = 5;
+export const STAT_NAME = ['', 'STR', 'DEX', 'INT', 'STA', 'DEF'];
+export const STAT_LONG = ['', 'STRENGTH', 'DEXTERITY', 'INTELLIGENCE', 'STAMINA', 'DEFENSE'];
+export const STAT_COLOR = ['', '#ff7a5a', '#86e34b', '#b57cff', '#ffb26a', '#7ab8ff'];
+export const MAIN_STAT = [ST_STR, ST_INT, ST_DEX]; // warrior, mage, hunter
 export const BAG = 16, RAR_RARE = 2, RAR_EPIC = 3, RAR_LEG = 4, MAXPOT = 5;
 export const RAR_NAME = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY'];
 export const RAR_COLOR = ['#d9dde3', '#5fe36a', '#4fa8ff', '#b57cff', '#ffa53a'];

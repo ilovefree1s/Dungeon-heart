@@ -46,6 +46,8 @@ export const G = {
   // gear: index kind - 1
   eq_val: u8(NGEAR), eq_rar: u8(NGEAR), eq_spec: u8(NGEAR), eq_tier: u8(NGEAR), eq_has: u8(NGEAR), eq_lvl: u8(NGEAR),
   b_kind: u8(BAG), b_rar: u8(BAG), b_tier: u8(BAG), b_val: u8(BAG), b_spec: u8(BAG), b_lvl: u8(BAG),
+  // each item's stats: three [type, amount] pairs (ST_STR .. ST_DEF)
+  b_st: u8(BAG * 6), eq_st: u8(NGEAR * 6), i_st: u8(MAXI * 6), sh_st: u8(4 * 6),
   tal: u8(NTAL), wt: u8(NTAL), mt: u8(NTAL), ht: u8(NTAL),
   // monsters
   m_type: u8(MAXM), m_x: u8(MAXM), m_y: u8(MAXM), m_atk: u8(MAXM), m_hp: u16(MAXM), m_mhp: u16(MAXM), m_xp: u8(MAXM),
@@ -83,7 +85,7 @@ export const G = {
   msg: '', msg_color: COL_WHITE, msg_t: 0, msg_id: 0,
   ev: [],
   // scratch (generated gear)
-  g_val: 0, g_spec: 0, g_lvl: 0,
+  g_val: 0, g_spec: 0, g_lvl: 0, g_st: u8(6), hpgear: 0,
 };
 const g = G;
 
@@ -677,13 +679,17 @@ export function gear_fine(kind, lvl) {
 }
 export const worn_fine = kind => (g.eq_has[kind - 1] ? gear_fine(kind, g.eq_lvl[kind - 1]) : 0);
 export function atk_fine() {
-  let v = (g.str + (T.MIGHT << 1) + g.bless_atk) * FINE + worn_fine(K_WEAPON) + worn_fine(K_GLOVES);
+  const main = D.MAIN_STAT[g.player_class];
+  let off = 0;
+  for (let t = 1; t <= 3; ++t) if (t !== main) off += gear_stat(t);
+  // the main stat is damage; the other two help a third as much
+  let v = ((T.MIGHT << 1) + g.bless_atk) * FINE + main_lvl() + gear_stat(main) + Math.floor(off / 3) + worn_fine(K_WEAPON) + worn_fine(K_GLOVES);
   if (IS_WARRIOR()) return v;
   v += worn_fine(K_SHIELD);
   return v + (IS_MAGE() ? Math.floor(v / 5) : (v * 7) >> 4);
 }
 export function total_def() {
-  return worn_fine(K_ARMOR) + (IS_WARRIOR() ? worn_fine(K_SHIELD) : 0) + worn_fine(K_HELMET) +
+  return worn_fine(K_ARMOR) + (IS_WARRIOR() ? worn_fine(K_SHIELD) : 0) + worn_fine(K_HELMET) + gear_stat(D.ST_DEF) +
     ((T.IRON << 1) + T.ICEARMOR + g.bless_def) * FINE;
 }
 export function spd_fine() {
@@ -701,6 +707,49 @@ function roll_trinket(rar) {
   g.g_spec = a; g.g_val = b;
   if (rar === RAR_LEG) g.g_val |= (5 + (rnd() % 3) * 5) << 4;
 }
+// ---------------------------------------------------------------- gear stats
+export const cpst = (d, di, src, si) => { for (let j = 0; j < 6; ++j) d[di * 6 + j] = src ? src[si * 6 + j] : 0; };
+const STAT_K = [8, 11, 14, 16, 21];
+// up to three stats by rarity; the first is mostly the class's main stat
+function roll_stats(rar, lvl) {
+  const st = g.g_st;
+  st.fill(0);
+  const n = rar === 0 ? (rnd() & 1) : rar === 1 ? 1 : rar === 2 ? 2 : rar === 3 ? 2 + (rnd() & 1) : 3;
+  const main = D.MAIN_STAT[g.player_class];
+  const base = Math.max(1, Math.floor((lvl + 6) * STAT_K[rar] / 64));
+  for (let i = 0; i < n; ++i) {
+    let t;
+    if (i === 0) t = rnd() < 192 ? main : 1 + rnd() % 3;
+    else t = [D.ST_STA, D.ST_DEF, D.ST_STA, D.ST_DEF, D.ST_DEX, main, 1 + rnd() % 3, D.ST_STA][rnd() & 7];
+    let v = Math.floor(base * (80 + rnd() % 41) / 100);
+    if (t === D.ST_DEF) v <<= 1;
+    if (i === 0 && rar === RAR_LEG) v = Math.floor(v * 3 / 2);
+    v = Math.max(1, Math.min(255, v));
+    let j = 0;
+    while (j < i && st[j * 2] !== t) ++j;
+    if (j < i) st[j * 2 + 1] = Math.min(255, st[j * 2 + 1] + v); // (the same stat twice: added up)
+    else { st[i * 2] = t; st[i * 2 + 1] = v; }
+  }
+}
+// a stat summed over the worn gear
+export function gear_stat(t) {
+  let v = 0;
+  for (let i = 0; i < NGEAR; ++i) if (g.eq_has[i]) for (let j = 0; j < 3; ++j) if (g.eq_st[i * 6 + j * 2] === t) v += g.eq_st[i * 6 + j * 2 + 1];
+  return v;
+}
+// the main stat from levels: 12, +3 a level (as the old strength grew)
+export const main_lvl = () => 12 + 3 * (g.lvl - 1);
+export function stat_total(t) {
+  if (t === D.MAIN_STAT[g.player_class]) return main_lvl() + gear_stat(t);
+  if (t === D.ST_STA) return (g.lvl - 1) + gear_stat(t);
+  if (t === D.ST_DEF) return total_def();
+  return gear_stat(t);
+}
+// stamina on gear is max health: keep maxhp in step with what is worn
+function sta_sync() {
+  const s = gear_stat(D.ST_STA);
+  if (s !== g.hpgear) { g.maxhp += s - g.hpgear; g.hpgear = s; if (g.hp > g.maxhp) g.hp = g.maxhp; if (g.hp < 1) g.hp = 1; }
+}
 export function roll_gear(kind, rar, tier) {
   const s = rnd() % (rar + 1);
   const DP = DEPTH();
@@ -710,6 +759,7 @@ export function roll_gear(kind, rar, tier) {
 function gear_stats(kind, rar, e) {
   const s2 = rnd() & 0x40;
   g.g_lvl = (e - KIND_LVL[kind - 1]) & 255;
+  roll_stats(rar, g.g_lvl);
   if (kind === K_TRINKET) { roll_trinket(rar); return; }
   switch (kind) {
     case K_WEAPON: g.g_val = 1 + ((e * 3) >> 2); g.g_spec = s2 ? SP_VAMPIRE : SP_CRIT; break;
@@ -735,10 +785,11 @@ export function rand_gear_kind() {
   return K_HELMET;
 }
 export function best_tier() { const s = Math.floor(DEPTH() / 13) + 1; return s > 7 ? 7 : s; }
-export function equip(kind, rar, tier, val, spec, lv) {
+export function equip(kind, rar, tier, val, spec, lv, st = null, si = 0) {
   const k = kind - 1;
   g.eq_lvl[k] = lv; g.eq_val[k] = val; g.eq_rar[k] = rar; g.eq_spec[k] = spec; g.eq_tier[k] = tier; g.eq_has[k] = 1;
-  tal_sync();
+  cpst(g.eq_st, k, st, si);
+  tal_sync(); sta_sync();
   fx('gear');
 }
 export function bag_free() {
@@ -807,7 +858,7 @@ export function drop_loot(x, y) {
     g.floor_num += 2;
   }
   g.floor_num = fl;
-  g.i_lvl[slot] = g.g_lvl; g.i_val[slot] = g.g_val; g.i_spec[slot] = g.g_spec;
+  g.i_lvl[slot] = g.g_lvl; g.i_val[slot] = g.g_val; g.i_spec[slot] = g.g_spec; cpst(g.i_st, slot, g.g_st, 0);
   fx('drop', { s: slot });
 }
 function drop_trinket(x, y) {
@@ -816,7 +867,7 @@ function drop_trinket(x, y) {
   let r = rnd();
   r = r < 102 ? 1 : (r < 192 ? 2 : (r < 238 ? 3 : 4));
   roll_gear(K_TRINKET, r, 0);
-  g.i_kind[k] = K_TRINKET; g.i_rar[k] = r; g.i_tier[k] = (g.g_val + g.g_spec) & 3; g.i_val[k] = g.g_val; g.i_spec[k] = g.g_spec; g.i_lvl[k] = g.g_lvl; // (a trinket's tier only picks its look)
+  g.i_kind[k] = K_TRINKET; g.i_rar[k] = r; g.i_tier[k] = (g.g_val + g.g_spec) & 3; g.i_val[k] = g.g_val; g.i_spec[k] = g.g_spec; g.i_lvl[k] = g.g_lvl; cpst(g.i_st, k, g.g_st, 0); // (a trinket's tier only picks its look)
   if (wsolid(x + 4, y + 4)) {
     if (!wsolid(x + 20, y + 4)) x += 16;
     else if (!wsolid(x - 12, y + 4)) x -= 16;
@@ -834,7 +885,6 @@ function level_check() {
     ++g.lvl;
     g.xpnext = 8 + g.lvl * 8 + Math.floor((g.lvl * g.lvl) / 4);
     g.maxhp += IS_WARRIOR() ? 4 : 3;
-    if (g.lvl & 1) ++g.str;
     g.hp = g.maxhp;
     set_msg(`LEVEL ${g.lvl}! ${g.lvl & 1 ? 'STRONGER!' : '+1 TALENT POINT'}`, COL_GOLD);
     sfx('levelup');
@@ -892,7 +942,7 @@ function pickup(n) {
   const slot = bag_free();
   if (slot < BAG) {
     g.b_kind[slot] = kind; g.b_rar[slot] = rar; g.b_tier[slot] = g.i_tier[n];
-    g.b_val[slot] = g.i_val[n]; g.b_spec[slot] = g.i_spec[n]; g.b_lvl[slot] = g.i_lvl[n];
+    g.b_val[slot] = g.i_val[n]; g.b_spec[slot] = g.i_spec[n]; g.b_lvl[slot] = g.i_lvl[n]; cpst(g.b_st, slot, g.i_st, n);
     if (kind === K_TRINKET) {
       const tt = trinket_talents(g.i_spec[n], g.i_val[n]).map(([k, c]) => `+${c} ${D.TAL_NAME[g.player_class * NTAL + k]}`).join(', ');
       set_msg(`${D.RAR_NAME[rar]} ${item_name(kind, rar, 0)}! ${tt}`, D.RAR_COLOR[rar]);
@@ -1006,7 +1056,7 @@ export function kill_boss() {
     }
     g.i_tier[k] = best_tier();
     roll_gear(g.i_kind[k], g.i_rar[k], g.i_tier[k]);
-    g.i_lvl[k] = g.g_lvl; g.i_val[k] = g.g_val; g.i_spec[k] = g.g_spec;
+    g.i_lvl[k] = g.g_lvl; g.i_val[k] = g.g_val; g.i_spec[k] = g.g_spec; cpst(g.i_st, k, g.g_st, 0);
     g.i_x[k] = g.bx + 6 + (k2 << 3); g.i_y[k] = g.by + 14 - (k2 << 4);
     fx('drop', { s: k });
   }
@@ -1305,7 +1355,7 @@ function stock_shop() {
     g.sh_rar[k] = s < 38 ? RAR_LEG : (s < 128 ? RAR_EPIC : RAR_RARE);
     g.sh_tier[k] = best_tier();
     roll_gear(g.sh_kind[k], g.sh_rar[k], g.sh_tier[k]);
-    g.sh_lvl[k] = g.g_lvl; g.sh_val[k] = g.g_val; g.sh_spec[k] = g.g_spec;
+    g.sh_lvl[k] = g.g_lvl; g.sh_val[k] = g.g_val; g.sh_spec[k] = g.g_spec; cpst(g.sh_st, k, g.g_st, 0);
     g.sh_price[k] = g.g_val * (g.sh_kind[k] === K_WEAPON ? 8 : (g.sh_kind[k] === K_ARMOR ? 10 : 16)) + g.sh_rar[k] * 20;
   }
   g.sh_price[3] = 40 + (DP << 3);
@@ -1342,7 +1392,7 @@ export function shop_buy(k) {
   const b = bag_free();
   if (k < 3) {
     g.b_kind[b] = g.sh_kind[k]; g.b_rar[b] = g.sh_rar[k]; g.b_tier[b] = g.sh_tier[k];
-    g.b_val[b] = g.sh_val[k]; g.b_spec[b] = g.sh_spec[k]; g.b_lvl[b] = g.sh_lvl[k];
+    g.b_val[b] = g.sh_val[k]; g.b_spec[b] = g.sh_spec[k]; g.b_lvl[b] = g.sh_lvl[k]; cpst(g.b_st, b, g.sh_st, k);
     return "It's in your bag. Enjoy!";
   }
   const kind = rand_gear_kind(), s = rnd();
@@ -1350,7 +1400,7 @@ export function shop_buy(k) {
   let tier = best_tier();
   if (tier < 7 && (rnd() & 0x40)) ++tier;
   roll_gear(kind, rar, tier);
-  g.b_kind[b] = kind; g.b_rar[b] = rar; g.b_tier[b] = tier; g.b_val[b] = g.g_val; g.b_spec[b] = g.g_spec; g.b_lvl[b] = g.g_lvl;
+  g.b_kind[b] = kind; g.b_rar[b] = rar; g.b_tier[b] = tier; g.b_val[b] = g.g_val; g.b_spec[b] = g.g_spec; g.b_lvl[b] = g.g_lvl; cpst(g.b_st, b, g.g_st, 0);
   if (rar === RAR_LEG) sfx('legend');
   return `${D.RAR_NAME[rar]} ${item_name(kind, rar, tier)} LV${g.g_lvl}!`;
 }
@@ -1360,9 +1410,9 @@ export function shop_close() { save_game(); set_msg('COME BACK ANY TIME!', COL_G
 export function bag_equip(k) {
   if (!g.b_kind[k]) { sfx('nope'); return; }
   const kind = g.b_kind[k], i = kind - 1;
-  const was = { has: g.eq_has[i], rar: g.eq_rar[i], tier: g.eq_tier[i], val: g.eq_val[i], spec: g.eq_spec[i], lvl: g.eq_lvl[i] };
-  equip(kind, g.b_rar[k], g.b_tier[k], g.b_val[k], g.b_spec[k], g.b_lvl[k]);
-  if (was.has) { g.b_rar[k] = was.rar; g.b_tier[k] = was.tier; g.b_val[k] = was.val; g.b_spec[k] = was.spec; g.b_lvl[k] = was.lvl; }
+  const was = { has: g.eq_has[i], rar: g.eq_rar[i], tier: g.eq_tier[i], val: g.eq_val[i], spec: g.eq_spec[i], lvl: g.eq_lvl[i], st: g.eq_st.slice(i * 6, i * 6 + 6) };
+  equip(kind, g.b_rar[k], g.b_tier[k], g.b_val[k], g.b_spec[k], g.b_lvl[k], g.b_st, k);
+  if (was.has) { g.b_rar[k] = was.rar; g.b_tier[k] = was.tier; g.b_val[k] = was.val; g.b_spec[k] = was.spec; g.b_lvl[k] = was.lvl; cpst(g.b_st, k, was.st, 0); }
   else g.b_kind[k] = K_NONE;
   sfx('buy');
 }
@@ -1370,9 +1420,9 @@ export function gear_unequip(i) { // i = kind - 1 (not the weapon)
   if (!i || !g.eq_has[i]) { sfx('nope'); return 0; }
   const s = bag_free();
   if (s === BAG) { sfx('nope'); return 0; }
-  g.b_kind[s] = i + 1; g.b_rar[s] = g.eq_rar[i]; g.b_tier[s] = g.eq_tier[i]; g.b_val[s] = g.eq_val[i]; g.b_spec[s] = g.eq_spec[i]; g.b_lvl[s] = g.eq_lvl[i];
-  g.eq_has[i] = 0; g.eq_val[i] = 0; g.eq_spec[i] = 0; g.eq_rar[i] = 0;
-  tal_sync(); fx('gear');
+  g.b_kind[s] = i + 1; g.b_rar[s] = g.eq_rar[i]; g.b_tier[s] = g.eq_tier[i]; g.b_val[s] = g.eq_val[i]; g.b_spec[s] = g.eq_spec[i]; g.b_lvl[s] = g.eq_lvl[i]; cpst(g.b_st, s, g.eq_st, i);
+  g.eq_has[i] = 0; g.eq_val[i] = 0; g.eq_spec[i] = 0; g.eq_rar[i] = 0; cpst(g.eq_st, i, null, 0);
+  tal_sync(); sta_sync(); fx('gear');
   sfx('pickup');
   return 1;
 }
@@ -1432,7 +1482,7 @@ export function trade(marks) { // marks: bag slots
   if (rar === RAR_LEG) { nr = RAR_LEG; trade_upgrade(kind, up); }
   else { nr = rar + 1; roll_gear(kind, nr, tier); }
   const b = bag_free();
-  g.b_kind[b] = kind; g.b_rar[b] = nr; g.b_tier[b] = tier; g.b_val[b] = g.g_val; g.b_spec[b] = g.g_spec; g.b_lvl[b] = g.g_lvl;
+  g.b_kind[b] = kind; g.b_rar[b] = nr; g.b_tier[b] = tier; g.b_val[b] = g.g_val; g.b_spec[b] = g.g_spec; g.b_lvl[b] = g.g_lvl; cpst(g.b_st, b, g.g_st, 0);
   sfx('legend');
   save_game();
   return { slot: b, fee, up: rar === RAR_LEG ? up : 0 };
@@ -1464,7 +1514,7 @@ export function kill_monster(n) {
 function roll_damage() {
   let dmg = fine_pts(atk_fine() + ((rnd() & 0x40) ? FINE : 0));
   if (T.RAGE && g.hp < (g.maxhp >> 1)) dmg += Math.floor(dmg * T.RAGE / 10);
-  const s = (g.eq_spec[0] === SP_CRIT || g.eq_spec[4] === SP_CRIT || g.eq_spec[2] === SP_CRIT ? 64 : 0) + T.KEEN * 15;
+  const s = (g.eq_spec[0] === SP_CRIT || g.eq_spec[4] === SP_CRIT || g.eq_spec[2] === SP_CRIT ? 64 : 0) + T.KEEN * 15 + Math.min(64, Math.floor(gear_stat(D.ST_DEX) * 256 / 1000));
   let crit = 0;
   if (s && rnd() < s) { dmg <<= 1; crit = 1; sfx('crit'); } else sfx('hit');
   if (g.hp < g.maxhp && (g.eq_spec[0] === SP_VAMPIRE || g.eq_spec[4] === SP_VAMPIRE || g.eq_spec[2] === SP_VAMPIRE || (T.BLOODLUST && rnd() < T.BLOODLUST * 51))) ++g.hp;
@@ -2270,6 +2320,7 @@ export function new_hero(cls) {
   g.maxhp = cls === 0 ? 20 : (cls === 1 ? 15 : 18);
   g.hp = g.maxhp; g.str = 2; g.gold = 0; g.kills = 0;
   for (let i = 0; i < NGEAR; ++i) { g.eq_val[i] = 0; g.eq_rar[i] = 0; g.eq_spec[i] = 0; g.eq_tier[i] = 0; g.eq_has[i] = 0; g.eq_lvl[i] = 0; }
+  g.eq_st.fill(0); g.b_st.fill(0); g.hpgear = 0;
   equip(K_WEAPON, 0, 0, 1, SP_NONE, 1);
   equip(K_ARMOR, 0, 0, 0, SP_NONE, 1);
   for (let i = 0; i < BAG; ++i) g.b_kind[i] = K_NONE;
@@ -2332,9 +2383,9 @@ export function tick(pad = 0, padNew = 0) {
 
 // ---------------------------------------------------------------- saving (the browser's storage)
 export const SAVE_KEY = 'dungeonheart.save.v1';
-const SAVE_FIELDS = ['lvl', 'xp', 'xpnext', 'hp', 'maxhp', 'str', 'gold', 'kills', 'floor_num', 'deepest', 'player_class',
+const SAVE_FIELDS = ['lvl', 'xp', 'xpnext', 'hp', 'maxhp', 'hpgear', 'str', 'gold', 'kills', 'floor_num', 'deepest', 'player_class',
   'potions', 'pet_type', 'brole'];
-const SAVE_ARRAYS = ['eq_val', 'eq_rar', 'eq_spec', 'eq_tier', 'eq_has', 'eq_lvl', 'b_kind', 'b_rar', 'b_tier', 'b_val', 'b_spec', 'b_lvl', 'tal'];
+const SAVE_ARRAYS = ['eq_val', 'eq_rar', 'eq_spec', 'eq_tier', 'eq_has', 'eq_lvl', 'b_kind', 'b_rar', 'b_tier', 'b_val', 'b_spec', 'b_lvl', 'tal', 'eq_st', 'b_st'];
 export const storage = { get: () => null, set: () => { } }; // (main.js plugs in localStorage)
 export function save_data() {
   const o = { v: 1 };
@@ -2348,11 +2399,12 @@ export function load_game() {
   let o;
   try { o = JSON.parse(storage.get()); } catch (e) { return false; }
   if (!o || !o.v) return false;
+  g.eq_st.fill(0); g.b_st.fill(0); g.hpgear = 0; // (older saves have no gear stats)
   for (const k of SAVE_FIELDS) if (k in o) g[k] = o[k];
   for (const k of SAVE_ARRAYS) if (o[k]) g[k].set(o[k].slice(0, g[k].length));
   g.str = 2 + ((g.lvl - 1) >> 1);
   g.pet_down = 0;
-  tal_sync();
+  tal_sync(); sta_sync();
   if (g.pet_type) pet_revive();
   g.hp = g.maxhp;
   setup_floor();
