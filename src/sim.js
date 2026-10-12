@@ -1345,15 +1345,16 @@ function update_boss() {
 }
 
 // ---------------------------------------------------------------- merchant
-function stock_shop() {
+export function stock_shop() {
   for (let k = 0; k < 4; ++k) g.sh_sold[k] = 0;
   const DP = DEPTH();
   g.sh_price[0] = 10 + DP * 3;
+  // (what the merchant stocks grows with the floor: plain and green gear early, legendaries only deep)
   g.sh_kind[1] = K_WEAPON;
   g.sh_kind[2] = K_ARMOR + (rnd() & 3);
   for (let k = 1; k < 3; ++k) {
     const s = rnd();
-    g.sh_rar[k] = s < 38 ? RAR_LEG : (s < 128 ? RAR_EPIC : RAR_RARE);
+    g.sh_rar[k] = shop_rar(s);
     g.sh_tier[k] = best_tier();
     roll_gear(g.sh_kind[k], g.sh_rar[k], g.sh_tier[k]);
     g.sh_lvl[k] = g.g_lvl; g.sh_val[k] = g.g_val; g.sh_spec[k] = g.g_spec; cpst(g.sh_st, k, g.g_st, 0);
@@ -1361,6 +1362,19 @@ function stock_shop() {
   }
   g.sh_price[3] = 40 + (DP << 3);
 }
+// a rarity for the merchant's wares (s: a random byte), and for his mystery chest
+const SHOP_ODDS = [ // [floor from, chance out of 256 for common, uncommon, rare, epic, legendary]
+  [1, [90, 115, 51, 0, 0]], [5, [0, 102, 115, 39, 0]], [10, [0, 0, 128, 103, 25]], [20, [0, 0, 128, 90, 38]]];
+const CHEST_ODDS = [
+  [1, [0, 128, 115, 13, 0]], [5, [0, 0, 154, 89, 13]], [10, [0, 0, 102, 115, 39]], [20, [0, 0, 77, 102, 77]]];
+function odds_pick(table, s) {
+  let row = table[0][1];
+  for (const [f, r] of table) if (g.floor_num >= f) row = r;
+  for (let i = 0, acc = 0; i < 5; ++i) { acc += row[i]; if (s < acc) return i; }
+  return RAR_RARE;
+}
+export const shop_rar = s => odds_pick(SHOP_ODDS, s);
+export const chest_rar = s => odds_pick(CHEST_ODDS, s);
 function vendor_arrive() {
   g.vend_state = 1; g.vtimer = 40;
   g.vx = (g.door_pos & 15) << 4;
@@ -1397,7 +1411,7 @@ export function shop_buy(k) {
     return "It's in your bag. Enjoy!";
   }
   const kind = rand_gear_kind(), s = rnd();
-  const rar = s < 77 ? RAR_LEG : (s < 179 ? RAR_EPIC : RAR_RARE);
+  const rar = chest_rar(s);
   let tier = best_tier();
   if (tier < 7 && (rnd() & 0x40)) ++tier;
   roll_gear(kind, rar, tier);

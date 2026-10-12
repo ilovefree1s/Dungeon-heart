@@ -262,7 +262,7 @@ function drawInfo() {
   } else { box.innerHTML = ''; return; }
   let acts = '';
   if (worn) acts = sel.gear ? `<button class="mbtn" id="aUnequip">Unequip</button>` : '';
-  else acts = `<button class="mbtn go" id="aEquip">Equip</button><button class="mbtn${UI.sellArm === sel.bag ? ' warn' : ''}" id="aSell">${UI.sellArm === sel.bag ? 'Tap again to sell for ' : 'Sell for '}${S.sell_price(kind, rar, val)}g</button>`;
+  else acts = `<button class="mbtn go" id="aEquip">Equip</button><button class="mbtn${UI.sellArm === sel.bag ? ' warn' : ''}" id="aSell">${UI.sellArm === sel.bag ? 'Tap again to sell for ' : 'Sell for '}<span class="coin"></span>${S.sell_price(kind, rar, val)}</button>`;
   box.innerHTML = itemTitle(kind, rar, tier, lv) + itemLines(kind, rar, lv, spec, val, worn, sa, sk) + `<div class="acts">${acts}</div>`;
   if ($('aEquip')) $('aEquip').onclick = equipSel;
   if ($('aSell')) $('aSell').onclick = sellSel;
@@ -311,7 +311,7 @@ function drawTal() {
   $('talInfo').innerHTML = `<h3 style="color:${D.TREE_COLOR[cls * 3 + Math.floor(idx / 5)]}">${D.TAL_NAME[cls * D.NTAL + idx]}${tb ? ` <span style="color:#ffe0a0;font-size:15px">+${tb} trinket</span>` : ''} <span style="float:right;color:#fff;font-size:16px">RANK ${Math.min(max, r + tb)}/${max}</span></h3>
     <p><b>${D.TAL_DESC[cls * D.NTAL + idx]}</b></p><p>${state}</p>
     <div class="acts"><button class="mbtn go" id="aLearn" ${can ? '' : 'disabled'}>Learn</button>
-    <button class="mbtn${UI.resetArm ? ' warn' : ''}" id="aReset" ${S.tal_cost() ? '' : 'disabled'}>${UI.resetArm ? 'Tap again: reset for ' : 'Reset '}${cost}g</button></div>`;
+    <button class="mbtn${UI.resetArm ? ' warn' : ''}" id="aReset" ${S.tal_cost() ? '' : 'disabled'}>${UI.resetArm ? 'Tap again: reset for ' : 'Reset '}<span class="coin"></span>${cost}</button></div>`;
   $('aLearn').onclick = learn;
   $('aReset').onclick = () => { if (!UI.resetArm) { UI.resetArm = 1; sfx('nope'); drawTal(); return; } UI.resetArm = 0; S.tal_reset(); drawTal(); };
 }
@@ -332,17 +332,17 @@ function drawShop(focusK) {
   for (let k = 0; k < 4; k++) {
     let ic, name, det, col = '#fff', rc = '#8a6428';
     if (k === 0) { ic = pic(D.K_POTION, 0); name = 'Health potion'; det = 'Restores all your health'; }
-    else if (k === 3) { ic = pic(D.K_GOLD, 0); name = 'Mystery chest'; det = 'Rare, epic or legendary gear'; }
+    else if (k === 3) { ic = pic(D.K_GOLD, 0); name = 'Mystery chest'; det = G.floor_num < 5 ? 'Uncommon or rare gear (epic if lucky)' : G.floor_num < 10 ? 'Rare or epic gear (legendary if lucky)' : 'Rare, epic or legendary gear'; }
     else {
       const kind = G.sh_kind[k], rar = G.sh_rar[k], lv = G.sh_lvl[k];
       ic = pic(kind, rar, G.sh_tier[k]); col = rc = D.RAR_COLOR[rar];
       name = `${D.RAR_NAME[rar]} ${S.item_name(kind, rar, G.sh_tier[k])}${G.sh_spec[k] ? ' · ' + D.SPEC_NAME[G.sh_spec[k]] : ''}`;
       const v = S.gear_fine(kind, lv), d = v - S.worn_fine(kind);
-      det = `LV ${lv} · ${S.stat_name(kind)} ${v} (${d >= 0 ? '+' : ''}${d} vs worn) · ${statText(G.sh_st, k)}`;
+      det = `LV ${lv} · ${S.stat_name(kind)} ${v} (${d >= 0 ? '+' : ''}${d} vs worn)${statText(G.sh_st, k) ? ' · ' + statText(G.sh_st, k) : ''}`;
     }
     const b = document.createElement('button');
     b.className = 'ware' + (G.sh_sold[k] ? ' sold' : '');
-    b.innerHTML = `<span class="ic" style="--rc:${rc}"><img alt="" src="${ic}"></span><span><b style="color:${col}">${esc(tc(name))}</b><span>${G.sh_sold[k] ? 'Sold out' : det}</span></span><span class="pr">${G.sh_price[k]}g</span>`;
+    b.innerHTML = `<span class="ic" style="--rc:${rc}"><img alt="" src="${ic}"></span><span><b style="color:${col}">${esc(tc(name))}</b><span>${G.sh_sold[k] ? 'Sold out' : det}</span></span><span class="pr"><span class="coin"></span>${G.sh_price[k]}</span>`;
     b.onclick = () => { const say = S.shop_buy(k); $('shopSay').textContent = say; drawShop(k); };
     list.appendChild(b);
   }
@@ -405,7 +405,7 @@ function drawTrade() {
   const ok = marks.length && marks.length === need;
   const fee = rar >= D.RAR_EPIC ? Math.floor(G.gold / 5) : Math.floor(G.gold / 10);
   $('bTradeGo').disabled = !ok;
-  $('bTradeGo').textContent = !marks.length ? 'Trade' : ok ? `Trade (fee ${fee}g)` : `Pick ${need - marks.length} more`;
+  $('bTradeGo').innerHTML = !marks.length ? 'Trade' : ok ? `Trade (fee <span class="coin"></span>${fee})` : `Pick ${need - marks.length} more`;
 }
 function describe(k) {
   const kind = G.b_kind[k];
