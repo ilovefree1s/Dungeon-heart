@@ -117,6 +117,11 @@ export function buildWarrior() {
   Object.assign(root.userData, { cape, sword, bladeMat, shield, weapon: 'sword' });
   return finish(root, 2.15);
 }
+function starShape(r1, r2) {
+  const sh = new THREE.Shape();
+  for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 + Math.PI / 2, r = i & 1 ? r2 : r1; i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+  return sh;
+}
 export function buildMage() {
   const robe = mat('robe', { color: '#3a3ab0', roughness: 0.7 }), robeD = mat('robeD', { color: '#24247a', roughness: 0.75 });
   const trim = mat('trimg', { color: '#f0c040', metalness: 0.8, roughness: 0.3 });
@@ -143,6 +148,30 @@ export function buildMage() {
   const claw = mesh(new THREE.TorusGeometry(0.15, 0.04, 6, 12), trim); claw.position.y = 1.35; staff.add(claw);
   const orbMat = new THREE.MeshStandardMaterial({ color: '#9ad8ff', emissive: '#4ab0ff', emissiveIntensity: 1.4, roughness: 0.1 });
   const orb = mesh(sph(0.16, 16, 12), orbMat, false); orb.position.y = 1.4; staff.add(orb); orb.userData.noFlash = true;
+  // the robe's front trim and stars on the skirt, a pouch and a scroll at the sash
+  const trimF = mesh(box(0.1, 0.62, 0.03), trim); trimF.position.set(0, 1.05, 0.31); body.add(trimF);
+  const trimS = mesh(box(0.1, 0.8, 0.03), trim); trimS.position.set(0, 0.46, 0.46); trimS.rotation.x = -0.24; body.add(trimS);
+  const starM = mat('mStar', { color: '#ffe9a0', emissive: '#a07a20', emissiveIntensity: 0.6, roughness: 0.4 });
+  for (const [x, y, a] of [[-0.3, 0.35, -0.3], [0.32, 0.55, 0.3], [-0.22, 0.7, -0.2], [0.18, 0.25, 0.15]]) {
+    const st = mesh(new THREE.ShapeGeometry(starShape(0.07, 0.03)), starM, false); st.position.set(x, y, Math.cos(a) * (0.36 + (0.85 - y) * 0.22) + 0.02); st.rotation.y = a; body.add(st);
+  }
+  const pouch = mesh(box(0.14, 0.14, 0.09), mat('mPouch', { color: '#6a4426', roughness: 0.7 })); pouch.position.set(0.24, 0.8, 0.26); body.add(pouch);
+  const scroll = mesh(cyl(0.04, 0.04, 0.24, 8), mat('scroll', { color: '#efe4c8', roughness: 0.7 })); scroll.rotation.z = Math.PI / 2; scroll.position.set(-0.22, 0.82, 0.28); body.add(scroll);
+  // flared sleeves on the arms, a mantle and a high collar
+  for (const a of arms) { const sv = mesh(new THREE.CylinderGeometry(0.11, 0.2, 0.34, 12, 1, true), mat('robeDS', { color: '#2e2e96', roughness: 0.7, side: THREE.DoubleSide })); sv.position.y = -0.38; a.add(sv);
+    const cuff = mesh(new THREE.TorusGeometry(0.19, 0.025, 6, 16), trim); cuff.rotation.x = Math.PI / 2; cuff.position.y = -0.55; a.add(cuff); }
+  const mGeo = new THREE.PlaneGeometry(0.76, 1.1, 6, 8); mGeo.translate(0, -0.55, 0);
+  { const pa = mGeo.attributes.position; for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), y = pa.getY(i); pa.setX(i, x * (1 - y * 0.3)); pa.setZ(i, -x * x * 0.9); } mGeo.computeVertexNormals(); }
+  const mantle = mesh(mGeo, mat('mantle', { color: '#1c1c5e', roughness: 0.75, side: THREE.DoubleSide })); mantle.position.set(0, 1.45, -0.33); body.add(mantle);
+  const collar = mesh(new THREE.CylinderGeometry(0.3, 0.24, 0.24, 16, 1, true, Math.PI * 0.6, Math.PI * 0.8), mat('robeDS2', { color: '#24247a', roughness: 0.7, side: THREE.DoubleSide })); collar.position.set(0, 1.55, -0.02); body.add(collar);
+  // the face: nose, eyebrows and a moustache over the beard
+  const skinM = mat('skin', { color: '#eab48a', roughness: 0.6 });
+  const nose = mesh(sph(0.055, 8, 6), skinM); nose.position.set(0, -0.02, 0.27); head.add(nose);
+  const wh = mat('beard', { color: '#e8e4dc', roughness: 0.9 });
+  for (const s of [-1, 1]) { const br = mesh(box(0.11, 0.035, 0.04), wh); br.position.set(0.1 * s, 0.11, 0.24); br.rotation.z = -0.25 * s; head.add(br);
+    const mu = mesh(cap(0.035, 0.12, 6), wh); mu.position.set(0.07 * s, -0.08, 0.25); mu.rotation.z = Math.PI / 2 + 0.5 * s; head.add(mu); }
+  // the hat's tip bends over
+  const tip = mesh(new THREE.ConeGeometry(0.12, 0.38, 12), robe); tip.position.set(0, 0.98, -0.2); tip.rotation.x = -1.1; hatG.add(tip);
   Object.assign(root.userData, { staff, orb, orbMat, hat: hatG, weapon: 'staff' });
   return finish(root, 2.15);
 }
@@ -343,21 +372,26 @@ function buildBat(vampire = false) {
 }
 function buildSkeleton(archer = false) {
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
-  const bone = mat('boneS', { color: '#e2d8c4', roughness: 0.6 });
+  const bone = mat('boneS', { color: '#c8b892', roughness: 0.78, envMapIntensity: 0.4 });
   const dark = mat('dark', { color: '#1a1412', roughness: 1 });
   const legs = [], arms = [];
   for (const s of [-1, 1]) {
     const leg = new THREE.Group(); leg.position.set(0.18 * s, 0.85, 0); body.add(leg);
-    leg.add(seg([0, 0, 0], [0, -0.42, 0.02], 0.06, 0.05, bone)); leg.add(seg([0, -0.42, 0.02], [0, -0.82, 0], 0.05, 0.045, bone));
+    leg.add(seg([0, 0, 0], [0, -0.42, 0.02], 0.075, 0.065, bone)); leg.add(seg([0, -0.42, 0.02], [0, -0.82, 0], 0.065, 0.055, bone));
     const foot = mesh(box(0.14, 0.08, 0.26), bone); foot.position.set(0, -0.84, 0.06); leg.add(foot);
     legs.push(leg);
   }
   const pelvis = mesh(box(0.42, 0.14, 0.2), bone); pelvis.position.y = 0.88; body.add(pelvis);
+  // a ragged loincloth and a rusty shoulder plate (they read on bright floors)
+  const rag = mat('skRag', { color: '#5a2a24', roughness: 0.9, side: THREE.DoubleSide });
+  for (const z of [0.12, -0.12]) { const c = mesh(new THREE.PlaneGeometry(0.34, 0.34, 1, 2), rag); c.position.set(0, 0.72, z); body.add(c); }
+  const belt = mesh(cyl(0.24, 0.24, 0.07, 12), mat('skBelt', { color: '#3a2618', roughness: 0.8 })); belt.position.y = 0.9; body.add(belt);
+  const pad = mesh(new THREE.SphereGeometry(0.17, 12, 8, 0, TAU, 0, Math.PI / 2), mat('rust', { color: '#7a4a2a', metalness: 0.6, roughness: 0.6 })); pad.position.set(-0.32, 1.52, 0); pad.rotation.z = 0.4; body.add(pad);
   body.add(seg([0, 0.9, 0], [0, 1.55, 0], 0.05, 0.05, bone));
   for (let i = 0; i < 4; i++) { const rib = mesh(new THREE.TorusGeometry(0.22 - i * 0.02, 0.025, 6, 16, Math.PI * 1.4), bone); rib.position.set(0, 1.12 + i * 0.12, 0.02); rib.rotation.set(Math.PI / 2, 0, -Math.PI * 0.2 + Math.PI / 2); rib.rotation.x = Math.PI / 2; body.add(rib); }
   for (const s of [-1, 1]) {
     const arm = new THREE.Group(); arm.position.set(0.3 * s, 1.5, 0); body.add(arm);
-    arm.add(seg([0, 0, 0], [0, -0.38, 0], 0.045, 0.04, bone)); arm.add(seg([0, -0.38, 0], [0, -0.72, 0.08], 0.04, 0.035, bone));
+    arm.add(seg([0, 0, 0], [0, -0.38, 0], 0.06, 0.05, bone)); arm.add(seg([0, -0.38, 0], [0, -0.72, 0.08], 0.05, 0.045, bone));
     arms.push(arm);
   }
   const head = new THREE.Group(); head.position.y = 1.82; body.add(head);

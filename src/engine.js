@@ -330,7 +330,7 @@ export function buildRoom(G, seed) {
   for (let c = 0; c < 176; c++) {
     if (map[c] !== D.T_PILLAR) continue;
     const [x, z] = cellCenter(c);
-    const p = th.crystal || G.hz === D.HZ_CRYSTAL ? crystalPillar(th) : stonePillar(th);
+    const p = th.crystal || G.hz === D.HZ_CRYSTAL ? crystalPillar(th) : stonePillar(th, T);
     p.position.set(x, 0, z); p.rotation.y = Math.floor(r() * 4) * Math.PI / 2; roomGroup.add(p);
   }
   // hazards
@@ -363,12 +363,25 @@ export function buildRoom(G, seed) {
   for (let k = 0; k < G.nobj; k++) R.objs[k] = buildObject(G, k, th);
 }
 
-function stonePillar(th) {
-  const g = new THREE.Group(), m1 = std({ color: th.pillar, roughness: 0.85, envMapIntensity: 0.3 }), m2 = std({ color: new THREE.Color(th.pillar).multiplyScalar(0.75), roughness: 0.9 });
-  const base = mesh(new THREE.BoxGeometry(2.7, 0.6, 2.7), m2); base.position.y = 0.3; base.receiveShadow = true; g.add(base);
-  const shaft = mesh(new THREE.CylinderGeometry(0.95, 1.05, 5.0, 16), m1); shaft.position.y = 3.1; shaft.receiveShadow = true; g.add(shaft);
-  for (let i = 0; i < 8; i++) { const a = i / 8 * TAU, fl = mesh(new THREE.BoxGeometry(0.16, 4.8, 0.16), m2, false); fl.position.set(Math.cos(a) * 0.98, 3.1, Math.sin(a) * 0.98); g.add(fl); }
-  const top = mesh(new THREE.BoxGeometry(2.5, 0.6, 2.5), m2); top.position.y = 5.8; g.add(top);
+// a column: a stone base and capital with mouldings (the theme's stone), a fluted shaft
+function stonePillar(th, T) {
+  const g = new THREE.Group();
+  const m1 = std({ color: th.pillar, roughness: 0.85, envMapIntensity: 0.3 });
+  const stone = T ? std({ map: T.wall.map, normalMap: T.wall.normal, normalScale: new THREE.Vector2(1.2, 1.2), roughnessMap: T.wall.rough, color: new THREE.Color(th.pillar).lerp(new THREE.Color('#ffffff'), 0.08), roughness: 0.95, envMapIntensity: 0.3 })
+    : std({ color: new THREE.Color(th.pillar).multiplyScalar(0.75), roughness: 0.9 });
+  const trim = std({ color: new THREE.Color(th.pillar).multiplyScalar(0.62), roughness: 0.85 });
+  const plinth = mesh(new THREE.BoxGeometry(2.7, 0.5, 2.7), stone); plinth.position.y = 0.25; plinth.receiveShadow = true; g.add(plinth);
+  const torus0 = mesh(new THREE.TorusGeometry(1.08, 0.14, 8, 24), trim); torus0.rotation.x = Math.PI / 2; torus0.position.y = 0.62; g.add(torus0);
+  const shaft = mesh(new THREE.CylinderGeometry(0.92, 1.02, 4.7, 18), m1); shaft.position.y = 3.0; shaft.receiveShadow = true; g.add(shaft);
+  for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, fl = mesh(new THREE.BoxGeometry(0.14, 4.5, 0.14), trim, false); fl.position.set(Math.cos(a) * 0.95, 3.0, Math.sin(a) * 0.95); g.add(fl); }
+  const neck = mesh(new THREE.TorusGeometry(0.96, 0.1, 8, 24), trim); neck.rotation.x = Math.PI / 2; neck.position.y = 5.3; g.add(neck);
+  const echinus = mesh(new THREE.CylinderGeometry(1.3, 0.95, 0.42, 20), stone); echinus.position.y = 5.55; g.add(echinus);
+  const abacus = mesh(new THREE.BoxGeometry(2.55, 0.42, 2.55), stone); abacus.position.y = 5.97; abacus.castShadow = true; g.add(abacus);
+  // the top, seen most from above: a carved stone slab with a raised square and a sunken centre
+  const lip = mesh(new THREE.BoxGeometry(2.7, 0.08, 2.7), trim); lip.position.y = 6.2; g.add(lip);
+  const slab = mesh(new THREE.BoxGeometry(2.3, 0.14, 2.3), stone); slab.position.y = 6.3; g.add(slab);
+  const inset = mesh(new THREE.BoxGeometry(1.4, 0.06, 1.4), trim); inset.position.y = 6.38; g.add(inset);
+  const boss = mesh(new THREE.CylinderGeometry(0.42, 0.5, 0.18, 12), stone); boss.position.y = 6.48; g.add(boss);
   return g;
 }
 function crystalPillar(th) {
