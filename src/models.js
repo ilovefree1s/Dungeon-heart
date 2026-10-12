@@ -655,6 +655,7 @@ function buildTowerKingBrute() {
 }
 export function buildKingWizard() {
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  body.scale.setScalar(1.35);
   const robe = mat('kwRobe', { color: '#2a1a4a', roughness: 0.65 }), trim = mat('gold', { color: '#f0b73c', metalness: 1, roughness: 0.25, envMapIntensity: 1.3 });
   const skirt = mesh(new THREE.ConeGeometry(0.85, 2.0, 18, 1, true), robe); skirt.position.y = 1.0; body.add(skirt);
   const hem = mesh(new THREE.TorusGeometry(0.85, 0.05, 6, 24), trim); hem.rotation.x = Math.PI / 2; hem.position.y = 0.05; body.add(hem);
@@ -699,6 +700,7 @@ export function buildBoss(art) {
     case 4: g = buildSlimeKingBoss(); break;
     default: g = buildTowerKingBrute();
   }
+  g.scale.multiplyScalar(1.3); // (bosses tower over the hero)
   const base = new THREE.Group(); base.add(g);
   finish(base);
   makeFlashable(base);

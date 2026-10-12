@@ -181,13 +181,13 @@ export const THEMES = [
   { name: 'MOSS', floor: [[66, 78, 58], [74, 84, 62], [60, 70, 56], [80, 86, 66]], wall: [[62, 74, 56], [70, 80, 60], [56, 66, 52]], mossCol: [60, 120, 40],
     mortar: '#121a10', wmortar: '#0f150d', moss: 0.65, cracks: 0.1, sky: '#e4ffd8', ground: '#16200f', hemi: 0.55, sun: '#e8ffd0', sunI: 1.2, fog: '#070b06', torch: '#ffb860', flame: '#ffc070', pillar: '#6d7a5f' },
   { name: 'FROST', floor: [[150, 176, 198], [166, 190, 210], [136, 162, 186], [176, 198, 216]], wall: [[112, 138, 164], [126, 150, 176], [100, 126, 152]],
-    mortar: '#2a3c50', wmortar: '#1e2c3c', moss: 0, cracks: 0.25, sky: '#dff2ff', ground: '#1a2633', hemi: 0.75, sun: '#e6f4ff', sunI: 1.25, fog: '#08101a', torch: '#7fd2ff', flame: '#9fe6ff', pillar: '#a9c4dc', icy: 1 },
+    mortar: '#2a3c50', wmortar: '#1e2c3c', moss: 0, cracks: 0.25, sky: '#dff2ff', ground: '#1a2633', hemi: 0.55, sun: '#e6f4ff', sunI: 1.05, fog: '#08101a', torch: '#7fd2ff', flame: '#9fe6ff', pillar: '#a9c4dc', icy: 1, dim: 0.68 },
   { name: 'EMBER', floor: [[54, 40, 36], [62, 44, 38], [46, 36, 34], [70, 48, 40]], wall: [[48, 34, 30], [58, 40, 34], [42, 30, 28]], glow: 'rgba(255,110,30,.85)',
     mortar: '#120807', wmortar: '#0e0605', moss: 0, cracks: 0.45, sky: '#ffcfa8', ground: '#2a0c06', hemi: 0.5, sun: '#ffb880', sunI: 1.1, fog: '#100403', torch: '#ff6a24', flame: '#ff8a3a', pillar: '#4e3a34' },
   { name: 'BONE', floor: [[150, 138, 112], [162, 150, 122], [138, 126, 104], [170, 156, 126]], wall: [[118, 106, 86], [130, 118, 96], [108, 98, 80]],
-    mortar: '#2a2418', wmortar: '#211c12', moss: 0.08, mossCol: [90, 100, 50], cracks: 0.3, sky: '#f4ffe0', ground: '#201c10', hemi: 0.55, sun: '#f0ffd8', sunI: 1.15, fog: '#0a0a06', torch: '#b8ff7a', flame: '#d4ff9a', pillar: '#b8a888' },
+    mortar: '#2a2418', wmortar: '#211c12', moss: 0.08, mossCol: [90, 100, 50], cracks: 0.3, sky: '#f4ffe0', ground: '#201c10', hemi: 0.55, sun: '#f0ffd8', sunI: 1.15, fog: '#0a0a06', torch: '#b8ff7a', flame: '#d4ff9a', pillar: '#b8a888', dim: 0.74 },
   { name: 'SAND', floor: [[176, 144, 96], [188, 156, 104], [164, 134, 90], [196, 162, 110]], wall: [[150, 118, 76], [162, 128, 84], [140, 110, 70]],
-    mortar: '#4a3418', wmortar: '#3a2812', moss: 0, cracks: 0.2, sky: '#fff0d0', ground: '#3a2810', hemi: 0.65, sun: '#ffe6b8', sunI: 1.35, fog: '#120c04', torch: '#ffa040', flame: '#ffc060', pillar: '#c09a64' },
+    mortar: '#4a3418', wmortar: '#3a2812', moss: 0, cracks: 0.2, sky: '#fff0d0', ground: '#3a2810', hemi: 0.65, sun: '#ffe6b8', sunI: 1.15, fog: '#120c04', torch: '#ffa040', flame: '#ffc060', pillar: '#c09a64', dim: 0.74 },
   { name: 'CRYSTAL', floor: [[70, 56, 96], [80, 64, 108], [62, 50, 88], [88, 70, 116]], wall: [[58, 46, 84], [68, 54, 96], [52, 42, 76]], glow: 'rgba(190,120,255,.7)',
     mortar: '#150f24', wmortar: '#100b1c', moss: 0, cracks: 0.2, sky: '#ead8ff', ground: '#1a1030', hemi: 0.6, sun: '#e2d0ff', sunI: 1.15, fog: '#0a0612', torch: '#c78aff', flame: '#d8a8ff', pillar: '#8a64c8', crystal: 1 },
   { name: 'SHADOW', floor: [[44, 40, 54], [50, 46, 60], [38, 36, 48], [54, 50, 64]], wall: [[36, 32, 46], [42, 38, 52], [32, 30, 42]],
@@ -197,6 +197,8 @@ export const THEMES = [
   { name: 'STORM', floor: [[84, 92, 104], [92, 100, 112], [76, 84, 96], [100, 108, 120]], wall: [[68, 76, 90], [76, 84, 98], [60, 68, 82]],
     mortar: '#14181e', wmortar: '#0e1116', moss: 0.04, mossCol: [70, 90, 80], cracks: 0.2, sky: '#d8e8ff', ground: '#121820', hemi: 0.6, sun: '#d8e6ff', sunI: 1.2, fog: '#060a10', torch: '#7aa8ff', flame: '#a8c8ff', pillar: '#68768a' },
 ];
+// (the pale stones are darkened so the light, the bloom and the hazards still read)
+for (const th of THEMES) if (th.dim) for (const k of ['floor', 'wall']) th[k] = th[k].map(c => c.map(v => Math.round(v * th.dim)));
 const themeTex = {};
 export function themeTextures(t) {
   if (themeTex[t]) return themeTex[t];
