@@ -3,7 +3,7 @@
 //  from primitives in code (Pest Panic's way: no image or model files).
 //  Each returns a THREE.Group with userData.anim(t, s) for its motion.
 // ============================================================================
-import { THREE, std, mesh, sph, TEX, TAU, V3 } from './engine.js';
+import { THREE, std, mesh, sph, TEX, TAU, V3, GlowLight } from './engine.js';
 import { buildWeapon } from './weapons.js';
 import { buildArmor, buildHelmet, heroArmor, heroHelm } from './armor.js';
 import { buildShield, buildBoots, buildGloves, buildTrinket, heroHands, heroFeet, heroPendant } from './gear.js';
@@ -545,7 +545,7 @@ function buildFireSprite(big = false) {
     f.scale.set(big ? 1.6 : 1.1, big ? 2.2 : 1.6, 1); body.add(f); flames.push(f);
   }
   eyes(body, 0.15, 0.08, big ? 0.55 : 0.4, 0.09, '#3a0a00', false, '#2a0800');
-  const light = new THREE.PointLight('#ff7a2a', big ? 12 : 6, big ? 9 : 6, 2); body.add(light);
+  const light = new GlowLight('#ff7a2a', big ? 12 : 6, big ? 9 : 6, 2); body.add(light);
   if (big) { // inferno: horns of flame and arms
     for (const s of [-1, 1]) { const h = mesh(new THREE.ConeGeometry(0.14, 0.6, 6), new THREE.MeshStandardMaterial({ color: '#3a1006', emissive: '#ff4a10', emissiveIntensity: 1 })); h.position.set(0.3 * s, 0.6, 0); h.rotation.z = -s * 0.5; body.add(h); }
   }
@@ -565,7 +565,7 @@ function buildWisp() {
   const trail = [];
   for (let i = 0; i < 5; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.soft, color: '#7ae0ff', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.5 - i * 0.08 })); s.scale.setScalar(0.8 - i * 0.12); body.add(s); trail.push(s); }
   eyes(body, 0.13, 0.05, 0.36, 0.08, '#0a2a3a', false, '#ffffff');
-  const light = new THREE.PointLight('#5ad8ff', 8, 8, 2); body.add(light);
+  const light = new GlowLight('#5ad8ff', 8, 8, 2); body.add(light);
   g.userData = { body, anim: (t, s) => {
     body.position.y = 1.6 + Math.sin(t * 3 + s.seed) * 0.3;
     trail.forEach((p, i) => p.position.set(Math.sin(t * 4 - i * 0.5) * 0.15 * i, -0.1 * i, -0.25 * i));
@@ -736,7 +736,7 @@ function buildSpiderDemon() {
   const eyeM = new THREE.MeshBasicMaterial({ color: '#ff4a2a' });
   for (const [x, y, r] of [[0.08, 0.93, 0.05], [0.17, 0.9, 0.04], [0.06, 1.01, 0.035]]) for (const sd of [-1, 1]) { const e = new THREE.Mesh(sph(r, 8, 6), eyeM); e.position.set(x * sd, y, 0.55 - Math.abs(x) * 0.3); body.add(e); }
   for (const sd of [-1, 1]) { const f = mesh(new THREE.ConeGeometry(0.05, 0.28, 6), mat('hornW', { color: '#e8dcc0', roughness: 0.5 })); f.position.set(0.09 * sd, 0.42, 0.55); f.rotation.set(Math.PI - 0.3, 0, 0.2 * sd); body.add(f); }
-  const heat = new THREE.PointLight('#ff5a20', 6, 5, 2); heat.position.set(0, 1.4, -0.4); body.add(heat);
+  const heat = new GlowLight('#ff5a20', 6, 5, 2); heat.position.set(0, 1.4, -0.4); body.add(heat);
   g.scale.setScalar(2.4);
   const base = g.userData.anim;
   const w = new THREE.Group(); w.add(g); w.userData = { body: g.userData.body, anim: (t, s) => {
@@ -764,7 +764,7 @@ function buildFlameLord() {
     const orb = new THREE.Mesh(sph(0.35, 14, 10), new THREE.MeshStandardMaterial({ color: '#ffd060', emissive: '#ff6a10', emissiveIntensity: 2.5 }));
     orb.position.set(0.45 * s, -1.6, 0.5); arm.add(orb); arms.push(arm);
   }
-  const light = new THREE.PointLight('#ff6a20', 30, 16, 1.8); light.position.y = 4; body.add(light);
+  const light = new GlowLight('#ff6a20', 30, 16, 1.8); light.position.y = 4; body.add(light);
   // blackened armour over the robe: pauldrons with horns, a breastplate with a burning heart, a belt; lava cracks
   const steel = mat('flSteel', { color: '#24181a', metalness: 0.8, roughness: 0.35, envMapIntensity: 1.1 });
   const lava = new THREE.MeshStandardMaterial({ color: '#ffb040', emissive: '#ff5a10', emissiveIntensity: 2.5, roughness: 0.4 });
@@ -823,7 +823,7 @@ function buildShadowWraith() {
   const wisps = [];
   const wm = new THREE.SpriteMaterial({ map: TEX.soft, color: '#b080ff', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
   for (let i = 0; i < 5; i++) { const w = new THREE.Group(); body.add(w); const sp = new THREE.Sprite(wm); sp.scale.setScalar(0.5); w.add(sp); const c = new THREE.Mesh(sph(0.06, 6, 4), basic('eyeViolet', { color: '#c08aff' })); w.add(c); wisps.push(w); }
-  const glow = new THREE.PointLight('#8a4aff', 5, 6, 2); glow.position.set(0, 1.8, 0.8); body.add(glow);
+  const glow = new GlowLight('#8a4aff', 5, 6, 2); glow.position.set(0, 1.8, 0.8); body.add(glow);
   g.scale.setScalar(2.3);
   const base = g.userData.anim;
   const w = new THREE.Group(); w.add(g); w.userData = { body, anim: (t, s) => {
@@ -920,7 +920,7 @@ export function buildKingWizard() {
   const staff = mesh(cyl(0.05, 0.06, 2.4, 8), mat('blackwood', { color: '#1a1214', roughness: 0.6 })); staff.position.set(0, -0.2, 0.15); arm.add(staff);
   const orbMat = new THREE.MeshStandardMaterial({ color: '#d8b0ff', emissive: '#8a3aff', emissiveIntensity: 2.2 });
   const orb = mesh(sph(0.2, 14, 10), orbMat, false); orb.position.set(0, 1.05, 0.15); arm.add(orb);
-  const light = new THREE.PointLight('#a060ff', 12, 10, 2); light.position.set(0, 1.05, 0.15); arm.add(light);
+  const light = new GlowLight('#a060ff', 12, 10, 2); light.position.set(0, 1.05, 0.15); arm.add(light);
   // the potion he drinks
   const potion = new THREE.Group(); potion.visible = false; potion.position.set(-0.45, 1.9, 0.35); body.add(potion);
   potion.add(mesh(sph(0.16, 12, 10), new THREE.MeshPhysicalMaterial({ color: '#a0ff60', emissive: '#40c010', emissiveIntensity: 1, roughness: 0.1, clearcoat: 1 })));
@@ -1056,7 +1056,7 @@ export function buildMerchant() {
   const lantern = new THREE.Group(); lantern.position.set(0.55, 1.2, 0.3); body.add(lantern);
   lantern.add(mesh(cyl(0.12, 0.12, 0.25, 8), mat('iron', { color: '#3a3836', metalness: 0.7, roughness: 0.45 })));
   const lf = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.flame, color: '#ffc060', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); lf.scale.set(0.4, 0.5, 1); lantern.add(lf);
-  const light = new THREE.PointLight('#ffb050', 8, 7, 2); lantern.add(light);
+  const light = new GlowLight('#ffb050', 8, 7, 2); lantern.add(light);
   g.userData = { body, anim: (t, s) => { body.position.y = s.moving ? Math.abs(Math.sin(t * 8)) * 0.06 : Math.sin(t * 2) * 0.02; lantern.rotation.z = Math.sin(t * 3) * 0.2; } };
   return finish(g, 2.0);
 }
@@ -1100,7 +1100,7 @@ export function buildItem(kind, rar, cls, tier = 0) {
       const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.4 + rar * 0.08, 0.7 + rar * 0.1, 7 + rar * 1.5, 20, 1, true), new THREE.MeshBasicMaterial({ color: rc, transparent: true, opacity: 0.16 + rar * 0.03, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
       beam.position.y = (7 + rar * 1.5) / 2; g.add(beam); g.userData.beam = beam;
     }
-    if (rar >= 3) { const l = new THREE.PointLight(rc, 8 + rar * 3, 8, 2); l.position.y = 1.4; g.add(l); }
+    if (rar >= 3) { const l = new GlowLight(rc, 8 + rar * 3, 8, 2); l.position.y = 1.4; g.add(l); }
   }
   g.userData.model = model;
   g.userData.anim = (t, seed) => { if (g.userData.wtick) g.userData.wtick(t); model.rotation.y = t * 1.6 + seed; model.position.y = 1.0 + Math.sin(t * 3 + seed) * 0.15; if (g.userData.beam) g.userData.beam.material.opacity = 0.14 + Math.sin(t * 4 + seed) * 0.04 + (rar * 0.03); };

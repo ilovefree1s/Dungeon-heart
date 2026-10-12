@@ -3,7 +3,7 @@
 //  and turns its events into particles, flashes, shakes and numbers.
 // ============================================================================
 import { THREE, scene, camera, TEX, TAU, V3, R, ax, az, wx, wz, PX, CELL, buildRoom, placeCamera, shake, hemi, sun, roomGroup,
-  textSprite, std, mesh, sph, THEMES, view as camView, IS_TOUCH } from './engine.js';
+  textSprite, std, mesh, sph, THEMES, view as camView, IS_TOUCH, GlowLight } from './engine.js';
 import { buildPet } from './pets.js';
 import { buildHero, equipHeroWeapon, equipHeroGear, animHero, buildMonster, buildBoss, buildKingWizard, buildWife, buildMerchant, buildItem, makeFlashable } from './models.js';
 import * as D from './data.js';
@@ -64,7 +64,7 @@ function lightning(x, z, color = '#cfe6ff') {
   const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.12, 5);
   const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }));
   scene.add(m);
-  const l = new THREE.PointLight(color, 120, 30, 1.5); l.position.set(x, 4, z); scene.add(l);
+  const l = new GlowLight(color, 120, 30, 1.5); l.position.set(x, 4, z); scene.add(l);
   bolts3d.push({ m, l, t: 0 });
 }
 function stepLightning(dt) {
@@ -101,7 +101,7 @@ for (let i = 0; i < D.MAXB; i++) {
   const head = mesh(new THREE.ConeGeometry(0.11, 0.34, 5), std({ color: '#e0e6ee', metalness: 1, roughness: 0.25 })); head.position.y = 0.9; arrow.add(head);
   for (const s of [-1, 1]) { const f = mesh(new THREE.BoxGeometry(0.18, 0.28, 0.01), std({ color: '#e8e0d0' })); f.position.set(0.07 * s, -0.7, 0); arrow.add(f); }
   arrow.rotation.x = Math.PI / 2;
-  const light = new THREE.PointLight('#7ad0ff', 6, 6, 2);
+  const light = new GlowLight('#7ad0ff', 6, 6, 2);
   g.add(core, glow, arrow, light);
   bolts.push({ g, core, glow, arrow, light });
 }

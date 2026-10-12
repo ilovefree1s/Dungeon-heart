@@ -87,7 +87,26 @@ export function placeCamera(x, z, snap) {
   camera.lookAt(camFocus.x + shake.x, 0, camFocus.z + 1.5 + shake.z);
   sun.position.set(camFocus.x - 14, 40, camFocus.z + 18); sun.target.position.set(camFocus.x, 0, camFocus.z);
 }
-export function render() { if (view.bloomOn) composer.render(); else renderer.render(scene, camera); }
+// glowing things (bolts, fire monsters, bosses, loot) carry GlowLights, not real lights: a fixed pool of real
+// lights follows the strongest ones near the camera each frame. Real lights coming and going would change
+// the count the shaders are built for, and the GPU would rebuild every material mid-fight (a freeze).
+export class GlowLight extends THREE.Object3D {
+  constructor(color, intensity = 1, distance = 0, decay = 2) { super(); this.isGlowLight = true; this.color = new THREE.Color(color); this.intensity = intensity; this.distance = distance; this.decay = decay; }
+}
+const GLOW_POOL = [], glows = [];
+for (let i = 0; i < 6; i++) { const l = new THREE.PointLight('#ffffff', 0, 1, 2); scene.add(l); GLOW_POOL.push(l); }
+function assignGlows() {
+  glows.length = 0;
+  scene.traverseVisible(o => { if (o.isGlowLight && o.intensity > 0) glows.push(o); });
+  for (const o of glows) { o.getWorldPosition(o._wp || (o._wp = new V3())); o._score = o.intensity / (1 + o._wp.distanceToSquared(camFocus) * 0.004); }
+  if (glows.length > GLOW_POOL.length) glows.sort((a, b) => b._score - a._score);
+  GLOW_POOL.forEach((l, i) => {
+    const o = glows[i];
+    if (!o) { l.intensity = 0; return; }
+    l.position.copy(o._wp); l.color.copy(o.color); l.intensity = o.intensity; l.distance = o.distance; l.decay = o.decay;
+  });
+}
+export function render() { assignGlows(); if (view.bloomOn) composer.render(); else renderer.render(scene, camera); }
 export function setQuality(level) {
   view.quality = level;
   const pr = Math.min(devicePixelRatio || 1, IS_TOUCH ? 1.5 : 2);
