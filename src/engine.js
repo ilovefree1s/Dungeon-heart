@@ -54,7 +54,7 @@ export const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.45,
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
-export const view = { w: 1, h: 1, dist: 40, pitch: 0.98, bloomOn: true, follow: false, quality: 2 };
+export const view = { w: 1, h: 1, dist: 40, pitch: 1.13, bloomOn: true, follow: false, quality: 2 };
 export function resize() {
   const w = innerWidth, h = innerHeight;
   view.w = w; view.h = h;
@@ -63,7 +63,7 @@ export function resize() {
   // the whole room (it is 48 x 33) is always in view, as on the SNES; upright phones fit its width
   const t = Math.tan(THREE.MathUtils.degToRad(19));
   view.follow = false;
-  const S = camera.aspect >= 1.25 ? Math.max(37, 56 / camera.aspect) : Math.max(37, 54 / camera.aspect);
+  const S = camera.aspect >= 1.25 ? Math.max(35, 55 / camera.aspect) : Math.max(31, 47.5 / camera.aspect);
   view.dist = (S / 2) / t * 1.06;
   camera.far = view.dist + 120;
   scene.fog.near = view.dist + 20; scene.fog.far = view.dist + 80; // (the fog starts past the room, however far the camera is)
@@ -235,7 +235,7 @@ scene.add(roomGroup);
 const under = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), std({ color: '#050404', roughness: 1 }));
 under.rotation.x = -Math.PI / 2; under.position.y = -0.06; under.receiveShadow = false; scene.add(under);
 export const R = { torches: [], hz: [], doors: {}, objs: [], cracks: {}, pits: [], spikes: [], lava: [], anim: [] };
-const WH = 6.2, WH_FRONT = 1.1, IN_H = 3.4;
+const WH = 6.2, WH_FRONT = 1.1, IN_H = 3.4, WT = 0.9; // (WT: the outer walls' thickness)
 export function cellCenter(c) { return [wx((c & 15) * 16 + 8), wz(D.PLAY_Y + (c >> 4) * 16 + 8)]; }
 
 export function buildRoom(G, seed) {
@@ -280,7 +280,9 @@ export function buildRoom(G, seed) {
     const h = !edge ? IN_H : (cy === 10 ? WH_FRONT : WH);
     let [x, z] = cellCenter(c);
     let w = CELL, d = CELL;
-    if (cy === 10 && edge) { d = CELL * 0.5; z -= CELL * 0.25; }
+    // the outer walls are thin slabs on the room's side of their cells (they block the same)
+    if (cx === 0) { w = WT; x += (CELL - WT) / 2; } else if (cx === 15) { w = WT; x -= (CELL - WT) / 2; }
+    if (cy === 0) { d = WT; z += (CELL - WT) / 2; } else if (cy === 10) { d = WT; z -= (CELL - WT) / 2; }
     const g = new THREE.BoxGeometry(w, h, d); g.translate(x, h / 2, z); wparts.push(g);
     const cap = new THREE.BoxGeometry(w + 0.12, 0.35, d + 0.12); cap.translate(x, h + 0.17, z); cparts.push(cap);
   }
@@ -396,9 +398,10 @@ export function torch(x, z, rotY, th) {
 // the exit: an arch; its oak door opens when the room is clear; after a boss, stairs up
 function buildDoor(c, th, G) {
   const cx = c & 15, cy = c >> 4, [x, z] = cellCenter(c);
-  const g = new THREE.Group(); g.position.set(x, 0, z);
-  // facing into the room
+  // facing into the room, in the thin wall at the room's edge of its cell
   const rotY = cx === 15 ? -Math.PI / 2 : (cy === 0 ? 0 : Math.PI);
+  const sh = (CELL - WT) / 2 + 0.1;
+  const g = new THREE.Group(); g.position.set(x + Math.sin(rotY) * sh, 0, z + Math.cos(rotY) * sh);
   g.rotation.y = rotY;
   const front = cy === 10;
   const H = front ? WH_FRONT : WH;

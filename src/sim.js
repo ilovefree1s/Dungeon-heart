@@ -233,10 +233,11 @@ function gen_layout() {
     if (tx <= 4 && ty >= 4 && ty <= 6) continue;
     let p;
     switch (s) {
-      case 0: p = rnd() < 40; break;
-      case 1: p = ty === 2 || ty === 8; break;
-      case 2: p = tx === 6 || tx === 10; break;
-      case 3: p = ((tx + ty) & 3) === 0; break;
+      // (fewer pillars than the SNES rooms: the 3D ones are bigger)
+      case 0: p = rnd() < 28; break;
+      case 1: p = (ty === 2 || ty === 8) && (tx & 2) === 2; break;
+      case 2: p = (tx === 6 || tx === 10) && ty !== 4; break;
+      case 3: p = ((tx + ty) & 7) === 0; break;
       default: p = tx >= 6 && tx <= 10 && ty >= 4 && ty <= 6;
     }
     if (p) g.map[(ty << 4) + tx] = T_PILLAR;
