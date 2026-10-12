@@ -16,7 +16,7 @@ export function onFirstInput(f) { onAny = f; }
 addEventListener('keydown', e => {
   const k = KEYMAP[e.code];
   if (!k) return;
-  if (e.target && e.target.tagName === 'INPUT' && (k === 'left' || k === 'right')) return;
+  if (e.target && e.target.tagName === 'INPUT' && (e.target.type === 'text' || k === 'left' || k === 'right')) return; // (typing a name)
   e.preventDefault();
   onAny();
   st.lastDevice = 'kb';

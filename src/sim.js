@@ -70,7 +70,7 @@ export const G = {
   sp_room: 0, sp_kind: 0, sp: 0, nobj: 0, ob_k: u8(MAXOBJ), ob_t: u8(MAXOBJ), arena_left: 0, mimic_chest: 0, mimic_n: 0,
   sp_told: 0, loot_min: 0, bless_atk: 0, bless_def: 0, bless_regen: 0,
   // the hunter's pet
-  pet_type: 0, pet_x: 0, pet_y: 0, pet_down: 0, pet_cd: 0, pet_inv: 0, pet_regen: 0, pet_face: 0, pet_hp: 0,
+  pet_name: '', pet_type: 0, pet_x: 0, pet_y: 0, pet_down: 0, pet_cd: 0, pet_inv: 0, pet_regen: 0, pet_face: 0, pet_hp: 0,
   tame_n: 0, tame_pos: 0, tame_hits: 0, tame_laps: 0, tame_miss: 0,
   // boss
   boss_on: 0, bx: 0, by: 0, bstate: 0, btimer: 0, bflash: 0, bhit: 0, batk: 0, brole: 0, battacks: 0, boss_tier: 1,
@@ -2362,7 +2362,7 @@ export function new_hero(cls) {
   for (let i = 0; i < BAG; ++i) g.b_kind[i] = K_NONE;
   for (let i = 0; i < NTAL; ++i) g.tal[i] = 0;
   tal_sync();
-  g.blink_cd = 0; g.pet_type = 0; g.pet_down = 0; g.potions = 1;
+  g.blink_cd = 0; g.pet_type = 0; g.pet_name = ''; g.pet_down = 0; g.potions = 1;
   g.floor_num = 1; g.deepest = 1; g.brole = 0; g.boss_tier = 1;
   setup_floor();
 }
@@ -2420,7 +2420,7 @@ export function tick(pad = 0, padNew = 0) {
 // ---------------------------------------------------------------- saving (the browser's storage)
 export const SAVE_KEY = 'dungeonheart.save.v1';
 const SAVE_FIELDS = ['lvl', 'xp', 'xpnext', 'hp', 'maxhp', 'hpgear', 'str', 'gold', 'kills', 'floor_num', 'deepest', 'player_class',
-  'potions', 'pet_type', 'brole'];
+  'potions', 'pet_type', 'pet_name', 'brole'];
 const SAVE_ARRAYS = ['eq_val', 'eq_rar', 'eq_spec', 'eq_tier', 'eq_has', 'eq_lvl', 'b_kind', 'b_rar', 'b_tier', 'b_val', 'b_spec', 'b_lvl', 'tal', 'eq_st', 'b_st'];
 export const storage = { get: () => null, set: () => { } }; // (main.js plugs in localStorage)
 export function save_data() {

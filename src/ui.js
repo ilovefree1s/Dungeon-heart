@@ -8,7 +8,8 @@ import * as D from './data.js';
 import { camera, V3 } from './engine.js';
 import { sfx, startAudio, setMusic, setSfx, audioState } from './audio.js';
 import { menuKeys, input } from './input.js';
-import { itemPic, heroPic, merchantPic } from './icons.js';
+import { itemPic, heroPic, merchantPic, petPic } from './icons.js';
+import { PET_NAMES } from './pets.js';
 import { talGlyph } from './glyphs.js';
 const G = S.G;
 const $ = id => document.getElementById(id);
@@ -18,7 +19,7 @@ const tc = s => s.toLowerCase().replace(/(^|\s|-)\S/g, m => m.toUpperCase());
 export const UI = { modal: null, hooks: {}, toastT: 0, bannerT: 0, msgId: -1, lastHud: {}, sel: null, talSel: 0, marks: new Set(), sellArm: -1 };
 
 // ---------------------------------------------------------------- screens
-const SCREENS = ['sTitle', 'sClass', 'sStory', 'sInv', 'sTal', 'sShop', 'sTrade', 'sPause', 'sOpt', 'sDead', 'sWin'];
+const SCREENS = ['sTitle', 'sClass', 'sStory', 'sInv', 'sTal', 'sName', 'sShop', 'sTrade', 'sPause', 'sOpt', 'sDead', 'sWin'];
 export function show(id) {
   for (const s of SCREENS) $(s).hidden = s !== id;
   UI.modal = id;
@@ -516,7 +517,7 @@ export function frame(dt) {
   setText('tSpec', cls === 1 ? 'BLINK' : (cls === 2 && !G.pet_type ? 'TAME' : 'ROLL'));
   const pet = G.pet_type;
   $('hPet').hidden = !pet;
-  if (pet) { setText('hPetN', G.pet_down ? 'PET DOWN' : D.PET_NAME[pet]); setW('petfill', G.pet_down ? 0 : G.pet_hp / S.pet_max() * 100); }
+  if (pet) { setText('hPetN', G.pet_down ? 'PET DOWN' : (G.pet_name || D.PET_NAME[pet]).toUpperCase()); setW('petfill', G.pet_down ? 0 : G.pet_hp / S.pet_max() * 100); }
   // the boss bar
   const bb = $('bossbar');
   const showBar = G.boss_on && !G.bintro;
@@ -539,3 +540,24 @@ for (const [id, go] of [['tSel', () => openInv()], ['tStart', () => openPause()]
   b.addEventListener('pointerdown', e => { e.preventDefault(); input.lastDevice = 'touch'; b.classList.add('on'); if (!UI.modal && G.state === 'play') go(); });
   for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => b.classList.remove('on'));
 }
+
+// ---------------------------------------------------------------- naming a new pet
+export function namePet() {
+  if (!G.pet_type || G.state !== 'play') return;
+  const opts = PET_NAMES[G.pet_type] || ['Buddy'];
+  $('petPic').src = petPic(G.pet_type);
+  $('petKind').textContent = 'Your new ' + D.PET_NAME[G.pet_type].toLowerCase() + '!';
+  $('petName').value = G.pet_name || '';
+  $('petSugg').innerHTML = '';
+  for (const n of opts) { const b = document.createElement('button'); b.className = 'mbtn'; b.type = 'button'; b.textContent = n; b.onclick = () => { $('petName').value = n; sfx('pickup'); }; $('petSugg').appendChild(b); }
+  show('sName');
+  if (input.lastDevice !== 'touch') setTimeout(() => $('petName').focus(), 60);
+}
+$('petForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const v = $('petName').value.replace(/[^A-Za-z0-9 '\-]/g, '').trim().slice(0, 10);
+  G.pet_name = v || (PET_NAMES[G.pet_type] || ['Buddy'])[0];
+  sfx('levelup');
+  S.save_game();
+  show(null);
+});

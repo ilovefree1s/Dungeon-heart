@@ -380,6 +380,18 @@ h2.t{font-family:var(--display);font-size:clamp(32px,7vw,52px);margin:0;color:va
     </div>
   </div>
 
+  <!-- naming a new pet -->
+  <div class="screen" id="sName" hidden>
+    <form class="frame" id="petForm" style="width:min(400px,100%);text-align:center;padding:18px">
+      <h2 style="color:var(--gold)">Name your pet</h2>
+      <img alt="" id="petPic" style="width:180px;max-width:60%;height:auto;display:block;margin:4px auto">
+      <p class="hint" id="petKind" style="margin:0 auto 10px">Your new slime!</p>
+      <input id="petName" type="text" maxlength="10" autocomplete="off" spellcheck="false" placeholder="A name" style="width:100%;font-family:var(--display);font-size:22px;letter-spacing:.05em;text-align:center;padding:8px;border-radius:8px;border:2px solid #c8913e;background:#121626;color:#fff">
+      <div id="petSugg" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:10px 0"></div>
+      <button class="mbtn go" type="submit" style="font-size:20px;padding:9px 28px">That's the name!</button>
+    </form>
+  </div>
+
   <!-- the merchant -->
   <div class="screen" id="sShop" hidden>
     <div class="frame" style="width:min(600px,100%)">

@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildItem, buildHero, equipHeroWeapon, animHero, buildMerchant } from './models.js';
+import { buildPet } from './pets.js';
 
 const SIZE = 128;
 let R = null, scene, cam;
@@ -72,4 +73,11 @@ export function merchantPic() {
   if (cache.m) return cache.m;
   try { const m = buildMerchant(); if (m.userData.anim) m.userData.anim(0.3, { moving: 0 }); m.rotation.y = 0.5; return (cache.m = shoot(m, { w: 180, h: 200, fill: 0.92, pitch: 0.15 })); }
   catch (e) { return (cache.m = ''); }
+}
+// a tamed pet, for its naming
+export function petPic(type) {
+  const key = 'p' + type;
+  if (cache[key]) return cache[key];
+  try { const p = buildPet(type); p.userData.anim(0.4, { moving: 0 }); p.rotation.y = 0.35; return (cache[key] = shoot(p, { w: 200, h: 180, fill: 0.85, pitch: 0.25 })); }
+  catch (e) { return (cache[key] = ''); }
 }

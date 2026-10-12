@@ -4,6 +4,7 @@
 // ============================================================================
 import { THREE, scene, camera, TEX, TAU, V3, R, ax, az, wx, wz, PX, CELL, buildRoom, placeCamera, shake, hemi, sun, roomGroup,
   textSprite, std, mesh, sph, THEMES, view as camView, IS_TOUCH } from './engine.js';
+import { buildPet } from './pets.js';
 import { buildHero, equipHeroWeapon, equipHeroGear, animHero, buildMonster, buildBoss, buildKingWizard, buildWife, buildMerchant, buildItem, makeFlashable } from './models.js';
 import * as D from './data.js';
 import { G, faded, tame_zone, ANIM_LEN, ANIM_SHOT, slash_index, TAL } from './sim.js';
@@ -279,7 +280,7 @@ export function onEvents(ev, ui) {
       case 'pickup': { const it = V.items[e.s]; if (it) { burst(it.g.position.x, 1.2, it.g.position.z, e.kind === D.K_GOLD ? '#ffd36a' : (e.kind === D.K_POTION ? '#ff4a5a' : D.RAR_COLOR[e.rar || 0]), 12, 5, 0.6, true, 0.4); scene.remove(it.g); V.items[e.s] = null; }
         if (e.kind <= D.K_TRINKET) ui.lootCard(e); break; }
       case 'door': for (const d of Object.values(R.doors)) d.opening = 1; break;
-      case 'tamed': burst(ax(e.x), 1.2, az(e.y), '#ffd36a', 24, 6, 0.9, true, 0.8); ring(ax(e.x), az(e.y), '#ffd36a', 0.5, 4, 0.6); break;
+      case 'tamed': if (ui.namePet) setTimeout(() => ui.namePet(), 700); burst(ax(e.x), 1.2, az(e.y), '#ffd36a', 24, 6, 0.9, true, 0.8); ring(ax(e.x), az(e.y), '#ffd36a', 0.5, 4, 0.6); break;
       case 'tamehit': ring(V.heroPos.x, V.heroPos.z, '#ffd36a', 1, 3, 0.3); break;
       case 'shop': ui.openShop(); break;
       case 'dead': ui.dead(); break;
@@ -475,14 +476,19 @@ export function update(dt, input) {
   if (G.pet_type && !G.pet_down && G.state === 'play') {
     if (!V.pet || V.petType !== G.pet_type) {
       if (V.pet) scene.remove(V.pet.root);
-      const root = buildMonster(G.pet_type, 1);
-      root.scale.setScalar(0.75);
-      const collar = mesh(new THREE.TorusGeometry(0.55, 0.08, 6, 16), std({ color: '#ffc93c', metalness: 1, roughness: 0.3 })); collar.rotation.x = Math.PI / 2; collar.position.y = G.pet_type === D.M_BAT ? 1.6 : 1.1; root.add(collar);
+      const root = buildPet(G.pet_type);
+      root.scale.setScalar(G.pet_type === D.M_SLIME ? 1.05 : 1.45);
       root.position.set(ax(G.pet_x), 0, az(G.pet_y));
       scene.add(root);
-      V.pet = { root, seed: 3, lx: G.pet_x, ly: G.pet_y }; V.petType = G.pet_type;
+      V.pet = { root, seed: 3, lx: G.pet_x, ly: G.pet_y, name: null }; V.petType = G.pet_type;
     }
     const p = V.pet, x = ax(G.pet_x), z = az(G.pet_y);
+    // its name on a tag above it
+    if (p.name !== G.pet_name) {
+      if (p.tag) p.root.remove(p.tag);
+      p.name = G.pet_name; p.tag = null;
+      if (G.pet_name) { p.tag = textSprite(G.pet_name, '#ffe0a0', 48); p.tag.position.y = G.pet_type === D.M_BAT ? 3.3 : 2.6; p.tag.scale.set(3.0, 0.75, 1); p.root.add(p.tag); }
+    }
     if (Math.hypot(x - p.root.position.x, z - p.root.position.z) > 8) p.root.position.set(x, 0, z);
     p.root.position.x = smooth(p.root.position.x, x, dt, 20); p.root.position.z = smooth(p.root.position.z, z, dt, 20);
     const mv = p.lx !== G.pet_x || p.ly !== G.pet_y; p.lx = G.pet_x; p.ly = G.pet_y;
