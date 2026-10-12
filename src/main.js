@@ -4,6 +4,7 @@
 //  SNES; the drawing runs at whatever the screen does.
 // ============================================================================
 import * as S from './sim.js';
+import * as D from './data.js';
 import { resize, render, setQuality } from './engine.js';
 import * as view from './view.js';
 import * as ui from './ui.js';
@@ -46,6 +47,9 @@ function showBackdrop(cls) {
   S.new_hero(cls);
   S.start_room();
   for (let i = 0; i < G.m_type.length; i++) G.m_type[i] = 0;
+  // (an open room for the heroes to stand in: no pillars, inner walls or hazards)
+  for (let c = 0; c < 176; c++) { const cx = c & 15, cy = c >> 4; if (cx > 0 && cx < 15 && cy > 0 && cy < 10 && G.map[c] !== D.T_FLOOR) G.map[c] = D.T_FLOOR; }
+  G.nobj = 0;
   G.state = 'title';
   G.msg = '';
   drainEvents();

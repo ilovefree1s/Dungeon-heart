@@ -321,6 +321,20 @@ const dying = [];
 const smooth = (cur, want, dt, k = 30) => cur + (want - cur) * Math.min(1, dt * k);
 function faceTo(obj, ang, dt, k = 14) { let d = ang - obj.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); obj.rotation.y += d * Math.min(1, dt * k); }
 const DIR_ANG = [0, Math.PI, Math.PI / 2, -Math.PI / 2]; // down, up, right, left
+// the title screen: the three heroes stand in the room, in fine gear
+const trio = [];
+function titleTrio(on, t) {
+  if (on && !trio.length) {
+    const gear = [[4, 0], [4, 2], [4, 3]]; // (Dragonfang, the Void Scepter, Solaris)
+    for (let c = 0; c < 3; c++) {
+      const h = buildHero(c); equipHeroWeapon(h, c, gear[c][0], gear[c][1]);
+      h.scale.multiplyScalar(1.9); h.position.set((c - 1) * 6.5, 0, 3.5); h.rotation.y = (1 - c) * 0.35;
+      scene.add(h); trio.push(h);
+    }
+  }
+  for (const h of trio) h.visible = on;
+  if (on) trio.forEach((h, i) => { animHero(h, t + i * 0.7, { walk: 0, move: 0, swing: -1, whirl: false, cast: -1, roll: 0, orbColor: i === 1 ? '#c27cff' : null }); if (h.userData.orbMat) h.userData.orbMat.emissiveIntensity *= 0.3; });
+}
 export function update(dt, input) {
   V.t += dt;
   const t = V.t;
@@ -341,6 +355,8 @@ export function update(dt, input) {
   syncWeapon();
   animHero(V.hero, t, { walk: V.walk, move: moving, swing, whirl: TAL.WHIRL > 0, cast, roll: G.roll_timer > 0 ? G.roll_timer / 16 : 0, orbColor: G.player_class === 1 ? boltColor() : null });
   V.hero.visible = !(G.inv_timer > 0 && (Math.floor(t * 18) & 1) && !G.roll_timer) || G.state !== 'play';
+  titleTrio(G.state === 'title', t);
+  if (G.state === 'title') V.hero.visible = false;
   heroShadow.position.set(V.heroPos.x, 0.04, V.heroPos.z);
   heroLight.position.set(V.heroPos.x, 5, V.heroPos.z + 1);
   // the slash trail
