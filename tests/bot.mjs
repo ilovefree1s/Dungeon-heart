@@ -19,7 +19,7 @@ export function* botSteps(cls = 0, floors = 5, seed = 1, opts = {}) {
     S.start_room();
   }
   const log = [];
-  let frames = 0, deaths = 0, stuckT = 0, lastKey = '', press = 0, lastFloor = 1, floorStart = 0;
+  let frames = 0, deaths = 0, stuckT = 0, flipT = 0, lastKey = '', press = 0, lastFloor = 1, floorStart = 0;
   const floorTimes = [];
   const cache = { f: -99, p: null, key: '' }, skip = new Set(), chase = { k: null, t: 0 };
   const maxFrames = opts.maxFrames || floors * 60 * 60 * 12;
@@ -153,7 +153,7 @@ export function* botSteps(cls = 0, floors = 5, seed = 1, opts = {}) {
         S.faceDir(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? D.DIR_RIGHT : D.DIR_LEFT) : (dy > 0 ? D.DIR_DOWN : D.DIR_UP));
         if ((++press & 1)) padNew |= S.PAD_B;
         if (dist < 30) { if (Math.abs(dx) < 6) mx = (G.px < 120 ? 1 : -1); else my = (G.py < 110 ? 1 : -1); }
-      } else if (Math.abs(dx) + Math.abs(dy) < 60 && (pp = nearPath(foe, ranged, tx, ty))) {
+      } else if (!(foe && flipT > 0) && Math.abs(dx) + Math.abs(dy) < 60 && (pp = nearPath(foe, ranged, tx, ty))) {
         const st = pp[Math.min(1, pp.length - 1)] || [G.px, G.py];
         if (st[0] > G.px) mx = 1; else if (st[0] < G.px) mx = -1;
         if (st[1] > G.py) my = 1; else if (st[1] < G.py) my = -1;
@@ -161,7 +161,7 @@ export function* botSteps(cls = 0, floors = 5, seed = 1, opts = {}) {
         // the next cell on the path
         let gcx, gcy;
         if (foe && ranged) { // line up on the foe's row or column
-          if (Math.abs(dx) < Math.abs(dy)) { gcx = (tx + 8) >> 4; gcy = hy; } else { gcx = hx; gcy = (ty + 10 - D.PLAY_Y) >> 4; }
+          if ((Math.abs(dx) < Math.abs(dy)) !== (flipT > 0)) { gcx = (tx + 8) >> 4; gcy = hy; } else { gcx = hx; gcy = (ty + 10 - D.PLAY_Y) >> 4; }
         } else { gcx = Math.max(0, Math.min(15, (tx + 8) >> 4)); gcy = Math.max(0, Math.min(10, (ty + 10 - D.PLAY_Y) >> 4)); }
         const p = path(hx, hy, gcx, gcy);
         let wx = tx, wy = ty;
@@ -176,9 +176,12 @@ export function* botSteps(cls = 0, floors = 5, seed = 1, opts = {}) {
     // chasing the same item for 8 seconds: leave it
     if (itemK !== null) { if (itemK === chase.k) { if (++chase.t > 480) { skip.add(itemK); chase.t = 0; } } else { chase.k = itemK; chase.t = 0; } }
     // stuck: the same spot for 4 seconds - roll / wander
-    const key = G.px + ',' + G.py + ',' + G.room_num;
-    if (key === lastKey) { if (stuckT > 150 && itemK !== null) { skip.add(itemK); stuckT = 0; } if (++stuckT > 240) { pad = [S.PAD_UP, S.PAD_DOWN, S.PAD_LEFT, S.PAD_RIGHT][(frames >> 5) & 3]; if (stuckT > 400) stuckT = 0; } }
+    // (no progress: the same cell, and nobody losing health - a jiggle in place counts)
+    let foeHp = G.boss_on ? G.bhp : 0; for (let n = 0; n < D.MAXM; ++n) if (G.m_type[n]) foeHp += G.m_hp[n];
+    const key = hx + ',' + hy + ',' + G.room_num + ',' + foeHp;
+    if (key === lastKey) { if (stuckT > 150 && itemK !== null) { skip.add(itemK); stuckT = 0; } if (++stuckT > 240 && foe && cls !== 0 && flipT <= 0) { flipT = 300; stuckT = 0; } else if (stuckT > 240) { pad = [S.PAD_UP, S.PAD_DOWN, S.PAD_LEFT, S.PAD_RIGHT][(frames >> 5) & 3]; if (stuckT > 400) stuckT = 0; } }
     else { stuckT = 0; lastKey = key; }
+    if (flipT > 0) flipT--;
     yield [pad, padNew];
   }
   return { floor: G.floor_num, lvl: G.lvl, deaths, frames, minutes: +(frames / 3600).toFixed(1), floorTimes, gold: G.gold, kills: G.kills, state: G.state, log };
