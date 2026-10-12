@@ -60,11 +60,13 @@ export function resize() {
   view.w = w; view.h = h;
   renderer.setSize(w, h, false); composer.setSize(w, h);
   camera.aspect = w / h;
-  // landscape: the whole room (it is 48 x 33); upright phones: about 18 units across, following the hero
+  // the whole room (it is 48 x 33) is always in view, as on the SNES; upright phones fit its width
   const t = Math.tan(THREE.MathUtils.degToRad(19));
-  view.follow = camera.aspect < 1.25;
-  const S = camera.aspect >= 1.25 ? Math.max(29, 45 / camera.aspect) : Math.max(26, 17 / camera.aspect);
-  view.dist = Math.min(120, (S / 2) / t * 1.06);
+  view.follow = false;
+  const S = camera.aspect >= 1.25 ? Math.max(37, 56 / camera.aspect) : Math.max(37, 54 / camera.aspect);
+  view.dist = (S / 2) / t * 1.06;
+  camera.far = view.dist + 120;
+  scene.fog.near = view.dist + 20; scene.fog.far = view.dist + 80; // (the fog starts past the room, however far the camera is)
   camera.updateProjectionMatrix();
 }
 const camFocus = new V3();
