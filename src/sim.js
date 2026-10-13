@@ -2488,7 +2488,7 @@ export function tick(pad = 0, padNew = 0) {
 export const BOMB_MAX = 20;
 const DOOR_C = [7, (5 << 4) + 15, (10 << 4) + 7, 5 << 4];          // N E S W
 const F_SEEN = 1, F_CLEAR = 2, F_TAKEN = 4, F_SOLVED = 8, F_DOOR = 16;
-const ENTRY = [[112, PLAY_Y + 144], [16, PLAY_Y + 80], [112, PLAY_Y + 16], [224, PLAY_Y + 80]]; // arriving through door d
+const ENTRY = [[112, PLAY_Y + 16], [224, PLAY_Y + 80], [112, PLAY_Y + 144], [16, PLAY_Y + 80]]; // arriving through door d (N E S W): just inside it
 export const dg_room = () => g.dg && g.dg.rooms[g.dg_room];
 export function dg_start(seedText, no = 1) {
   g.mode = 'dungeon';

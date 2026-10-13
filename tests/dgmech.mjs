@@ -26,6 +26,9 @@ ok(G.dg_dk.some(k => k === D.DK_OPEN), 'the entrance has an open door');
   let moved = false;
   for (let i = 0; i < 200 && !moved; i++) { step(1, pads[d]); moved = G.dg_room === to; }
   ok(moved, `walked through the ${'NESW'[d]} door into room ${to}`);
+  // you arrive just inside the matching door of the new room (walk north: at its south door)
+  const near = [[112, D.PLAY_Y + 16], [224, D.PLAY_Y + 80], [112, D.PLAY_Y + 144], [16, D.PLAY_Y + 80]][DG.OPP[d]];
+  ok(Math.abs(G.px - near[0]) <= 4 && Math.abs(G.py - near[1]) <= 4, `arrived by the ${'NESW'[DG.OPP[d]]} door (at ${G.px},${G.py})`);
   ok(G.dg_flags[to] & 1, 'the new room is marked seen (for the map)');
 }
 // a small key opens a locked door

@@ -260,7 +260,7 @@ export function onRoom(from = -2) {
   heroLight.intensity = dark ? 70 : 0;
   placeCamera(V.heroPos.x, V.heroPos.z, true);
   // through a dungeon door: the new room slides in from that side (as the old games scrolled)
-  if (from >= 0) camSlide.set(-[0, 1, 0, -1][from] * 26, 0, -[-1, 0, 1, 0][from] * 18);
+  if (from >= 0) camSlide.set([0, 1, 0, -1][from] * 26, 0, [-1, 0, 1, 0][from] * 18); // (it starts toward the door you came in by)
   else camSlide.set(0, 0, 0);
 }
 function ensureHero() {
