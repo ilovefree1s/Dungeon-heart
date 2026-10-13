@@ -29,6 +29,7 @@ export function show(id) {
   $('hud').hidden = !(G.state === 'play' || G.state === 'rescue') || (id && id !== 'sInv' && id !== 'sTal' && id !== 'sShop' && id !== 'sTrade' && id !== 'sPause' && id !== 'sDead');
   $('touch').hidden = !!id || !(G.state === 'play');
   $('minimap').hidden = !!id || G.state !== 'play';
+  $('padHelp').hidden = !!id || G.state !== 'play';
   if (id) {
     setTimeout(() => { const f = firstFocus(); if (f && input.lastDevice !== 'touch') { setCur(f, false); if (f.dataset.focusSel && !f.classList.contains('sel') && input.lastDevice === 'pad') f.click(); } }, 30);
   }
@@ -630,6 +631,39 @@ export function drawMinimap() {
     else if (sp && !done) { x.fillStyle = cur ? '#2a1600' : '#ffc93c'; x.fillText('★', bx + bw / 2, y + 1); }
   }
 }
+// the controller card: each button and what it does right now (PlayStation symbols for a PlayStation pad)
+const PAD_FACE = {
+  xbox: { n: ['Y', 'X', 'B', 'A'], c: ['#d8a81c', '#2f6ad0', '#c8303a', '#3a9a3a'], l: 'LB', r: 'RB', sel: 'VIEW', start: 'MENU' },
+  ps: { n: ['△', '□', '○', '✕'], c: ['#2a9a7a', '#c0508a', '#c8303a', '#3a6ad0'], l: 'L1', r: 'R1', sel: 'CREATE', start: 'OPTIONS' },
+};
+function padStyle() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const p of pads) if (p && p.connected) return /054c|playstation|dualsense|dualshock|wireless controller/i.test(p.id) ? 'ps' : 'xbox';
+  return 'xbox';
+}
+function drawPadHelp() {
+  const el = $('padHelp');
+  if (el.hidden) return;
+  const cls = G.player_class, dg = G.mode === 'dungeon', it = dg && G.dg_items ? G.dg_item : 0;
+  const spec = cls === 1 ? 'BLINK' : (cls === 2 && !G.pet_type ? 'TAME' : 'ROLL');
+  const item = it === DG.I_BOMBS ? 'BOMBS' : it === DG.I_BOOMERANG ? 'BLADE' : '';
+  const swap = dg && (G.dg_items & 3) === 3;
+  const style = padStyle(), key = [style, spec, item, swap, dg].join();
+  if (UI.lastHud.padHelp === key) return;
+  UI.lastHud.padHelp = key;
+  const F = PAD_FACE[style];
+  const face = el.querySelectorAll('#phFace circle'), txt = el.querySelectorAll('#phFace text');
+  for (let i = 0; i < 4; i++) { face[i].setAttribute('fill', F.c[i]); txt[i].setAttribute('fill', '#fff'); txt[i].textContent = F.n[i]; }
+  for (const id of ['phL', 'phR']) $(id).setAttribute('fill', swap ? '#8a7a5a' : '#4a4440');
+  const b = i => `<i style="background:${F.c[i]}">${F.n[i]}</i>`, sm = t => `<i class="sm">${t}</i>`;
+  const rows = [
+    [b(3), 'ATTACK'], [b(2), spec],
+    [b(1), item || 'ATTACK'], [b(0), 'POTION'],
+    [sm(F.sel), dg ? 'MAP' : 'POTION'], [sm(F.start), 'BAG'],
+  ];
+  if (swap) rows.push([sm(F.l) + sm(F.r), 'SWITCH ITEM', 1]);
+  $('phList').innerHTML = rows.map(([k, t, w]) => `<li${w ? ' class="wide"' : ''}>${k}${t}</li>`).join('');
+}
 export function frame(dt) {
   stepNums(dt);
   if (UI.bannerT > 0) { UI.bannerT -= dt; if (UI.bannerT <= 0) $('banner').classList.remove('on'); }
@@ -674,6 +708,7 @@ export function frame(dt) {
   else { mn = 'ROLL'; mv = G.roll_cd ? 1 - G.roll_cd / (G.eq_spec[3] === D.SP_QUICK ? 20 : 40) : 1; }
   setText('hMeterN', mn); setW('abfill', mv * 100);
   setText('tSpec', cls === 1 ? 'BLINK' : (cls === 2 && !G.pet_type ? 'TAME' : 'ROLL'));
+  drawPadHelp();
   const pet = G.pet_type;
   $('hPet').hidden = !pet;
   if (pet) { setText('hPetN', G.pet_down ? 'PET DOWN' : (G.pet_name || D.PET_NAME[pet]).toUpperCase()); setW('petfill', G.pet_down ? 0 : G.pet_hp / S.pet_max() * 100); }
