@@ -109,6 +109,58 @@ ok(G.dg_dk.some(k => k === D.DK_OPEN), 'the entrance has an open door');
     ok(!G.dg_dk.some(k => k === D.DK_SHUT), 'and the doors open');
   }
 }
+// a chasm: only the grapple chain crosses it (both ways), pulling you to the post across the pit
+{
+  const cr = findRoom(r => r.kind === DG.R_CHASM);
+  ok(!!cr, 'the dungeon has a chasm room');
+  goTo(cr.id); killAll(); goTo(cr.id);
+  const d = S.chasm_side(cr), C = S.CHASM[d], beyond = cr.doors[d].to;
+  ok(G.map.some(t => t === D.T_PIT) && G.nobj >= 2, 'the chasm is cut and the posts stand');
+  const cellOf = () => [(G.px + 8) >> 4, (G.py + 10 - D.PLAY_Y) >> 4];
+  const far = () => { const [x, y] = cellOf(); return [y < 3, x > 12, y > 7, x < 3][d]; };
+  ok(!far(), 'you come in on the near side');
+  // no chain: walking at the door gets you nowhere
+  const pads = [S.PAD_UP, S.PAD_RIGHT, S.PAD_DOWN, S.PAD_LEFT];
+  G.dg_items = DG.I_BOMBS | DG.I_BOOMERANG; G.dg_item = DG.I_BOOMERANG;
+  step(200, pads[d]);
+  ok(G.dg_room === cr.id && !far(), 'without the chain the pit stops you');
+  // with it: line up under the far post and fire
+  G.dg_items |= DG.I_HOOK; G.dg_item = DG.I_HOOK;
+  const vert = d === 0 || d === 2;
+  const sx = vert ? C.far[0] : 8, sy = vert ? (d === 0 ? 7 : 3) : C.far[1];
+  G.px = sx * 16; G.py = D.PLAY_Y + sy * 16 - 2; S.faceDir([D.DIR_UP, D.DIR_RIGHT, D.DIR_DOWN, D.DIR_LEFT][d]);
+  step(1, 0, S.PAD_X); step(60);
+  ok(far() && !G.hk_t, `the chain pulls you over the pit (now at cell ${cellOf()})`);
+  for (let i = 0; i < 300 && G.dg_room === cr.id; i++) {
+    // (along the far side to the door's line, then through it)
+    const off = vert ? G.px - 112 : G.py - (D.PLAY_Y + 80);
+    step(1, Math.abs(off) > 1 ? (vert ? (off > 0 ? S.PAD_LEFT : S.PAD_RIGHT) : (off > 0 ? S.PAD_UP : S.PAD_DOWN)) : pads[d]);
+  }
+  ok(G.dg_room === beyond, 'and on through the door beyond');
+  // and back again from that side, to the near post
+  S.dg_enter(cr.id, DG.OPP[DG.OPP[d]]);
+  ok(far(), 'coming back you arrive on the far side');
+  const bx = vert ? C.near[0] : C.far[0], by = vert ? C.far[1] : C.near[1];
+  G.px = bx * 16; G.py = D.PLAY_Y + by * 16 - 2; S.faceDir([D.DIR_DOWN, D.DIR_LEFT, D.DIR_UP, D.DIR_RIGHT][d]);
+  step(1, 0, S.PAD_X); step(60);
+  ok(!far() && !G.hk_t, `and the near post pulls you back (cell ${cellOf()})`);
+  // fired at a wall it just comes back
+  G.px = 112; G.py = D.PLAY_Y + 80; S.faceDir(vert ? D.DIR_LEFT : D.DIR_UP);
+  const was = [G.px, G.py];
+  step(1, 0, S.PAD_X); step(60);
+  ok(!G.hk_t && G.px === was[0] && G.py === was[1], 'at a bare wall it reels back in and you stay put');
+}
+// the chain stuns a monster in its way
+{
+  const fr = findRoom(r => r.kind === DG.R_FIGHT && !(G.dg_flags[r.id] & 2));
+  goTo(fr.id);
+  const n = [...Array(D.MAXM).keys()].find(i => G.m_type[i]);
+  G.dg_item = DG.I_HOOK;
+  G.m_x[n] = 160; G.m_y[n] = D.PLAY_Y + 80; G.px = 100; G.py = D.PLAY_Y + 78; S.faceDir(D.DIR_RIGHT);
+  let stunned = false; step(1, 0, S.PAD_X);
+  for (let i = 0; i < 30 && !stunned; i++) { G.m_x[n] = 160; G.m_y[n] = D.PLAY_Y + 80; step(1); stunned = G.m_frz[n] > 0; }
+  ok(stunned, 'the chain stuns a monster it hits');
+}
 // the keeper: the boomerang glances off (no stun); beaten, stairs lead to the next dungeon
 {
   const kr = G.dg.rooms[G.dg.boss];

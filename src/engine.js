@@ -453,7 +453,7 @@ export function torch(x, z, rotY, th) {
 // then and not with a hitch the first time one shows up (a crystal, the great chest, a lock...)
 export function prewarmDungeon(G) {
   const th = THEMES[G.theme];
-  const types = [D.OBJ_CHEST, D.OBJ_BIGCHEST, D.OBJ_BLOCK, D.OBJ_PLATE, D.OBJ_CRYSTAL, D.OBJ_BOMBWALL, D.OBJ_FOUNTAIN];
+  const types = [D.OBJ_CHEST, D.OBJ_BIGCHEST, D.OBJ_BLOCK, D.OBJ_PLATE, D.OBJ_CRYSTAL, D.OBJ_BOMBWALL, D.OBJ_FOUNTAIN, D.OBJ_POST];
   const fake = { ob_k: types.map((_, i) => 16 * 5 + 2 + i), ob_t: types, map: new Uint8Array(176), theme: G.theme };
   const grp = new THREE.Group(); grp.position.y = -200; scene.add(grp);
   types.forEach((_, k) => { const o = buildObject(fake, k, th); roomGroup.remove(o.g); grp.add(o.g); });
@@ -829,6 +829,21 @@ function buildObject(G, k, th) {
     const gemC = mesh(new THREE.OctahedronGeometry(0.75), cm); gemC.position.y = 2.1; gemC.scale.y = 1.3; g.add(gemC);
     const l = new GlowLight('#5ab0ff', 8, 8, 2); l.position.y = 2.2; g.add(l);
     o.parts = { gemC, cm, l };
+  } else if (t === D.OBJ_POST) {
+    // a grapple post: a tall iron-banded timber with a glowing gold ring the chain bites into
+    const wood = std({ color: '#7a5030', roughness: 0.7 }), iron = std({ color: '#4a4a54', metalness: 0.8, roughness: 0.35 });
+    const foot = mesh(new THREE.CylinderGeometry(1.15, 1.3, 0.6, 8), std({ color: new THREE.Color(th.pillar).multiplyScalar(0.85), roughness: 0.85 })); foot.position.y = 0.3; g.add(foot);
+    const post = mesh(new THREE.CylinderGeometry(0.6, 0.7, 4.6, 10), wood); post.position.y = 2.7; g.add(post);
+    for (const y of [1.2, 2.9, 4.6]) { const band = mesh(new THREE.CylinderGeometry(0.74, 0.74, 0.26, 10), iron); band.position.y = y; g.add(band); }
+    const cap = mesh(new THREE.ConeGeometry(0.8, 0.8, 10), iron); cap.position.y = 5.4; g.add(cap);
+    const ringM = std({ color: '#ffd36a', emissive: '#ffb020', emissiveIntensity: 0.9, metalness: 1, roughness: 0.25 });
+    for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+      const ring = mesh(new THREE.TorusGeometry(0.42, 0.11, 8, 16), ringM);
+      ring.position.set(Math.sin(a) * 0.78, 3.75, Math.cos(a) * 0.78); ring.rotation.y = a; g.add(ring);
+    }
+    const shine = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.soft, color: '#ffc850', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.45 }));
+    shine.scale.set(3.6, 3.6, 1); shine.position.y = 3.75; g.add(shine);
+    o.parts = { post: true };
   } else if (t === D.OBJ_BOMBWALL) {
     // a cracked stretch of the outer wall (bombs open it)
     const cx = c & 15, cy = c >> 4, front = cy === 10, h = front ? WH_FRONT : WH;

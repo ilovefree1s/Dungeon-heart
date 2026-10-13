@@ -116,7 +116,7 @@ export const OBJ_CHEST = 1, OBJ_CHEST_OPEN = 2, OBJ_SHRINE = 3, OBJ_SHRINE_USED 
   // the dungeons': a great chest, a block to push onto a floor plate, a crystal switch (only the
   // boomerang reaches it), a cracked wall only bombs open
   OBJ_BIGCHEST = 11, OBJ_BIGCHEST_OPEN = 12, OBJ_BLOCK = 13, OBJ_PLATE = 14, OBJ_PLATE_ON = 15, OBJ_CRYSTAL = 16, OBJ_CRYSTAL_ON = 17,
-  OBJ_BOMBWALL = 18;
+  OBJ_BOMBWALL = 18, OBJ_POST = 19; // (a grapple post: the chain catches on it)
 // the dungeons' doors, as drawn (sim.dg_dk): none, open, a shutter, a small-key lock, the boss lock, a cracked wall
 export const DK_NONE = 0, DK_OPEN = 1, DK_SHUT = 2, DK_LOCK = 3, DK_BOSS = 4, DK_CRACK = 5;
 

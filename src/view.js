@@ -139,6 +139,16 @@ function iconTex(c) {
   else if (c === DG.C_MAP) { x.fillStyle = '#3a2408'; x.fillRect(22, 30, 84, 68); x.fillStyle = '#e8d2a0'; x.fillRect(27, 35, 74, 58); x.strokeStyle = '#7a5a30'; x.lineWidth = 4; x.beginPath(); x.moveTo(52, 35); x.lineTo(52, 93); x.moveTo(76, 35); x.lineTo(76, 93); x.stroke(); x.fillStyle = '#c0202a'; x.font = '900 30px sans-serif'; x.textAlign = 'center'; x.fillText('✕', 64, 75); }
   else if (c === DG.C_BOMBS) { x.fillStyle = '#2a2a34'; x.beginPath(); x.arc(60, 72, 30, 0, 7); x.fill(); x.strokeStyle = '#8a8a9a'; x.lineWidth = 3; x.stroke(); x.fillStyle = '#5a5a64'; x.fillRect(52, 34, 16, 10); x.strokeStyle = '#c8a070'; x.lineWidth = 5; x.beginPath(); x.moveTo(62, 34); x.quadraticCurveTo(70, 20, 84, 22); x.stroke(); x.fillStyle = '#ffd36a'; x.beginPath(); x.arc(86, 21, 7, 0, 7); x.fill(); }
   else if (c === DG.C_BOOMERANG) { x.translate(64, 64); x.rotate(-0.4); x.fillStyle = '#5a6070'; x.beginPath(); x.moveTo(-46, 30); x.quadraticCurveTo(-20, -10, 40, -40); x.quadraticCurveTo(10, -6, 0, 40); x.quadraticCurveTo(-20, 26, -46, 30); x.fill(); x.fillStyle = '#e4e8f0'; x.beginPath(); x.moveTo(-40, 26); x.quadraticCurveTo(-16, -6, 34, -34); x.quadraticCurveTo(6, -4, -2, 34); x.quadraticCurveTo(-20, 22, -40, 26); x.fill(); x.fillStyle = '#f0b73c'; x.beginPath(); x.arc(-8, 6, 9, 0, 7); x.fill(); x.fillStyle = '#40e0ff'; x.beginPath(); x.arc(-8, 6, 4, 0, 7); x.fill(); }
+  else if (c === DG.C_HOOK) {
+    // the grapple chain: a three-pronged hook trailing links
+    x.strokeStyle = '#3a3a44'; x.lineWidth = 7;
+    for (let i = 0; i < 5; i++) { x.beginPath(); x.ellipse(24 + i * 11, 100 - i * 11, 7, 4, -0.8, 0, 7); x.stroke(); }
+    x.save(); x.translate(84, 44); x.rotate(-0.8);
+    x.strokeStyle = '#2a2a30'; x.lineWidth = 12; x.beginPath(); x.moveTo(0, 30); x.lineTo(0, -18); x.moveTo(0, -18); x.quadraticCurveTo(-24, -14, -22, 8); x.moveTo(0, -18); x.quadraticCurveTo(24, -14, 22, 8); x.stroke();
+    x.strokeStyle = '#d8dce8'; x.lineWidth = 6; x.beginPath(); x.moveTo(0, 30); x.lineTo(0, -18); x.moveTo(0, -18); x.quadraticCurveTo(-24, -14, -22, 8); x.moveTo(0, -18); x.quadraticCurveTo(24, -14, 22, 8); x.stroke();
+    x.fillStyle = '#f0b73c'; x.beginPath(); x.arc(0, 30, 7, 0, 7); x.fill();
+    x.restore();
+  }
   else { for (let i = 0; i < 5; i++) { const cx = 40 + (i % 3) * 22, cy = 80 - Math.floor(i / 3) * 18; x.fillStyle = '#8a5a00'; x.beginPath(); x.ellipse(cx, cy + 3, 18, 10, 0, 0, 7); x.fill(); x.fillStyle = '#f5c242'; x.beginPath(); x.ellipse(cx, cy, 18, 10, 0, 0, 7); x.fill(); } }
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
   return (riseTex[c] = t);
@@ -184,9 +194,41 @@ function bombModel() {
   g.userData = { body, spark };
   return g;
 }
+// the Grapple Chain: a steel hook with three barbs, and the links paid out behind it
+function hookModel() {
+  const g = new THREE.Group();
+  const steel = std({ color: '#c8ccd8', metalness: 1, roughness: 0.25, envMapIntensity: 1.2 });
+  const shaft = mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.0, 8), steel); shaft.rotation.x = Math.PI / 2; g.add(shaft);
+  const tip = mesh(new THREE.ConeGeometry(0.22, 0.5, 8), steel); tip.rotation.x = Math.PI / 2; tip.position.z = 0.7; g.add(tip);
+  for (let i = 0; i < 3; i++) {
+    const barb = mesh(new THREE.TorusGeometry(0.38, 0.08, 6, 10, Math.PI * 0.75), steel);
+    const a = i * Math.PI * 2 / 3; barb.position.z = 0.25; barb.rotation.set(0, Math.PI / 2, a); g.add(barb);
+  }
+  const ring = mesh(new THREE.TorusGeometry(0.18, 0.06, 6, 12), std({ color: '#f0b73c', metalness: 1, roughness: 0.3 })); ring.position.z = -0.55; g.add(ring);
+  return g;
+}
+const HK_LINKS = 18;
+const hook3d = hookModel(); hook3d.scale.setScalar(1.5); hook3d.visible = false; scene.add(hook3d);
+const linkMat = std({ color: '#9a9aa8', metalness: 0.9, roughness: 0.35, envMapIntensity: 1.2 }), linkGeo = new THREE.TorusGeometry(0.3, 0.1, 6, 12);
+const links3d = []; for (let i = 0; i < HK_LINKS; i++) { const l = new THREE.Mesh(linkGeo, linkMat); l.visible = false; scene.add(l); links3d.push(l); }
 const blade = bladeModel(); blade.visible = false; scene.add(blade);
 const bombs3d = [0, 1, 2].map(() => { const b = bombModel(); b.visible = false; scene.add(b); return b; });
 function updateItems(dt, t) {
+  // the chain: from the hero's hand to the hook, its links laid along the line
+  const hk = G.mode === 'dungeon' && G.hk_t > 0;
+  hook3d.visible = hk;
+  if (hk) {
+    const ax = wx(G.px + 8 + G.hk_dx * 5), az = wz(G.py + 10 + G.hk_dy * 5), bx = wx(G.hk_x), bz = wz(G.hk_y);
+    hook3d.position.set(bx, 2.2, bz); hook3d.rotation.y = Math.atan2(G.hk_dx, G.hk_dy);
+    const len = Math.hypot(bx - ax, bz - az), n = Math.min(HK_LINKS, Math.floor(len / 0.5));
+    for (let i = 0; i < HK_LINKS; i++) {
+      const l = links3d[i]; l.visible = i < n;
+      if (i >= n) continue;
+      const k = (i + 0.5) / n;
+      l.position.set(ax + (bx - ax) * k, 2.2, az + (bz - az) * k);
+      l.rotation.set(0, hook3d.rotation.y + Math.PI / 2, i & 1 ? Math.PI / 2 : 0);
+    }
+  } else if (links3d[0].visible) for (const l of links3d) l.visible = false;
   blade.visible = G.mode === 'dungeon' && G.bm_t > 0;
   if (blade.visible) { blade.position.set(wx(G.bm_x + 4), 1.8, wz(G.bm_y + 4)); blade.rotation.y = -t * 22; }
   for (let k = 0; k < 3; k++) {
@@ -330,6 +372,8 @@ export function onEvents(ev, ui) {
       case 'objmove': { const o = R.objs[e.k]; if (o) { o.from = o.g.position.clone(); o.moveT = 0; const c = G.ob_k[e.k]; o.to = new THREE.Vector3(wx((c & 15) * 16 + 8), 0, wz(D.PLAY_Y + (c >> 4) * 16 + 8)); } break; }
       case 'dgget': ui.drawMinimap && ui.drawMinimap(); ui.dgFound && ui.dgFound(e.c, e.v); riseIcon(e.c, ax(e.x), az(e.y)); burst(ax(e.x), 3, az(e.y), '#ffe9a0', 30, 6, 1.0, true, 0.9, -1); ring(ax(e.x), az(e.y), '#ffd36a', 0.5, 6, 0.6); ui.flash && ui.flash('#fff2c0', 0.25); break;
       case 'bstun': if (V.boss) { const p = V.boss.position; burst(p.x, 7, p.z, '#ffe080', 14, 3, 0.8, true, 0.8, 0); } break;
+      case 'hkcatch': burst(wx(e.x), 2.6, wz(e.y), '#ffd36a', 10, 3, 0.5, true, 0.5, 0); break;
+      case 'hkclink': burst(wx(e.x), 1.8, wz(e.y), '#ffffff', 6, 2.5, 0.35, true, 0.35, 0); break;
       case 'stun': { const m = V.mons[e.n]; if (m) burst(m.root.position.x, 2.6, m.root.position.z, '#ffe080', 8, 2.5, 0.6, true, 0.6, 0); break; }
       case 'bombset': break;
       case 'petfree': burst(ax(e.x), 1.2, az(e.y), '#ffe0a0', 18, 5, 0.9, true, 0.7, -2); ring(ax(e.x), az(e.y), '#ffe0a0', 0.4, 3, 0.5); break;

@@ -28,19 +28,22 @@ The whole SNES game (`ilovefree1s/dungeon-loot`, folder `snes/`), rebuilt in 3D:
 ## Dungeon Run (seeded)
 Pick **Dungeon** on the title screen, type a seed or roll one, and pick a class. Every seed makes its own
 dungeon, the same one every time (share a seed with a friend):
-- 12-20 screens on a grid, entered through doors in the middle of each wall; the map fills in as you
+- 20-28 screens on an 11x11 grid, entered through doors in the middle of each wall; the map fills in as you
   explore (a map chest shows it all).
 - Small keys open locked doors, a big key opens the keeper's door; secret rooms hide behind cracked walls.
 - Items, each found in a chest: **Blast Bombs** (blow open cracked walls) and the **Return Blade** (a
-  boomerang: stuns enemies, fetches loot, trips crystal switches across pits). The keeper is too strong for it: the blade glances off.
+  boomerang: stuns enemies, fetches loot, trips crystal switches across pits) and the **Grapple Chain**
+  (fires straight ahead, catches on grapple posts and chests and pulls you over pits; it stuns and fetches
+  loot too). The keeper is too strong for either: they glance off.
+- Chasm rooms: a pit cuts off one door, with a grapple post on each side, so only the chain crosses it.
 - Guard rooms bar their doors until they're clear; block puzzles, spike halls, treasure rooms.
 - Beat the keeper and the stairs lead to the next dungeon.
 
 How every seed stays beatable: `src/dungeon.js` builds the dungeon as a chain of zones shut off by gates
-(a locked door, a cracked wall, a crystal-switch shutter, the keeper's door), and each gate's key or item is
+(a locked door, a cracked wall, a crystal-switch shutter, a chasm, the keeper's door), and each gate's key or item is
 always placed before it. `node tests/dungeons.mjs 10000` checks the plans (every order of spending keys);
 `node tests/dgbot.mjs 1000` plays whole dungeons through the game's rules with a bot (fighting, keys, bombs,
-the boomerang, block puzzles, the keeper); `node tests/dgmech.mjs` checks each mechanic.
+the boomerang, the grapple chain, block puzzles, the keeper); `node tests/dgmech.mjs` checks each mechanic.
 
 ## Controls
 | | Keyboard | Controller | Phone |

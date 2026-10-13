@@ -1,6 +1,6 @@
 // node tests/dgbot.mjs [seeds] [first]: a bot plays whole seeded dungeons through the rules (sim.js), with no
 // browser: it fights, opens chests, unlocks doors, bombs cracked walls, throws the boomerang at switches,
-// pushes blocks and beats the keeper. Every seed must reach the stairs. (The hero can't die here: this
+// pushes blocks, grapples across chasms and beats the keeper. Every seed must reach the stairs. (The hero can't die here: this
 // checks that the rooms can be done, not how hard they are.)
 import * as S from '../src/sim.js';
 import * as DG from '../src/dungeon.js';
@@ -42,7 +42,7 @@ function steer(c) {
 const near = c => { const tx = (c & 15) << 4, ty = PLAY_Y + ((c >> 4) << 4); return Math.abs(G.px - tx) <= 1 && Math.abs(G.py - ty) <= 1; };
 const room = () => G.dg.rooms[G.dg_room];
 // which room to head for next (by the doors you could get through now), and through which door
-function plan() {
+export function plan() {
   const d = G.dg, N = d.rooms.length;
   const want = r => {
     const f = G.dg_flags[r.id];
@@ -58,6 +58,7 @@ function plan() {
     if (e.kind === DG.E_KEY) return G.dg_keys > 0;
     if (e.kind === DG.E_BOMB) return (G.dg_items & DG.I_BOMBS) && G.dg_bombs > 0;
     if (e.kind === DG.E_BOSS) return G.dg_big;
+    if (e.kind === DG.E_HOOK) return !!(G.dg_items & DG.I_HOOK);
     return false;
   };
   const prev = new Int16Array(N).fill(-2), via = new Int8Array(N); prev[G.dg_room] = -1;
@@ -73,8 +74,11 @@ function face(dir) { S.faceDir(dir); }
 export function playDungeon(seedText, cls = 0, maxFrames = 60 * 60 * 30) {
   S.new_hero(cls);
   S.dg_start(seedText);
+  G.bot_still = 0;
   let frames = 0, last = -1, sameRoom = 0;
   const log = [];
+  const TR = +(process.env.TRACE || 0);
+  const tk = (pad, padNew) => { if (TR && frames > TR && frames < TR + 1500 && frames % 10 === 0) console.log(frames, 'room', G.dg_room, 'at', G.px, G.py, 'pad', pad, padNew, 'mons', [...Array(D.MAXM).keys()].filter(n => G.m_type[n]).map(n => G.m_x[n] + ',' + G.m_y[n]).join(' ')); S.tick(pad, padNew); };
   while (frames < maxFrames) {
     frames++;
     G.ev.length = 0;
@@ -86,16 +90,28 @@ export function playDungeon(seedText, cls = 0, maxFrames = 60 * 60 * 30) {
     const r = room(), f = G.dg_flags[G.dg_room];
     // 1. fight: the keeper, or anything here (the barred doors need it; it's quicker anyway)
     const foes = [];
-    for (let n = 0; n < D.MAXM; n++) if (G.m_type[n] && !S.faded(n)) foes.push([G.m_x[n], G.m_y[n]]);
+    const chasm = r.kind === DG.R_CHASM;
+    for (let n = 0; n < D.MAXM; n++) if (G.m_type[n] && !S.faded(n)) {
+      // (across a chasm: leave it be)
+      if (chasm) { const [cx, cy] = cellOf(G.m_x[n], G.m_y[n]); if (!path([(cy << 4) | cx])) continue; }
+      foes.push([G.m_x[n], G.m_y[n]]);
+    }
     if (G.boss_on) foes.unshift([G.bx + 8, G.by + 12]);
     if (foes.length) {
       const [mx, my] = foes.sort((a, b) => Math.hypot(a[0] - G.px, a[1] - G.py) - Math.hypot(b[0] - G.px, b[1] - G.py))[0];
       const dx = mx - G.px, dy = my - G.py, dist = Math.abs(dx) + Math.abs(dy);
-      if (!G.boss_on && dist < 9) {
+      // (backing off but pinned where it can't: fight anyway, then try backing off again)
+      const backing = !G.boss_on && dist < 9;
+      if (!backing || G.px !== G.bot_px || G.py !== G.bot_py) G.bot_still = 0; else G.bot_still = (G.bot_still + 1) % 100;
+      G.bot_px = G.px; G.bot_py = G.py;
+      if (backing && G.bot_still < 40) {
         // right on top of it: the swing goes over its head; step back first
         // (toward the middle of the room if a wall is behind you)
         const ax = dx >= 0 ? -1 : 1, ay = dy >= 0 ? -1 : 1;
-        const bx = S.blocked(G.px + ax * 2, G.py) ? (G.px < 112 ? 1 : -1) : ax, by = S.blocked(G.px, G.py + ay * 2) ? (G.py < PLAY_Y + 80 ? 1 : -1) : ay;
+        let bx = S.blocked(G.px + ax * 2, G.py) ? (G.px < 112 ? 1 : -1) : ax, by = S.blocked(G.px, G.py + ay * 2) ? (G.py < PLAY_Y + 80 ? 1 : -1) : ay;
+        // (never backing out through a door: the room's fight would start over)
+        if (G.px > 200 && bx > 0) bx = -1; else if (G.px < 24 && bx < 0) bx = 1;
+        if (G.py > PLAY_Y + 128 && by > 0) by = -1; else if (G.py < PLAY_Y + 24 && by < 0) by = 1;
         pad |= bx > 0 ? PADS.right : PADS.left; pad |= by > 0 ? PADS.down : PADS.up;
         // (pinned in a corner: roll or blink out toward the middle, as a player would)
         if (G.pet_type === 0 && (frames & 63) === 0) padNew |= S.PAD_A;
@@ -106,7 +122,7 @@ export function playDungeon(seedText, cls = 0, maxFrames = 60 * 60 * 30) {
         const [cx, cy] = cellOf(mx, my), p = path([(cy << 4) | cx]);
         if (p && p.length > 1) pad = steer(p[1]); else { if (dx > 2) pad |= PADS.right; else if (dx < -2) pad |= PADS.left; if (dy > 2) pad |= PADS.down; else if (dy < -2) pad |= PADS.up; }
       }
-      S.tick(pad, padNew); continue;
+      tk(pad, padNew); continue;
     }
     // 2. what this room asks: its chest, its block, its crystal
     let goal = null, act = null;
@@ -142,7 +158,7 @@ export function playDungeon(seedText, cls = 0, maxFrames = 60 * 60 * 30) {
       if (dk === D.DK_CRACK) {
         goal = [inside];
         act = () => { if (near(inside) && !G.bb_t.some(Boolean)) { face([D.DIR_UP, D.DIR_RIGHT, D.DIR_DOWN, D.DIR_LEFT][k]); G.dg_item = DG.I_BOMBS; padNew |= S.PAD_X; G.bot_bomb = 140; return true; } return false; };
-        if (G.bot_bomb > 0) { G.bot_bomb--; const away = [inside + 48, inside - 3, inside - 48, inside + 3][k]; const p = path([away]); pad = p && p.length > 1 ? steer(p[1]) : 0; S.tick(pad, 0); continue; }
+        if (G.bot_bomb > 0) { G.bot_bomb--; const away = [inside + 48, inside - 3, inside - 48, inside + 3][k]; const p = path([away]); pad = p && p.length > 1 ? steer(p[1]) : 0; tk(pad, 0); continue; }
       } else {
         goal = [inside];
         // lined up with the door and close: keep walking through it
@@ -150,11 +166,21 @@ export function playDungeon(seedText, cls = 0, maxFrames = 60 * 60 * 30) {
         act = () => { if (lined()) { pad = dirPad; return true; } return false; };
       }
     }
-    if (act && act()) { S.tick(pad, padNew); continue; }
-    const p = path(goal);
+    if (G.hk_t) { tk(0, 0); continue; } // (on the chain)
+    if (act && act()) { tk(pad, padNew); continue; }
+    let p = path(goal);
+    if (!p && r.kind === DG.R_CHASM && (G.dg_items & DG.I_HOOK)) {
+      // the pit's in the way: line up with the post across it and fire the chain
+      const d = S.chasm_side(r), C = S.CHASM[d], vert = d === 0 || d === 2;
+      const [hx, hy] = cellOf(G.px, G.py), far = [hy < 3, hx > 12, hy > 7, hx < 3][d];
+      const [lx, ly] = far ? (vert ? [C.near[0], C.far[1]] : [C.far[0], C.near[1]]) : (vert ? [C.far[0], d === 0 ? 7 : 3] : [8, C.far[1]]);
+      const launch = (ly << 4) | lx, dir = [[D.DIR_UP, D.DIR_RIGHT, D.DIR_DOWN, D.DIR_LEFT], [D.DIR_DOWN, D.DIR_LEFT, D.DIR_UP, D.DIR_RIGHT]][far ? 1 : 0][d];
+      if (near(launch)) { face(dir); G.dg_item = DG.I_HOOK; tk(0, S.PAD_X); continue; }
+      p = path([launch]);
+    }
     if (p && p.length > 1) pad = steer(p[1]);
     else if (p && p.length === 1) pad = steer(p[0]);
-    S.tick(pad, padNew);
+    tk(pad, padNew);
   }
   return { ok: false, frames, why: 'out of time', log };
 }

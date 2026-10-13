@@ -2,27 +2,32 @@
 //  DUNGEON HEART  -  seeded dungeons, after the SNES Zelda games (all our own rooms, items and names):
 //  a seed makes a grid of 12-20 screens. The way through is a chain of zones, each shut off from
 //  the last by a gate (a locked door, a cracked wall for bombs, a shutter whose switch only the
-//  boomerang can reach, the boss door), and whatever opens a gate always lies in the zones before
+//  boomerang can reach, a chasm only the grapple chain crosses, the boss door), and whatever opens a gate always lies in the zones before
 //  it, so every seed can be beaten. checkDungeon() plays it through to make sure.
 //  Plain data only (no drawing, no game state): sim.js builds each screen from it.
 // ============================================================================
 
-export const GW = 9, GH = 9;                       // the grid the rooms sit on
+export const GW = 11, GH = 11;                       // the grid the rooms sit on
 export const DX = [0, 1, 0, -1], DY = [-1, 0, 1, 0]; // N E S W
 export const OPP = [2, 3, 0, 1];
 // door kinds
-export const E_OPEN = 1, E_KEY = 2, E_BOMB = 3, E_BOOM = 4, E_BOSS = 5;
+export const E_OPEN = 1, E_KEY = 2, E_BOMB = 3, E_BOOM = 4, E_BOSS = 5, E_HOOK = 6;
 // room kinds
 export const R_START = 1, R_PLAIN = 2, R_FIGHT = 3, R_BLOCK = 4, R_SPIKES = 5, R_TREASURE = 6, R_CHEST = 7,
-  R_BIG = 8, R_BOOMSW = 9, R_PREBOSS = 10, R_BOSS = 11, R_HIDDEN = 12;
+  R_BIG = 8, R_BOOMSW = 9, R_PREBOSS = 10, R_BOSS = 11, R_HIDDEN = 12, R_CHASM = 13;
 export const ROOM_KIND_NAME = ['', 'ENTRANCE', 'HALL', 'GUARD ROOM', 'BLOCK PUZZLE', 'SPIKE HALL', 'TREASURE ROOM', 'VAULT',
-  'GREAT VAULT', 'SWITCH ROOM', 'ANTECHAMBER', 'THE KEEPER', 'SECRET ROOM'];
+  'GREAT VAULT', 'SWITCH ROOM', 'ANTECHAMBER', 'THE KEEPER', 'SECRET ROOM', 'CHASM'];
 // what a room holds (in a chest, or appearing when its guards fall)
-export const C_KEY = 1, C_BIGKEY = 2, C_BOMBS = 3, C_BOOMERANG = 4, C_MAP = 5, C_GOLD = 6, C_GEAR = 7;
-export const CONTENT_NAME = ['', 'SMALL KEY', 'BIG KEY', 'BLAST BOMBS', 'RETURN BLADE', 'DUNGEON MAP', 'GOLD', 'GEAR'];
+export const C_KEY = 1, C_BIGKEY = 2, C_BOMBS = 3, C_BOOMERANG = 4, C_MAP = 5, C_GOLD = 6, C_GEAR = 7, C_HOOK = 8;
+export const CONTENT_NAME = ['', 'SMALL KEY', 'BIG KEY', 'BLAST BOMBS', 'RETURN BLADE', 'DUNGEON MAP', 'GOLD', 'GEAR', 'GRAPPLE CHAIN'];
 // items a gate can need
-export const I_BOMBS = 1, I_BOOMERANG = 2;
-const NEEDS = { [E_BOMB]: I_BOMBS, [E_BOOM]: I_BOOMERANG };
+export const I_BOMBS = 1, I_BOOMERANG = 2, I_HOOK = 4;
+const NEEDS = { [E_BOMB]: I_BOMBS, [E_BOOM]: I_BOOMERANG, [E_HOOK]: I_HOOK };
+const ITEM_OF = { [C_BOMBS]: I_BOMBS, [C_BOOMERANG]: I_BOOMERANG, [C_HOOK]: I_HOOK };
+// a great vault's treasure (the big chest)
+export const isGreat = c => c === C_BOOMERANG || c === C_HOOK || c === C_BIGKEY;
+// the layout's version: saves from an older generator start their dungeon afresh
+export const GEN = 2;
 
 // a small fast generator of its own (the dungeon's shape must not depend on the game's other dice)
 export function mulberry(seed) {
@@ -72,15 +77,17 @@ function build(rand, seed) {
     return n;
   };
 
-  // the plan: five zones, chained by gates; each gate's key or item lies in the zone before it
+  // the plan: seven zones, chained by gates; each gate's key or item lies in the zone before it
   //   zone 0 (with the small key)  -KEY->  zone 1 (bombs)  -BOMB->  zone 2 (a small key)  -KEY->
-  //   zone 3 (the boomerang, in the great vault)  -BOOM->  zone 4 (the big key)  -BOSS->  the keeper
-  const gates = [E_KEY, E_BOMB, E_KEY, E_BOOM];
-  const holds = [C_KEY, C_BOMBS, C_KEY, C_BOOMERANG, C_BIGKEY];
-  const sizes = [2 + ri(2), 2 + ri(2), 1 + ri(2), 2 + ri(2), 1 + ri(2)];
-  const start = add(4, GH - 1, 0, R_START);
+  //   zone 3 (the boomerang, in a great vault)  -BOOM->  zone 4 (a small key)  -KEY->
+  //   zone 5 (the grapple chain, in a great vault)  -CHASM->  zone 6 (the big key)  -BOSS->  the keeper
+  const gates = [E_KEY, E_BOMB, E_KEY, E_BOOM, E_KEY, E_HOOK];
+  const holds = [C_KEY, C_BOMBS, C_KEY, C_BOOMERANG, C_KEY, C_HOOK, C_BIGKEY];
+  const NZ = holds.length;
+  const sizes = holds.map((_, z) => (z === 2 || z === 4 ? 1 : 2) + ri(2));
+  const start = add(GW >> 1, GH - 1, 0, R_START);
   const zones = [[start]];
-  for (let z = 0; z < 5; z++) {
+  for (let z = 0; z < NZ; z++) {
     if (z > 0) {
       // the gate: from a room of the last zone (the boomerang's switch needs a room of its own)
       let src = zones[z - 1].filter(r => r.kind !== R_START && r.kind !== R_BOOMSW && !r.gateOut);
@@ -89,47 +96,50 @@ function build(rand, seed) {
       if (!n) return null;
       const g = rooms[n.doors.find(e => e).to]; // (the room the gate leads out of)
       g.gateOut = true;
-      if (gates[z - 1] === E_BOOM) { if (g.kind === R_START) return null; g.kind = R_BOOMSW; }
+      if (gates[z - 1] === E_BOOM || gates[z - 1] === E_HOOK) { if (g.kind === R_START) return null; g.kind = gates[z - 1] === E_BOOM ? R_BOOMSW : R_CHASM; }
       zones.push([n]);
     }
     const zr = zones[z];
     while (zr.length < sizes[z] + (z === 0 ? 1 : 0)) { const n = grow(zr, z, E_OPEN); if (!n) return null; zr.push(n); }
   }
   // the keeper's room off the last zone, with an antechamber before it when there's room
-  const last = zones[4];
+  const last = zones[NZ - 1];
   let pre = last.find(r => r.kind === 0 && !r.gateOut) || null;
-  const boss = grow(pre ? [pre] : last, 5, E_BOSS, R_BOSS, 0.9);
+  const boss = grow(pre ? [pre] : last, NZ, E_BOSS, R_BOSS, 0.9);
   if (!boss) return null;
   const bossFrom = rooms[boss.doors.find(e => e).to];
   if (bossFrom.kind === 0) bossFrom.kind = R_PREBOSS;
 
   // what each zone holds, in a room of that zone that isn't the entrance or a switch room
-  for (let z = 0; z < 5; z++) {
-    const spots = zones[z].filter(r => r.kind !== R_START && r.kind !== R_BOOMSW && r.kind !== R_PREBOSS && !r.content);
+  const special = r => r.kind === R_START || r.kind === R_BOOMSW || r.kind === R_CHASM;
+  for (let z = 0; z < NZ; z++) {
+    const spots = zones[z].filter(r => !special(r) && r.kind !== R_PREBOSS && !r.content);
     const r = spots.length ? pick(spots) : null;
     if (!r) return null;
     r.content = holds[z];
-    r.kind = holds[z] === C_BOOMERANG ? R_BIG : (holds[z] === C_KEY && rand() < 0.5 ? R_FIGHT : R_CHEST);
+    r.kind = holds[z] === C_BOOMERANG || holds[z] === C_HOOK ? R_BIG : (holds[z] === C_KEY && rand() < 0.5 ? R_FIGHT : R_CHEST);
   }
   // the map, early on
   {
-    const spots = zones[0].concat(zones[1]).filter(r => !r.content && r.kind !== R_START && r.kind !== R_BOOMSW);
+    const spots = zones[0].concat(zones[1]).filter(r => !r.content && !special(r));
     if (spots.length) { const r = pick(spots); r.content = C_MAP; r.kind = R_CHEST; }
   }
   // extras: secret rooms behind cracked walls (bombs), treasure rooms, loops inside a zone
   const total = () => rooms.length;
-  const want = 12 + ri(9);
+  const want = 20 + ri(9);
   let guard = 0;
-  while (total() < want && guard++ < 40) {
-    const z = 1 + ri(4); // (not zone 0: the bombs come in zone 1)
-    const secret = rand() < 0.5;
-    const n = grow(zones[z], z, secret ? E_BOMB : E_OPEN, secret ? R_HIDDEN : R_TREASURE, 0);
+  while (total() < want && guard++ < 60) {
+    const z = 1 + ri(NZ - 1); // (not zone 0: the bombs come in zone 1)
+    // (a secret room, a treasure room, or just more dungeon: halls, guard rooms, puzzles)
+    const roll = rand(), secret = roll < 0.35, plain = roll >= 0.65;
+    const n = grow(zones[z], z, secret ? E_BOMB : E_OPEN, secret ? R_HIDDEN : plain ? 0 : R_TREASURE, 0);
     if (!n) continue;
+    if (plain) { zones[z].push(n); continue; }
     n.content = rand() < 0.5 ? C_GEAR : C_GOLD;
     n.optional = true;
     if (!secret) zones[z].push(n);
   }
-  if (total() < 12 || total() > 20) return null;
+  if (total() < 20 || total() > 28) return null;
   for (const zr of zones) for (const a of zr) for (let d = 0; d < 4; d++) {
     if (a.doors[d]) continue;
     const b = at.get(key(a.x + DX[d], a.y + DY[d]));
@@ -175,7 +185,7 @@ export function checkDungeon(d) {
       let ni = 0, nb = false, nk = 0;
       for (let i = 0; i < N; i++) if (seen[i]) {
         const c = d.rooms[i].content;
-        if (c === C_BOMBS) ni |= I_BOMBS; else if (c === C_BOOMERANG) ni |= I_BOOMERANG; else if (c === C_BIGKEY) nb = true; else if (c === C_KEY) nk++;
+        if (ITEM_OF[c]) ni |= ITEM_OF[c]; else if (c === C_BIGKEY) nb = true; else if (c === C_KEY) nk++;
       }
       keys = nk;
       if (ni === items && nb === big) break;

@@ -523,6 +523,7 @@ export function dgFound(c, v) {
   const swap = touchUI() ? 'the small arrows' : (input.lastDevice === 'pad' ? 'LB / RB' : 'V');
   const t = {
     [DG.C_BOOMERANG]: ['THE RETURN BLADE', `Throw it with ${how}: it stuns, fetches loot, trips crystal switches. ${swap} switches items.`],
+    [DG.C_HOOK]: ['THE GRAPPLE CHAIN', `Fire it with ${how}: it catches on posts and chests and pulls you over pits. It stuns, too.`],
     [DG.C_BOMBS]: ['BLAST BOMBS', `Set one down with ${how}. Stand clear! They open cracked walls.`],
     [DG.C_BIGKEY]: ['THE BIG KEY', 'It opens the keeper\'s door.'],
     [DG.C_MAP]: ['THE DUNGEON MAP', 'Every room is on your map now (the map button, M or Select).'],
@@ -575,6 +576,7 @@ function setW(id, v) { const w = Math.max(0, Math.min(100, v)).toFixed(1) + '%';
 // the dungeon's map: rooms you've seen (all of them once you have the map), you, the keeper, chests not yet opened
 const ITEM_SVG = {
   [DG.I_BOOMERANG]: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M4 26C10 16 14 9 26 5c-6 6-9 12-11 20-3-2-7-1-11 1z" fill="#dfe4ee" stroke="#5a6070" stroke-width="1.6"/><circle cx="14" cy="17" r="3" fill="#f0b73c" stroke="#8a5a10"/><circle cx="14" cy="17" r="1.2" fill="#40e0ff"/></svg>'),
+  [DG.I_HOOK]: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><g fill="none" stroke-linecap="round"><path d="M4 28l3-3M9 23l3-3M14 18l2-2" stroke="#5a5a66" stroke-width="3"/><path d="M15 17L24 8M24 8c-4-1-7 1-7 5M24 8c1 4-1 7-5 7M24 8l3-3" stroke="#2a2a30" stroke-width="4.4"/><path d="M15 17L24 8M24 8c-4-1-7 1-7 5M24 8c1 4-1 7-5 7M24 8l3-3" stroke="#dfe4ee" stroke-width="2.2"/></g><circle cx="15" cy="17" r="2.4" fill="#f0b73c" stroke="#8a5a10"/></svg>'),
   [DG.I_BOMBS]: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="15" cy="19" r="10" fill="#2a2a34" stroke="#8a8a9a" stroke-width="1.4"/><rect x="12" y="7" width="6" height="4" rx="1" fill="#5a5a64"/><path d="M17 7q3-4 7-3" stroke="#c8a070" stroke-width="2" fill="none"/><circle cx="25" cy="4" r="2.6" fill="#ffd36a"/><circle cx="11" cy="15" r="2.2" fill="#fff" opacity=".35"/></svg>'),
 };
 export function drawDungeonMap(c, big) {
@@ -610,7 +612,7 @@ export function drawDungeonMap(c, big) {
     x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = `900 ${Math.max(9, rw * 0.6)}px Nunito, sans-serif`;
     let mark = '', col = cur ? '#2a1600' : '#ffc93c';
     if (r.kind === DG.R_BOSS) { mark = '☠'; col = cur ? '#2a1600' : '#ff6a55'; }
-    else if (r.content && !(f & 4) && (G.dg_map || seen)) mark = r.content === DG.C_BOOMERANG || r.content === DG.C_BIGKEY ? '◆' : '■';
+    else if (r.content && !(f & 4) && (G.dg_map || seen)) mark = DG.isGreat(r.content) ? '◆' : '■';
     else if (r.kind === DG.R_START) mark = '▲';
     if (mark) { x.fillStyle = col; x.fillText(mark, px + rw / 2, py + rw / 2 + 1); }
   }
@@ -650,13 +652,14 @@ function ctlBar(id, rows) {
   const chip = k => kb ? `<i class="sm">${KEY[k]}</i>` : k === 'dpad' ? '<i class="sm">✚</i>' : `<i style="background:${F.c[FACE[k]]}">${F.n[FACE[k]]}</i>`;
   $(id).innerHTML = rows.map(([k, t]) => `<span>${chip(k)}${t}</span>`).join('');
 }
+const manyItems = () => (G.dg_items & (G.dg_items - 1)) !== 0; // (two or more: they can be switched)
 function drawPadHelp() {
   const el = $('padHelp');
   if (el.hidden) return;
   const cls = G.player_class, dg = G.mode === 'dungeon', it = dg && G.dg_items ? G.dg_item : 0;
   const spec = cls === 1 ? 'BLINK' : (cls === 2 && !G.pet_type ? 'TAME' : 'ROLL');
-  const item = it === DG.I_BOMBS ? 'BOMBS' : it === DG.I_BOOMERANG ? 'BLADE' : '';
-  const swap = dg && (G.dg_items & 3) === 3;
+  const item = it === DG.I_BOMBS ? 'BOMBS' : it === DG.I_BOOMERANG ? 'BLADE' : it === DG.I_HOOK ? 'CHAIN' : '';
+  const swap = dg && manyItems();
   const style = padStyle(), key = [style, spec, item, swap, dg].join();
   if (UI.lastHud.padHelp === key) return;
   UI.lastHud.padHelp = key;
@@ -700,7 +703,7 @@ export function frame(dt) {
     if (it && UI.lastHud.item !== it) { UI.lastHud.item = it; $('hItemPic').src = ITEM_SVG[it]; $('tItemPic').src = ITEM_SVG[it]; }
     const n = it === DG.I_BOMBS ? String(G.dg_bombs) : '';
     setText('hItemN', n); setText('tItemN', n);
-    $('tItem').hidden = !it || $('touch').hidden; $('tSwap').hidden = !it || (G.dg_items & 3) !== 3 || $('touch').hidden;
+    $('tItem').hidden = !it || $('touch').hidden; $('tSwap').hidden = !it || !manyItems() || $('touch').hidden;
   } else if (UI.lastHud.dgOn !== 0) { UI.lastHud.dgOn = 0; $('hDg').hidden = true; $('hMap').hidden = true; $('tItem').hidden = true; $('tSwap').hidden = true; }
   if (G.mode === 'dungeon') UI.lastHud.dgOn = 1;
   const wh = G.room_num === D.BOSS_ROOM ? 'BOSS' : 'ROOM ' + G.room_num;
