@@ -1087,6 +1087,12 @@ export function buildItem(kind, rar, cls, tier = 0) {
     case D.K_HELMET: { const h = buildHelmet(rar, tier); model.add(h); g.userData.wtick = h.userData.tick; break; }
     case D.K_TRINKET: { const tr = buildTrinket(rar, tier); tr.scale.setScalar(1.3); model.add(tr); g.userData.wtick = tr.userData.tick; break; }
     case D.K_POTION: { const b = mesh(sph(0.32, 14, 12), new THREE.MeshPhysicalMaterial({ color: '#ff3a4a', emissive: '#a0101a', emissiveIntensity: 0.8, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.92 })); model.add(b); const n = mesh(cyl(0.1, 0.12, 0.25, 8), mat('glass', { color: '#d8f0e0', roughness: 0.1 })); n.position.y = 0.32; model.add(n); const c = mesh(cyl(0.11, 0.11, 0.1, 8), mat('cork', { color: '#a87a4a' })); c.position.y = 0.48; model.add(c); break; }
+    case D.K_BOMBS: { // a pack of bombs: three small iron bombs in a sack
+      const iron = mat('bombIron', { color: '#2a2a34', metalness: 0.6, roughness: 0.35 });
+      const sack = mesh(sph(0.3, 12, 10), leather); sack.scale.set(1.3, 0.7, 1.1); sack.position.y = -0.3; model.add(sack);
+      for (let i = 0; i < 3; i++) { const b = mesh(sph(0.2, 12, 10), iron); b.position.set((i - 1) * 0.26, -0.05 + (i === 1 ? 0.12 : 0), 0.05); model.add(b); const f = mesh(cyl(0.025, 0.025, 0.14, 5), mat('fuse', { color: '#c8a070' })); f.position.set((i - 1) * 0.26, 0.17 + (i === 1 ? 0.12 : 0), 0.05); model.add(f); }
+      break;
+    }
     case D.K_GOLD: {
       const coin = mat('coin', { color: '#f5c242', metalness: 1, roughness: 0.22, emissive: '#5a3a00', emissiveIntensity: 0.7, envMapIntensity: 1.4 });
       for (let i = 0; i < 7; i++) { const c = mesh(cyl(0.22, 0.22, 0.06, 18), coin); c.position.set((i % 3 - 1) * 0.22 + (i > 2 ? 0.1 : 0), -0.25 + Math.floor(i / 3) * 0.07 + (i === 6 ? 0.14 : 0), (i & 1) * 0.15); c.rotation.set(0.2 * (i & 1), i, 0.1 * (i % 3)); model.add(c); }

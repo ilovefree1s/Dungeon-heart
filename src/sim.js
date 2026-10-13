@@ -1567,7 +1567,8 @@ export function kill_monster(n) {
   else if (g.m_elite[n]) {
     if (rnd() < 102) drop_trinket(g.m_x[n] + 4, g.m_y[n] + 6);
     else drop_gear(g.m_x[n] + 4, g.m_y[n] + 6, 2);
-  } else if (!g.m_risen[n]) drop_loot(g.m_x[n] + 4, g.m_y[n] + 6);
+  } else if (g.mode === 'dungeon' && (g.dg_items & DG.I_BOMBS) && g.dg_bombs < 8 && rnd() < 56) drop_bombs(g.m_x[n] + 4, g.m_y[n] + 6);
+  else if (!g.m_risen[n]) drop_loot(g.m_x[n] + 4, g.m_y[n] + 6);
   level_check();
   if (g.boss_on) return;
   if (g.m_elite[n] === EL_SPLITTING && split_monster(n, t)) return;
@@ -2082,6 +2083,15 @@ function drop_gold(x, y, v) {
   for (let k = 0; k < MAXI; ++k) {
     if (g.i_kind[k]) continue;
     g.i_kind[k] = K_GOLD; g.i_val[k] = v & 255; g.i_x[k] = x; g.i_y[k] = y; g.i_rar[k] = 0;
+    fx('drop', { s: k });
+    return;
+  }
+}
+// a pack of bombs (dungeons: when you carry bombs and run low)
+function drop_bombs(x, y) {
+  for (let k = 0; k < MAXI; ++k) {
+    if (g.i_kind[k]) continue;
+    g.i_kind[k] = K_BOMBS; g.i_val[k] = 4; g.i_x[k] = x; g.i_y[k] = y; g.i_rar[k] = 0;
     fx('drop', { s: k });
     return;
   }

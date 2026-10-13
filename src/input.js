@@ -3,14 +3,16 @@
 //  Xbox controllers, turned into the SNES game's pad bits each step. In menus
 //  the same keys move a focus and press buttons.
 // ============================================================================
-import { PAD_A, PAD_B, PAD_SELECT, PAD_START, PAD_UP, PAD_DOWN, PAD_LEFT, PAD_RIGHT } from './sim.js';
+import { PAD_A, PAD_B, PAD_SELECT, PAD_START, PAD_UP, PAD_DOWN, PAD_LEFT, PAD_RIGHT, PAD_X, PAD_L, G } from './sim.js';
+// (in a dungeon, once you carry an item: its own button)
+const itemMode = () => G.mode === 'dungeon' && G.dg_items;
 
 const keys = {};
-const st = { stickX: 0, stickY: 0, stickId: null, tAtk: 0, tSpec: 0, tPot: 0, edge: 0, menuEdge: [], dx: 0, dy: 0, gpPrev: {}, lastDevice: 'kb' };
+const st = { stickX: 0, stickY: 0, stickId: null, tAtk: 0, tSpec: 0, tPot: 0, tItem: 0, tSwap: 0, edge: 0, menuEdge: [], dx: 0, dy: 0, gpPrev: {}, lastDevice: 'kb' };
 export const input = st;
 const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
   Space: 'atk', KeyJ: 'atk', KeyZ: 'atk', ShiftLeft: 'spec', ShiftRight: 'spec', KeyK: 'spec', KeyX: 'spec', KeyL: 'spec',
-  KeyQ: 'pot', KeyE: 'pot', KeyR: 'pot', Tab: 'bag', KeyI: 'bag', KeyB: 'bag', Enter: 'ok', NumpadEnter: 'ok', Escape: 'back', Backspace: 'back', KeyP: 'pause' };
+  KeyQ: 'pot', KeyE: 'pot', KeyR: 'pot', KeyF: 'item', KeyC: 'item', KeyV: 'swap', KeyM: 'map', Tab: 'bag', KeyI: 'bag', KeyB: 'bag', Enter: 'ok', NumpadEnter: 'ok', Escape: 'back', Backspace: 'back', KeyP: 'pause' };
 let onAny = () => { };
 export function onFirstInput(f) { onAny = f; }
 // the menu cursor is drawn by the game (html.padnav .pfocus), not left to the browser's focus ring,
@@ -33,6 +35,8 @@ function press(k) {
   if (k === 'atk') st.edge |= PAD_B;
   else if (k === 'spec') st.edge |= PAD_A;
   else if (k === 'pot') st.edge |= PAD_SELECT;
+  else if (k === 'item') st.edge |= PAD_X;
+  else if (k === 'swap') st.edge |= PAD_L;
 }
 
 // touch: a stick on the left, buttons on the right
@@ -55,11 +59,11 @@ export function initTouch() {
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
     el.addEventListener('contextmenu', e => e.preventDefault());
   };
-  btn('tAtk', PAD_B, 'tAtk'); btn('tSpec', PAD_A, 'tSpec'); btn('tPot', PAD_SELECT, 'tPot');
+  btn('tAtk', PAD_B, 'tAtk'); btn('tSpec', PAD_A, 'tSpec'); btn('tPot', PAD_SELECT, 'tPot'); btn('tItem', PAD_X, 'tItem'); btn('tSwap', PAD_L, 'tSwap');
 }
 
-// controllers (standard mapping): A / cross attack, B / circle special, X / square attack, Y / triangle potion,
-// select potion, start bag; d-pad or left stick
+// controllers (standard mapping): A / cross attack, B / circle special, X / square attack (in a dungeon with an
+// item: the item), Y / triangle potion, LB / RB switch items, select potion, start bag; d-pad or left stick
 let gp = null;
 function pollPad() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -68,16 +72,19 @@ function pollPad() {
   if (!gp) return null;
   const b = gp.buttons, on = n => !!(b[n] && (b[n].pressed || b[n].value > 0.5));
   const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
-  const now = { atk: on(0) || on(2), spec: on(1), pot: on(3) || on(8), bag: on(9), up: on(12) || ay < -0.5, down: on(13) || ay > 0.5, left: on(14) || ax < -0.5, right: on(15) || ax > 0.5,
+  const im = itemMode();
+  const dgm = G.mode === 'dungeon';
+  const now = { atk: on(0) || (on(2) && !im), item: on(2) && im, swap: (on(4) || on(5)) && im, spec: on(1), pot: on(3) || (on(8) && !dgm), map: on(8) && dgm, bag: on(9), up: on(12) || ay < -0.5, down: on(13) || ay > 0.5, left: on(14) || ax < -0.5, right: on(15) || ax > 0.5,
     ok: on(0), back: on(1), lb: on(4), rb: on(5) };
   for (const k in now) {
     if (now[k] && !st.gpPrev[k]) {
       onAny(); st.lastDevice = 'pad'; navMode(true);
-      if (k === 'atk' || k === 'spec' || k === 'pot') press(k);
+      if (k === 'atk' || k === 'spec' || k === 'pot' || k === 'item' || k === 'swap') press(k);
       // (A is both 'atk' and 'ok', B both 'spec' and 'back': each press counts once in the menus;
       // X, the other attack button, also confirms)
       if (k === 'atk') { if (now.atk && !now.ok && !st.gpPrev.ok) st.menuEdge.push('ok'); }
-      else if (k !== 'spec') st.menuEdge.push(k);
+      else if (k === 'item') { if (!now.ok && !st.gpPrev.ok) st.menuEdge.push('ok'); }
+      else if (k !== 'spec' && k !== 'swap') st.menuEdge.push(k);
     }
   }
   st.gpPrev = now;

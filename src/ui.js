@@ -10,6 +10,7 @@ import { sfx, startAudio, setMusic, setSfx, audioState } from './audio.js';
 import { menuKeys, input } from './input.js';
 import { itemPic, heroPic, merchantPic, petPic } from './icons.js';
 import { PET_NAMES } from './pets.js';
+import * as DG from './dungeon.js';
 import { talGlyph } from './glyphs.js';
 const G = S.G;
 const $ = id => document.getElementById(id);
@@ -19,7 +20,7 @@ const tc = s => s.toLowerCase().replace(/(^|\s|-)\S/g, m => m.toUpperCase());
 export const UI = { modal: null, hooks: {}, toastT: 0, bannerT: 0, msgId: -1, lastHud: {}, sel: null, talSel: 0, marks: new Set(), sellArm: -1 };
 
 // ---------------------------------------------------------------- screens
-const SCREENS = ['sTitle', 'sClass', 'sStory', 'sInv', 'sTal', 'sName', 'sShop', 'sTrade', 'sPause', 'sOpt', 'sDead', 'sWin'];
+const SCREENS = ['sTitle', 'sSeed', 'sMap', 'sClass', 'sStory', 'sInv', 'sTal', 'sName', 'sShop', 'sTrade', 'sPause', 'sOpt', 'sDead', 'sWin'];
 export function show(id) {
   for (const s of SCREENS) $(s).hidden = s !== id;
   UI.modal = id;
@@ -81,6 +82,7 @@ export function menuStep() {
     if (!UI.modal) {
       if (G.state !== 'play') continue;
       if (k === 'bag') openInv();
+      else if (k === 'map') openMap();
       else if (k === 'back' && input.lastDevice === 'kb' || k === 'pause') openPause();
       continue;
     }
@@ -99,10 +101,20 @@ function back() {
     case 'sShop': leaveShop(); break;
     case 'sTrade': openShopScreen(); break;
     case 'sOpt': show(UI.optBack || 'sTitle'); break;
+    case 'sMap': closeModal(); break;
     default: break;
   }
 }
 export function closeModal() { S.save_game(); show(null); }
+export function openMap() {
+  if (G.mode !== 'dungeon' || !G.dg) return;
+  sfx('pickup'); show('sMap');
+  $('mapTitle').textContent = 'DUNGEON ' + G.dg_no + ' · ' + G.dg_seed_text;
+  drawDungeonMap($('mapBig'), true);
+  $('mapLegend').textContent = (G.dg_map ? 'You have the map: every room is shown. ' : 'Rooms appear as you find them (a map is hidden in a chest). ') + '▲ entrance · ■ chest · ◆ great chest · ☠ the keeper';
+}
+$('bMapClose').onclick = () => closeModal();
+$('hMap').onclick = () => openMap();
 
 // ---------------------------------------------------------------- title, class, story
 export function title() {
@@ -115,7 +127,19 @@ const CLASS_TIP = ['Warrior: swings hit everything in front of you, and you can 
   'Mage: fire, frost or arcane bolts from afar, and a blink through danger. Fragile!',
   'Hunter: the hardest-hitting arrows. Shoot a weak slime, bat or spider, then tame it as a pet.'];
 function classTip(c) { $('classTip').textContent = CLASS_TIP[c]; }
+// the dungeon run: a seed, then the class
+$('bDungeon').onclick = () => { startAudio(); sfx('pickup'); $('seedIn').value = DG.randomSeedText(); show('sSeed'); };
+$('bSeedRnd').onclick = () => { sfx('pickup'); $('seedIn').value = DG.randomSeedText(); };
+$('bSeedBack').onclick = () => title();
+$('bSeedGo').onclick = () => {
+  const v = $('seedIn').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || DG.randomSeedText();
+  UI.dgSeed = v; sfx('pickup');
+  for (const im of document.querySelectorAll('[data-hero]')) if (!im.src) im.src = heroPic(+im.dataset.hero);
+  show('sClass'); classTip(0); UI.hooks.classPreview && UI.hooks.classPreview(0);
+};
+$('seedIn').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('bSeedGo').click(); } });
 $('bNew').onclick = () => {
+  UI.dgSeed = null;
   startAudio(); sfx('pickup');
   for (const im of document.querySelectorAll('[data-hero]')) if (!im.src) im.src = heroPic(+im.dataset.hero);
   show('sClass'); classTip(0); UI.hooks.classPreview && UI.hooks.classPreview(0);
@@ -123,10 +147,14 @@ $('bNew').onclick = () => {
 $('bCont').onclick = () => { startAudio(); sfx('door'); fadeThen(() => { if (S.load_game()) { show(null); } else title(); }); };
 $('bOpt').onclick = () => { startAudio(); UI.optBack = 'sTitle'; openOptions(); };
 for (const c of document.querySelectorAll('.card')) {
-  c.onclick = () => { sfx('levelup'); UI.cls = +c.dataset.cls; show('sStory'); UI.hooks.story && UI.hooks.story(UI.cls); };
+  c.onclick = () => {
+    sfx('levelup'); UI.cls = +c.dataset.cls;
+    if (UI.dgSeed) { const seed = UI.dgSeed; sfx('door'); fadeThen(() => { S.new_hero(UI.cls); S.dg_start(seed); show(null); }); return; }
+    show('sStory'); UI.hooks.story && UI.hooks.story(UI.cls);
+  };
   c.onfocus = c.onmouseenter = () => { classTip(+c.dataset.cls); UI.hooks.classPreview && UI.hooks.classPreview(+c.dataset.cls); };
 }
-$('bClassBack').onclick = () => title();
+$('bClassBack').onclick = () => (UI.dgSeed ? show('sSeed') : title());
 $('bStory').onclick = () => { sfx('door'); fadeThen(() => { S.new_hero(UI.cls); S.start_room(); show(null); }); };
 
 // ---------------------------------------------------------------- options
@@ -151,7 +179,7 @@ $('bPauseOpt').onclick = () => { UI.optBack = 'sPause'; openOptions(); };
 $('bQuit').onclick = () => { S.save_game(); title(); };
 
 // ---------------------------------------------------------------- death, victory
-export function dead() { $('deadWhere').textContent = 'on floor ' + G.floor_num; setTimeout(() => show('sDead'), 900); }
+export function dead() { $('deadWhere').textContent = G.mode === 'dungeon' ? `in dungeon ${G.dg_no} (seed ${G.dg_seed_text}): back to its entrance, keys and items kept` : 'on floor ' + G.floor_num; setTimeout(() => show('sDead'), 900); }
 $('bRetry').onclick = () => { sfx('door'); fadeThen(() => { S.respawn(); show(null); }); };
 export function win() {
   $('winStats').textContent = `Level ${G.lvl} · ${G.kills} monsters · ${G.gold} gold`;
@@ -486,6 +514,18 @@ function stepNums(dt) {
     n.el.style.transform = `translate(-50%,-50%) scale(${s})`;
   }
 }
+const touchUI = () => input.lastDevice === 'touch';
+export function dgFound(c) {
+  const how = touchUI() ? 'the green button' : (input.lastDevice === 'pad' ? 'X' : 'F or C');
+  const swap = touchUI() ? 'the small arrows' : (input.lastDevice === 'pad' ? 'LB / RB' : 'V');
+  const t = {
+    [DG.C_BOOMERANG]: ['THE RETURN BLADE', `Throw it with ${how}: it stuns, fetches loot, trips crystal switches. ${swap} switches items.`],
+    [DG.C_BOMBS]: ['BLAST BOMBS', `Set one down with ${how}. Stand clear! They open cracked walls.`],
+    [DG.C_BIGKEY]: ['THE BIG KEY', 'It opens the keeper\'s door.'],
+    [DG.C_MAP]: ['THE DUNGEON MAP', 'Every room is on your map now (the map button, M or Select).'],
+  }[c];
+  if (t) banner(t[0], t[1], 3.2);
+}
 export function banner(title, sub, t = 2) { $('bTitle').textContent = title; $('bSub').textContent = sub; $('banner').classList.add('on'); UI.bannerT = t; }
 export function hurt() { $('hurt').style.opacity = 1; setTimeout(() => $('hurt').style.opacity = 0, 160); }
 let flashA = 0;
@@ -507,6 +547,11 @@ export function lootCard(e) {
   if (e.better) $('hBag').classList.add('alert');
 }
 export function roomStart() {
+  if (G.mode === 'dungeon') {
+    const id = G.dg_seed_text + '#' + G.dg_no;
+    if (UI.lastDg !== id) { UI.lastDg = id; banner('DUNGEON ' + G.dg_no, 'SEED ' + G.dg_seed_text, 2.4); }
+    fadeIn(); drawMinimap(); return;
+  }
   if (G.room_num === 1) banner('FLOOR ' + G.floor_num, D.THEME_NAME[G.theme] + ' · ' + D.MOD_NAME[G.fmod], 2.2);
   else if (G.room_num === D.BOSS_ROOM) { /* bossIntro */ }
   else if (G.sp) banner(['', 'TREASURE ROOM', 'SHRINE', 'FOUNTAIN', 'THE ARENA', 'TRAPPED ROOM'][G.sp], 'ROOM ' + G.room_num + ' OF 5', 1.6);
@@ -521,8 +566,54 @@ function fadeIn() { $('fade').style.opacity = 0; }
 export function fadeThen(f) { $('fade').style.opacity = 1; setTimeout(() => { f(); setTimeout(fadeIn, 60); }, 300); }
 function setText(id, v) { if (UI.lastHud[id] !== v) { UI.lastHud[id] = v; $(id).textContent = v; } }
 function setW(id, v) { const w = Math.max(0, Math.min(100, v)).toFixed(1) + '%'; if (UI.lastHud[id] !== w) { UI.lastHud[id] = w; $(id).style.width = w; } }
+// the dungeon's map: rooms you've seen (all of them once you have the map), you, the keeper, chests not yet opened
+const ITEM_SVG = {
+  [DG.I_BOOMERANG]: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M4 26C10 16 14 9 26 5c-6 6-9 12-11 20-3-2-7-1-11 1z" fill="#dfe4ee" stroke="#5a6070" stroke-width="1.6"/><circle cx="14" cy="17" r="3" fill="#f0b73c" stroke="#8a5a10"/><circle cx="14" cy="17" r="1.2" fill="#40e0ff"/></svg>'),
+  [DG.I_BOMBS]: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="15" cy="19" r="10" fill="#2a2a34" stroke="#8a8a9a" stroke-width="1.4"/><rect x="12" y="7" width="6" height="4" rx="1" fill="#5a5a64"/><path d="M17 7q3-4 7-3" stroke="#c8a070" stroke-width="2" fill="none"/><circle cx="25" cy="4" r="2.6" fill="#ffd36a"/><circle cx="11" cy="15" r="2.2" fill="#fff" opacity=".35"/></svg>'),
+};
+export function drawDungeonMap(c, big) {
+  const x = c.getContext('2d'), W = c.width, H = c.height, d = G.dg;
+  x.clearRect(0, 0, W, H);
+  if (!d) return;
+  // fit the rooms in use
+  let x0 = 99, x1 = -1, y0 = 99, y1 = -1;
+  for (const r of d.rooms) { x0 = Math.min(x0, r.x); x1 = Math.max(x1, r.x); y0 = Math.min(y0, r.y); y1 = Math.max(y1, r.y); }
+  const cols = x1 - x0 + 1, rows = y1 - y0 + 1, cs = Math.floor(Math.min((W - 8) / cols, (H - 8) / rows)), ox = (W - cs * cols) / 2, oy = (H - cs * rows) / 2;
+  const pad = Math.max(2, cs * 0.12), rw = cs - pad * 2;
+  const shown = r => (G.dg_flags[r.id] & 1) || G.dg_map;
+  const pos = r => [ox + (r.x - x0) * cs + pad, oy + (r.y - y0) * cs + pad];
+  // corridors between shown rooms
+  for (const r of d.rooms) {
+    if (!shown(r)) continue;
+    const [px, py] = pos(r);
+    r.doors.forEach((e, k) => {
+      if (!e || (k !== 1 && k !== 2)) return;
+      const o = d.rooms[e.to]; if (!shown(o)) return;
+      const open = G.dg_flags[r.id] & (16 << k);
+      x.fillStyle = e.kind === DG.E_KEY && !open ? '#c8913e' : e.kind === DG.E_BOSS && !open ? '#e8402e' : e.kind === DG.E_BOMB && !open ? 'rgba(255,255,255,.12)' : 'rgba(255,240,220,.45)';
+      const t = Math.max(2, cs * 0.14);
+      if (k === 1) x.fillRect(px + rw, py + rw / 2 - t / 2, pad * 2, t); else x.fillRect(px + rw / 2 - t / 2, py + rw, t, pad * 2);
+    });
+  }
+  for (const r of d.rooms) {
+    if (!shown(r)) continue;
+    const [px, py] = pos(r), seen = G.dg_flags[r.id] & 1, cur = r.id === G.dg_room;
+    x.fillStyle = cur ? '#ffc93c' : seen ? 'rgba(255,240,220,.55)' : 'rgba(255,240,220,.16)';
+    x.beginPath(); x.roundRect(px, py, rw, rw, Math.max(2, rw * 0.18)); x.fill();
+    const f = G.dg_flags[r.id];
+    x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = `900 ${Math.max(9, rw * 0.6)}px Nunito, sans-serif`;
+    let mark = '', col = cur ? '#2a1600' : '#ffc93c';
+    if (r.kind === DG.R_BOSS) { mark = '☠'; col = cur ? '#2a1600' : '#ff6a55'; }
+    else if (r.content && !(f & 4) && (G.dg_map || seen)) mark = r.content === DG.C_BOOMERANG || r.content === DG.C_BIGKEY ? '◆' : '■';
+    else if (r.kind === DG.R_START) mark = '▲';
+    if (mark) { x.fillStyle = col; x.fillText(mark, px + rw / 2, py + rw / 2 + 1); }
+  }
+}
 export function drawMinimap() {
+  if (G.mode === 'dungeon') { const c = $('minimap'); c.classList.add('dg'); if (c.width !== 264) { c.width = 264; c.height = 264; } drawDungeonMap(c, false); return; }
+  $('minimap').classList.remove('dg');
   const c = $('minimap'), x = c.getContext('2d'), w = c.width, h = c.height;
+  if (w !== 300) { c.width = 300; c.height = 88; }
   x.clearRect(0, 0, w, h);
   const n = 6, bw = 34, gap = (w - 24 - n * bw) / (n - 1), y = h / 2;
   for (let i = 0; i < n; i++) {
@@ -549,8 +640,25 @@ export function frame(dt) {
   setW('hpfill', G.hp / G.maxhp * 100);
   setText('hAtk', S.atk_fine()); setText('hDef', S.total_def());
   setText('hGold', G.gold); setText('hPots', G.potions);
+  if (G.mode === 'dungeon' && G.dg) {
+    const r = G.dg.rooms[G.dg_room], key = 'dg' + G.dg_no + ':' + G.dg_room;
+    if (UI.lastHud.where !== key) {
+      UI.lastHud.where = key;
+      $('hWhere').innerHTML = `DUNGEON ${G.dg_no}<small>SEED ${G.dg_seed_text} · ${DG.ROOM_KIND_NAME[r.kind]}</small>`;
+      drawMinimap();
+    }
+    $('hDg').hidden = false; $('hMap').hidden = false;
+    setText('hKeys', G.dg_keys); $('hBig').hidden = !G.dg_big;
+    const it = G.dg_items ? G.dg_item : 0;
+    $('hItem').hidden = !it;
+    if (it && UI.lastHud.item !== it) { UI.lastHud.item = it; $('hItemPic').src = ITEM_SVG[it]; $('tItemPic').src = ITEM_SVG[it]; }
+    const n = it === DG.I_BOMBS ? String(G.dg_bombs) : '';
+    setText('hItemN', n); setText('tItemN', n);
+    $('tItem').hidden = !it || $('touch').hidden; $('tSwap').hidden = !it || (G.dg_items & 3) !== 3 || $('touch').hidden;
+  } else if (UI.lastHud.dgOn !== 0) { UI.lastHud.dgOn = 0; $('hDg').hidden = true; $('hMap').hidden = true; $('tItem').hidden = true; $('tSwap').hidden = true; }
+  if (G.mode === 'dungeon') UI.lastHud.dgOn = 1;
   const wh = G.room_num === D.BOSS_ROOM ? 'BOSS' : 'ROOM ' + G.room_num;
-  if (UI.lastHud.where !== G.floor_num + wh) {
+  if (G.mode !== 'dungeon' && UI.lastHud.where !== G.floor_num + wh) {
     UI.lastHud.where = G.floor_num + wh;
     $('hWhere').innerHTML = `FLOOR ${G.floor_num}<small>${D.THEME_NAME[G.theme]} · ${wh}</small>`;
     drawMinimap();

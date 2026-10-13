@@ -25,6 +25,23 @@ The whole SNES game (`ilovefree1s/dungeon-loot`, folder `snes/`), rebuilt in 3D:
   stat and Stamina.
 - Saves in the browser after every room; Continue on the title screen.
 
+## Dungeon Run (seeded)
+Pick **Dungeon** on the title screen, type a seed or roll one, and pick a class. Every seed makes its own
+dungeon, the same one every time (share a seed with a friend):
+- 12-20 screens on a grid, entered through doors in the middle of each wall; the map fills in as you
+  explore (a map chest shows it all).
+- Small keys open locked doors, a big key opens the keeper's door; secret rooms hide behind cracked walls.
+- Items, each found in a chest: **Blast Bombs** (blow open cracked walls) and the **Return Blade** (a
+  boomerang: stuns enemies, fetches loot, trips crystal switches across pits). The keeper is weak to it.
+- Guard rooms bar their doors until they're clear; block puzzles, spike halls, treasure rooms.
+- Beat the keeper and the stairs lead to the next dungeon.
+
+How every seed stays beatable: `src/dungeon.js` builds the dungeon as a chain of zones shut off by gates
+(a locked door, a cracked wall, a crystal-switch shutter, the keeper's door), and each gate's key or item is
+always placed before it. `node tests/dungeons.mjs 10000` checks the plans (every order of spending keys);
+`node tests/dgbot.mjs 1000` plays whole dungeons through the game's rules with a bot (fighting, keys, bombs,
+the boomerang, block puzzles, the keeper); `node tests/dgmech.mjs` checks each mechanic.
+
 ## Controls
 | | Keyboard | Controller | Phone |
 |---|---|---|---|
@@ -32,6 +49,8 @@ The whole SNES game (`ilovefree1s/dungeon-loot`, folder `snes/`), rebuilt in 3D:
 | Attack | Space, J, Z | A / ✕, X / ▢ | ATTACK |
 | Roll / blink / tame | Shift, K, X, L | B / ○ | the blue button |
 | Potion | Q, E, R | Y / △, Select | POTION |
+| Dungeon item (use / switch) | F or C / V | X / LB, RB | the green button / the small arrows |
+| Dungeon map | M | Select (in a dungeon) | the map button |
 | Bag & talents | Tab, I, B | Start | START (or the bag button) |
 | Pause | Esc, P | | SELECT (or the pause button) |
 
@@ -45,6 +64,6 @@ The whole SNES game (`ilovefree1s/dungeon-loot`, folder `snes/`), rebuilt in 3D:
   `src/audio.js` (sound effects made in code; the music is `music/dungeon_echoes.mp3`).
 - `src/head.html` is the page; `python3 build.py` writes `index.html` from it.
 - `node tests/bot.mjs <class 0-2> <floors> <seed>` plays the rules with a bot, with no
-  browser, to check balance and catch crashes.
+  browser, to check balance and catch crashes. (The dungeon tests are above.)
 - Graphics quality (Fast / Good / Best) is in Options; on slow devices it steps down by
   itself until you pick one.

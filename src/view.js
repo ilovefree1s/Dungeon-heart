@@ -2,7 +2,7 @@
 //  DUNGEON HEART  -  view: draws the game's state (sim.js) in 3D each frame,
 //  and turns its events into particles, flashes, shakes and numbers.
 // ============================================================================
-import { THREE, scene, camera, TEX, TAU, V3, R, ax, az, wx, wz, PX, CELL, buildRoom, placeCamera, shake, hemi, sun, roomGroup,
+import { THREE, scene, camera, TEX, TAU, V3, R, ax, az, wx, wz, PX, CELL, buildRoom, placeCamera, shake, camSlide, hemi, sun, roomGroup,
   textSprite, std, mesh, sph, THEMES, view as camView, IS_TOUCH, GlowLight } from './engine.js';
 import { buildPet } from './pets.js';
 import { buildTitleWorld } from './titlescene.js';
@@ -116,6 +116,52 @@ function boltColor() {
   return '#c27cff';
 }
 
+// ---------------------------------------------------------------- the dungeon items in the world
+// the Return Blade: a curved, gold-edged blade that spins; Blast Bombs: dark iron with a sparking fuse
+function bladeModel() {
+  const g = new THREE.Group();
+  const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.quadraticCurveTo(0.9, 0.25, 1.6, 1.2); sh.lineTo(1.25, 1.35); sh.quadraticCurveTo(0.7, 0.55, 0, 0.42);
+  sh.quadraticCurveTo(-0.7, 0.55, -1.25, 1.35); sh.lineTo(-1.6, 1.2); sh.quadraticCurveTo(-0.9, 0.25, 0, 0);
+  const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.12, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 1 });
+  geo.translate(0, -0.6, -0.06); geo.rotateX(-Math.PI / 2);
+  g.add(mesh(geo, std({ color: '#d8dce8', metalness: 1, roughness: 0.2, envMapIntensity: 1.3 })));
+  const hub = mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.24, 12), std({ color: '#f0b73c', metalness: 1, roughness: 0.3 })); g.add(hub);
+  const gem = new THREE.Mesh(sph(0.12, 8, 6), new THREE.MeshBasicMaterial({ color: '#40e0ff' })); gem.position.y = 0.15; g.add(gem);
+  const trail = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.soft, color: '#bfe6ff', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.5 }));
+  trail.scale.setScalar(3); g.add(trail);
+  return g;
+}
+function bombModel() {
+  const g = new THREE.Group();
+  const body = mesh(sph(0.75, 18, 14), std({ color: '#2a2a34', metalness: 0.6, roughness: 0.35 })); body.position.y = 0.75; g.add(body);
+  const band = mesh(new THREE.TorusGeometry(0.72, 0.07, 6, 20), std({ color: '#8a6a3a', metalness: 0.6, roughness: 0.4 })); band.rotation.x = Math.PI / 2; band.position.y = 0.75; g.add(band);
+  const cap = mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.25, 10), std({ color: '#5a5a64', metalness: 0.7, roughness: 0.4 })); cap.position.y = 1.5; g.add(cap);
+  const fuse = mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.45, 6), std({ color: '#c8a070' })); fuse.position.set(0.1, 1.75, 0); fuse.rotation.z = -0.4; g.add(fuse);
+  const spark = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.flame, color: '#ffd36a', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+  spark.position.set(0.22, 2.0, 0); spark.scale.setScalar(0.9); g.add(spark);
+  g.userData = { body, spark };
+  return g;
+}
+const blade = bladeModel(); blade.visible = false; scene.add(blade);
+const bombs3d = [0, 1, 2].map(() => { const b = bombModel(); b.visible = false; scene.add(b); return b; });
+function updateItems(dt, t) {
+  blade.visible = G.mode === 'dungeon' && G.bm_t > 0;
+  if (blade.visible) { blade.position.set(wx(G.bm_x + 4), 1.8, wz(G.bm_y + 4)); blade.rotation.y = -t * 22; }
+  for (let k = 0; k < 3; k++) {
+    const b = bombs3d[k], on = G.mode === 'dungeon' && G.bb_t[k] > 0;
+    b.visible = on;
+    if (!on) continue;
+    b.position.set(wx(G.bb_x[k]), 0, wz(G.bb_y[k]));
+    // (it swells and flashes faster as the fuse burns down)
+    const left = G.bb_t[k] / 120, rate = 6 + (1 - left) * 30;
+    const fl = Math.sin(t * rate) > 0.2 && left < 0.5;
+    b.userData.body.material.emissive.set(fl ? '#ff3a1a' : '#000000'); b.userData.body.material.emissiveIntensity = fl ? 0.9 : 0;
+    b.scale.setScalar(1 + (1 - left) * 0.15 + (fl ? 0.04 : 0));
+    b.userData.spark.scale.setScalar(0.7 + Math.random() * 0.5);
+    if (Math.random() < 0.3) burst(b.position.x + 0.2, 2.0, b.position.z, '#ffd36a', 1, 1.5, 0.3, true, 0.3, 4);
+  }
+}
+
 // ---------------------------------------------------------------- the hero's slash
 const trail = new THREE.Mesh(new THREE.RingGeometry(1.8, 4.6, 32, 1, -1.15, 2.3),
   new THREE.MeshBasicMaterial({ color: '#fff1c8', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false }));
@@ -151,8 +197,8 @@ const ward = new THREE.Mesh(sph(4.2, 24, 16), new THREE.MeshBasicMaterial({ colo
 scene.add(ward);
 
 // ---------------------------------------------------------------- per-room setup
-export function onRoom() {
-  V.roomSeed = (G.floor_num * 97 + G.room_num * 13 + G.door_pos * 7) | 0;
+export function onRoom(from = -2) {
+  V.roomSeed = G.mode === 'dungeon' && G.dg ? (G.dg.rooms[G.dg_room].seed | 0) : (G.floor_num * 97 + G.room_num * 13 + G.door_pos * 7) | 0;
   buildRoom(G, V.roomSeed);
   for (const m of V.mons) if (m) scene.remove(m.root);
   V.mons = [];
@@ -171,6 +217,9 @@ export function onRoom() {
   const dark = G.hz === D.HZ_DARK;
   heroLight.intensity = dark ? 70 : 0;
   placeCamera(V.heroPos.x, V.heroPos.z, true);
+  // through a dungeon door: the new room slides in from that side (as the old games scrolled)
+  if (from >= 0) camSlide.set(-[0, 1, 0, -1][from] * 26, 0, -[-1, 0, 1, 0][from] * 18);
+  else camSlide.set(0, 0, 0);
 }
 function ensureHero() {
   if (V.heroCls === G.player_class && V.hero) return;
@@ -233,7 +282,14 @@ export function onEvents(ev, ui) {
   V.ui = ui;
   for (const e of ev) {
     switch (e.k) {
-      case 'room': onRoom(); ui.roomStart(); break;
+      case 'room': onRoom(e.dg ? e.from : -2); ui.roomStart(); break;
+      // a dungeon door opened, a chest appeared: the room's stonework is rebuilt (the monsters stay)
+      case 'dgdoor': case 'dgref': buildRoom(G, V.roomSeed); ui.drawMinimap && ui.drawMinimap(); if (e.k === 'dgdoor' && e.d >= 0) { const c = [7, 95, 167, 80][e.d]; burst(wx((c & 15) * 16 + 8), 2, wz(D.PLAY_Y + (c >> 4) * 16 + 8), '#ffd36a', 16, 5, 0.7, true, 0.5); } break;
+      case 'objmove': { const o = R.objs[e.k]; if (o) { o.from = o.g.position.clone(); o.moveT = 0; const c = G.ob_k[e.k]; o.to = new THREE.Vector3(wx((c & 15) * 16 + 8), 0, wz(D.PLAY_Y + (c >> 4) * 16 + 8)); } break; }
+      case 'dgget': ui.drawMinimap && ui.drawMinimap(); ui.dgFound && ui.dgFound(e.c); burst(ax(e.x), 3, az(e.y), '#ffe9a0', 30, 6, 1.0, true, 0.9, -1); ring(ax(e.x), az(e.y), '#ffd36a', 0.5, 6, 0.6); ui.flash && ui.flash('#fff2c0', 0.25); break;
+      case 'bstun': if (V.boss) { const p = V.boss.position; burst(p.x, 7, p.z, '#ffe080', 14, 3, 0.8, true, 0.8, 0); } break;
+      case 'stun': { const m = V.mons[e.n]; if (m) burst(m.root.position.x, 2.6, m.root.position.z, '#ffe080', 8, 2.5, 0.6, true, 0.6, 0); break; }
+      case 'bombset': break;
       case 'petfree': burst(ax(e.x), 1.2, az(e.y), '#ffe0a0', 18, 5, 0.9, true, 0.7, -2); ring(ax(e.x), az(e.y), '#ffe0a0', 0.4, 3, 0.5); break;
       case 'hit': {
         const m = V.mons[e.n]; const x = m ? m.root.position.x : ax(e.x), z = m ? m.root.position.z : az(e.y);
@@ -529,6 +585,7 @@ export function update(dt, input) {
     d.glow.material.opacity = d.open * (0.4 + Math.sin(t * 3) * 0.1);
     d.stairs.visible = tt === D.T_STAIRS;
     if (d.lamp) d.lamp.rotation.y = Math.sin(t * 2) * 0.2;
+    if (d.decor) { d.decor.visible = d.open < 0.6; d.decor.position.y = d.open * 3; }
   }
   for (const sp of R.spikes) sp.position.y = smooth(sp.position.y, G.hz_frame ? 0 : -1.0, dt, 18);
   for (const m of R.lava) { m.map.offset.x = t * 0.04; m.map.offset.y = t * 0.02; }
@@ -536,7 +593,19 @@ export function update(dt, input) {
   for (const o of R.objs) {
     if (!o) continue;
     const ot = G.ob_t[o.k];
-    if (o.t === D.OBJ_CHEST || o.t === D.OBJ_CHEST_OPEN || ot === D.OBJ_CHEST_OPEN) {
+    if (o.moveT !== undefined && o.moveT < 1) { o.moveT = Math.min(1, o.moveT + dt * 5); o.g.position.lerpVectors(o.from, o.to, o.moveT); }
+    if (o.t === D.OBJ_BIGCHEST || o.t === D.OBJ_BIGCHEST_OPEN) {
+      if (ot === D.OBJ_BIGCHEST_OPEN) { o.parts.lidG.rotation.x = smooth(o.parts.lidG.rotation.x, -1.9, dt, 5); o.parts.shine.material.opacity = 0.1; }
+      else o.parts.shine.material.opacity = 0.35 + Math.sin(t * 3) * 0.12;
+    } else if (o.parts.gemC) {
+      const on = ot === D.OBJ_CRYSTAL_ON;
+      o.parts.cm.color.set(on ? '#ffb04a' : '#7ad0ff'); o.parts.cm.emissive.set(on ? '#ff6a10' : '#2a8aff'); o.parts.l.color.set(on ? '#ff8a3a' : '#5ab0ff');
+      o.parts.gemC.rotation.y = t * (on ? 2.5 : 0.8); o.parts.gemC.position.y = 2.1 + Math.sin(t * 2) * 0.12;
+    } else if (o.parts.mark) {
+      const on = ot === D.OBJ_PLATE_ON;
+      o.parts.plate.position.y = on ? 0.03 : 0.09; o.parts.mark.material.color.set(on ? '#7dff86' : '#ffcf6a');
+    } else if (o.parts.wall) { if (ot === D.OBJ_GONE) o.g.visible = false; }
+    else if (o.t === D.OBJ_CHEST || o.t === D.OBJ_CHEST_OPEN || ot === D.OBJ_CHEST_OPEN) {
       if (ot === D.OBJ_CHEST_OPEN && o.parts.lidG) { o.parts.lidG.rotation.x = smooth(o.parts.lidG.rotation.x, -1.9, dt, 6); o.parts.shine.material.opacity = 0.1; }
       if (ot === D.OBJ_GONE) o.g.visible = false;
       else if (o.parts.shine) o.parts.shine.material.opacity = ot === D.OBJ_CHEST ? 0.3 + Math.sin(t * 3) * 0.1 : 0.05;
@@ -569,6 +638,9 @@ export function update(dt, input) {
   // particles, rings, lightning
   stepParts(dt); stepRings(dt); stepLightning(dt);
   if (shake.t > 0) shake.t -= dt;
+  // the dungeon items: the boomerang spinning out and back, bombs with lit fuses
+  updateItems(dt, t);
+  camSlide.multiplyScalar(Math.max(0, 1 - dt * 7));
   placeCamera(V.heroPos.x, V.heroPos.z, false);
 }
 

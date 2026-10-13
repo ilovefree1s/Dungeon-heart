@@ -73,6 +73,7 @@ export function resize() {
 }
 const camFocus = new V3();
 export const shake = { x: 0, z: 0, t: 0, amp: 0 };
+export const camSlide = new V3(); // (a dungeon's room-change scroll)
 // a camera of the title screen's own (third person, behind the knight): view.cam = { pos, look, fov }
 const camLook = new V3();
 function titleCamera() {
@@ -100,8 +101,9 @@ export function placeCamera(x, z, snap) {
   if (snap) camFocus.set(tx, 0, tz); else camFocus.lerp(new V3(tx, 0, tz), 0.08);
   const p = view.pitch, d = dist;
   if (shake.t > 0) { shake.x = (Math.random() - 0.5) * shake.amp; shake.z = (Math.random() - 0.5) * shake.amp; } else shake.x = shake.z = 0;
-  camera.position.set(camFocus.x + shake.x, Math.sin(p) * d, camFocus.z + 1.5 + Math.cos(p) * d + shake.z);
-  camera.lookAt(camFocus.x + shake.x, 0, camFocus.z + 1.5 + shake.z);
+  const ox = shake.x + camSlide.x, oz = shake.z + camSlide.z;
+  camera.position.set(camFocus.x + ox, Math.sin(p) * d, camFocus.z + 1.5 + Math.cos(p) * d + oz);
+  camera.lookAt(camFocus.x + ox, 0, camFocus.z + 1.5 + oz);
   sun.position.set(camFocus.x - 14, 40, camFocus.z + 18); sun.target.position.set(camFocus.x, 0, camFocus.z);
 }
 // glowing things (bolts, fire monsters, bosses, loot) carry GlowLights, not real lights: a fixed pool of real
@@ -447,11 +449,34 @@ export function torch(x, z, rotY, th) {
   R.torches.push({ fl, core, light, halo, ph: Math.random() * 10 });
 }
 
+const lockIcons = {};
+function lockIcon(boss) {
+  if (!lockIcons[boss]) {
+    const [c, x] = cnv(128, 128);
+    x.lineJoin = 'round';
+    if (!boss) {
+      x.lineWidth = 12; x.strokeStyle = '#2a1a06'; x.beginPath(); x.arc(64, 50, 24, Math.PI, 0); x.stroke();
+      x.lineWidth = 7; x.strokeStyle = '#ffe08a'; x.beginPath(); x.arc(64, 50, 24, Math.PI, 0); x.stroke();
+      x.fillStyle = '#2a1a06'; x.fillRect(28, 46, 72, 62); x.fillStyle = '#f0b73c'; x.fillRect(33, 51, 62, 52);
+      x.fillStyle = '#2a1a06'; x.beginPath(); x.arc(64, 72, 8, 0, Math.PI * 2); x.fill(); x.fillRect(60, 74, 8, 18);
+    } else {
+      x.fillStyle = '#2a0406'; x.beginPath(); x.moveTo(64, 4); x.lineTo(124, 64); x.lineTo(64, 124); x.lineTo(4, 64); x.closePath(); x.fill();
+      x.fillStyle = '#c0202a'; x.beginPath(); x.moveTo(64, 12); x.lineTo(116, 64); x.lineTo(64, 116); x.lineTo(12, 64); x.closePath(); x.fill();
+      x.fillStyle = '#efe4cc'; x.beginPath(); x.arc(64, 58, 26, 0, Math.PI * 2); x.fill(); x.fillRect(48, 70, 32, 22);
+      x.fillStyle = '#2a0406'; x.beginPath(); x.arc(54, 58, 7, 0, Math.PI * 2); x.arc(74, 58, 7, 0, Math.PI * 2); x.fill();
+      for (let i = 0; i < 4; i++) x.fillRect(51 + i * 8, 82, 4, 10);
+    }
+    lockIcons[boss] = tex(c);
+  }
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: lockIcons[boss], transparent: true, depthWrite: false }));
+  sp.scale.set(2.2, 2.2, 1); sp.renderOrder = 5;
+  return sp;
+}
 // the exit: an arch; its oak door opens when the room is clear; after a boss, stairs up
 function buildDoor(c, th, G) {
   const cx = c & 15, cy = c >> 4, [x, z] = cellCenter(c);
   // facing into the room, in the thin wall at the room's edge of its cell
-  const rotY = cx === 15 ? -Math.PI / 2 : (cy === 0 ? 0 : Math.PI);
+  const rotY = cx === 15 ? -Math.PI / 2 : cx === 0 ? Math.PI / 2 : (cy === 0 ? 0 : Math.PI);
   const sh = (CELL - WT) / 2 + 0.1;
   const g = new THREE.Group(); g.position.set(x + Math.sin(rotY) * sh, 0, z + Math.cos(rotY) * sh);
   g.rotation.y = rotY;
@@ -494,7 +519,34 @@ function buildDoor(c, th, G) {
     const label = textSprite(cx === D.BDOOR_EASY ? 'EASY' : (cx === D.BDOOR_MED ? 'MEDIUM' : 'HARD'), col);
     label.position.set(0, 1.2, 0); lamp.add(label);
   }
-  return { g, glow, leaves, stairs, open: 0, cell: c, lamp };
+  // a dungeon's doors: a padlock (small key), the keeper's great lock, or iron bars (shut fast)
+  let decor = null;
+  if (G.mode === 'dungeon') {
+    const di = [7, 95, 167, 80].indexOf(c), dk = di >= 0 ? G.dg_dk[di] : 0;
+    const dh = front ? 1.0 : H - 1.2;
+    if (dk === D.DK_LOCK || dk === D.DK_BOSS || dk === D.DK_SHUT) { decor = new THREE.Group(); decor.position.z = 0.2; g.add(decor); }
+    // (seen from above, a lock needs a sign: a padlock or a skull floating over the door)
+    if (dk === D.DK_LOCK || dk === D.DK_BOSS) { const ic = lockIcon(dk === D.DK_BOSS); ic.position.set(0, H + 1.6, 0.6); decor.add(ic); }
+    if (dk === D.DK_LOCK) {
+      const goldL = std({ color: '#f0b73c', metalness: 1, roughness: 0.3, envMapIntensity: 1.2 });
+      for (const s of [-1, 1]) { const bar = mesh(new THREE.BoxGeometry(CELL - 0.4, 0.22, 0.2), iron); bar.position.set(0, dh * 0.5, 0); bar.rotation.z = s * 0.55; decor.add(bar); }
+      const body = mesh(new THREE.BoxGeometry(0.9, 0.8, 0.35), goldL); body.position.set(0, dh * 0.45, 0.25); decor.add(body);
+      const shackle = mesh(new THREE.TorusGeometry(0.3, 0.08, 8, 16, Math.PI), goldL); shackle.position.set(0, dh * 0.45 + 0.4, 0.25); decor.add(shackle);
+      const hole = mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.1, 8), std({ color: '#1a1008' })); hole.rotation.x = Math.PI / 2; hole.position.set(0, dh * 0.42, 0.44); decor.add(hole);
+    } else if (dk === D.DK_BOSS) {
+      const goldL = std({ color: '#f0b73c', metalness: 1, roughness: 0.25, envMapIntensity: 1.3 }), red = std({ color: '#8a1018', roughness: 0.5, emissive: '#3a0408', emissiveIntensity: 0.5 });
+      const plate = mesh(new THREE.CylinderGeometry(1.15, 1.15, 0.25, 6), red); plate.rotation.x = Math.PI / 2; plate.position.set(0, dh * 0.5, 0.2); decor.add(plate);
+      const rim = mesh(new THREE.TorusGeometry(1.15, 0.12, 8, 6), goldL); rim.position.set(0, dh * 0.5, 0.34); decor.add(rim);
+      const skull = mesh(sph(0.45, 14, 10), std({ color: '#e8dcc0', roughness: 0.6 })); skull.position.set(0, dh * 0.53, 0.45); skull.scale.set(1, 0.95, 0.6); decor.add(skull);
+      for (const s of [-1, 1]) { const e = new THREE.Mesh(sph(0.1, 8, 6), new THREE.MeshBasicMaterial({ color: '#ff3a2a' })); e.position.set(0.16 * s, dh * 0.55, 0.72); decor.add(e); }
+      for (const s of [-1, 1]) for (const y of [0.18, 0.82]) { const ch = mesh(new THREE.TorusGeometry(0.14, 0.05, 6, 10), goldL); ch.position.set(s * (CELL / 2 - 0.6), dh * y, 0.2); ch.rotation.y = 0.5; decor.add(ch); }
+      for (const { leaf } of leaves) leaf.traverse(o => { if (o.isMesh && o.material === plank) o.material = red; });
+    } else if (dk === D.DK_SHUT) {
+      for (let i = 0; i < 5; i++) { const bar = mesh(new THREE.BoxGeometry(0.16, dh + 0.2, 0.16), iron); bar.position.set((i - 2) * 0.55, dh / 2, 0.1); decor.add(bar); }
+      for (const y of [0.3, 0.75]) { const cb = mesh(new THREE.BoxGeometry(CELL - 0.6, 0.16, 0.16), iron); cb.position.set(0, dh * y, 0.1); decor.add(cb); }
+    }
+  }
+  return { g, glow, leaves, stairs, open: 0, cell: c, lamp, decor };
 }
 export function textSprite(text, color = '#fff', size = 64) {
   const [c, x] = cnv(512, 128);
@@ -727,6 +779,52 @@ function buildObject(G, k, th) {
     const crackM = new THREE.MeshBasicMaterial({ color: '#ffcf6a', transparent: true, opacity: 0.85 });
     for (let i = 0; i < 4; i++) { const cr = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 1.6 + i * 0.3), crackM); cr.position.set((i - 1.5) * 0.5, 1.4 + (i & 1) * 0.6, CELL / 2 - 0.02); cr.rotation.z = (i & 1 ? 0.5 : -0.4); g.add(cr); }
     o.parts = { crackM, isWall };
+  } else if (t === D.OBJ_BIGCHEST || t === D.OBJ_BIGCHEST_OPEN) {
+    // the great chest: bigger, dark wood bound in gold, a jewel on the lock
+    const wood = std({ color: '#3a2a4a', roughness: 0.6 });
+    const b = mesh(new THREE.BoxGeometry(2.9, 1.6, 2.0), wood); b.position.y = 0.8; g.add(b);
+    const lidG = new THREE.Group(); lidG.position.set(0, 1.6, -1.0); g.add(lidG);
+    const lid = mesh(new THREE.CylinderGeometry(1.0, 1.0, 2.9, 16, 1, false, 0, Math.PI), wood); lid.rotation.z = Math.PI / 2; lid.position.z = 1.0; lidG.add(lid);
+    for (const s of [-1.1, 0, 1.1]) { const band = mesh(new THREE.BoxGeometry(0.22, 1.66, 2.06), gold); band.position.set(s, 0.82, 0); g.add(band); const lb = mesh(new THREE.TorusGeometry(1.0, 0.1, 6, 16, Math.PI), gold); lb.rotation.y = Math.PI / 2; lb.position.set(s, 0, 1.0); lidG.add(lb); }
+    const lock = mesh(new THREE.BoxGeometry(0.6, 0.6, 0.16), gold); lock.position.set(0, 1.5, 1.05); g.add(lock);
+    const gem = mesh(new THREE.OctahedronGeometry(0.2), std({ color: '#40e0ff', emissive: '#108aff', emissiveIntensity: 1.1, roughness: 0.1 })); gem.position.set(0, 1.5, 1.16); gem.scale.z = 0.5; g.add(gem);
+    const shine = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.soft, color: '#ffd36a', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.4 }));
+    shine.scale.set(5.5, 5.5, 1); shine.position.y = 1.2; g.add(shine);
+    o.parts = { lidG, shine };
+  } else if (t === D.OBJ_BLOCK) {
+    // a carved stone block that slides when you lean on it
+    const stone = std({ color: new THREE.Color(th.pillar).lerp(new THREE.Color('#c8bca8'), 0.3), roughness: 0.85 });
+    const trim = std({ color: new THREE.Color(th.pillar).multiplyScalar(0.6), roughness: 0.85 });
+    const b = mesh(new THREE.BoxGeometry(CELL - 0.2, 2.4, CELL - 0.2), stone); b.position.y = 1.2; b.receiveShadow = true; g.add(b);
+    const top = mesh(new THREE.BoxGeometry(CELL - 0.9, 0.12, CELL - 0.9), trim); top.position.y = 2.45; g.add(top);
+    for (const r of [0, 1, 2, 3]) { const face = mesh(new THREE.BoxGeometry(1.3, 1.3, 0.08), trim); const a = r * Math.PI / 2; face.position.set(Math.sin(a) * (CELL / 2 - 0.08), 1.2, Math.cos(a) * (CELL / 2 - 0.08)); face.rotation.y = a; g.add(face); }
+    o.parts = { block: true };
+  } else if (t === D.OBJ_PLATE || t === D.OBJ_PLATE_ON) {
+    const plate = mesh(new THREE.BoxGeometry(CELL - 0.5, 0.18, CELL - 0.5), std({ color: '#6a6458', metalness: 0.4, roughness: 0.5 }), false); plate.position.y = 0.09; plate.receiveShadow = true; g.add(plate);
+    const mark = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.75, 4), new THREE.MeshBasicMaterial({ color: '#ffcf6a', transparent: true, opacity: 0.6 }));
+    mark.rotation.x = -Math.PI / 2; mark.rotation.z = Math.PI / 4; mark.position.y = 0.2; g.add(mark);
+    o.parts = { plate, mark };
+  } else if (t === D.OBJ_CRYSTAL || t === D.OBJ_CRYSTAL_ON) {
+    // the crystal switch: blue until struck, then it burns orange
+    const stone = std({ color: '#7a7480', roughness: 0.7 });
+    const ped = mesh(new THREE.CylinderGeometry(0.7, 0.95, 1.2, 8), stone); ped.position.y = 0.6; g.add(ped);
+    const cm = std({ color: '#7ad0ff', emissive: '#2a8aff', emissiveIntensity: 1.4, roughness: 0.1, metalness: 0.1 });
+    const gemC = mesh(new THREE.OctahedronGeometry(0.75), cm); gemC.position.y = 2.1; gemC.scale.y = 1.3; g.add(gemC);
+    const l = new GlowLight('#5ab0ff', 8, 8, 2); l.position.y = 2.2; g.add(l);
+    o.parts = { gemC, cm, l };
+  } else if (t === D.OBJ_BOMBWALL) {
+    // a cracked stretch of the outer wall (bombs open it)
+    const cx = c & 15, cy = c >> 4, front = cy === 10, h = front ? WH_FRONT : WH;
+    const wmat = std({ map: themeTextures(G.theme).wall.map, roughness: 0.95, color: '#d8ccb8', envMapIntensity: 0.3 });
+    const slab = mesh(new THREE.BoxGeometry(CELL, h, WT), wmat); slab.receiveShadow = true;
+    const rotY = cx === 15 ? -Math.PI / 2 : cx === 0 ? Math.PI / 2 : (cy === 0 ? 0 : Math.PI);
+    const inner = new THREE.Group(); inner.rotation.y = rotY; g.add(inner);
+    const off = (CELL - WT) / 2; inner.position.set(Math.sin(rotY) * off, 0, Math.cos(rotY) * off);
+    slab.position.y = h / 2; inner.add(slab);
+    const crackM = new THREE.MeshBasicMaterial({ color: '#1a120c' });
+    const pts = [[-0.9, 0.8, 0.6, 1.4], [0.2, 1.6, -0.5, 1.8], [0.9, 2.4, 0.4, 1.2], [-0.4, 3.1, -0.7, 1.0], [0.5, 0.6, -0.3, 0.9]];
+    for (const [x, y, rz, len] of pts) { if (y > h - 0.3) continue; const cr = new THREE.Mesh(new THREE.PlaneGeometry(0.1, len), crackM); cr.position.set(x, y, WT / 2 + 0.02); cr.rotation.z = rz; inner.add(cr); }
+    o.parts = { wall: true };
   } else if (t === D.OBJ_LAUNCHER) {
     const iron = std({ color: '#2b2a2c', metalness: 0.8, roughness: 0.45 });
     const box = mesh(new THREE.BoxGeometry(1.4, 1.2, 0.8), iron); box.position.set(0, 2.6, CELL / 2 + 0.2); g.add(box);

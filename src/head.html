@@ -91,6 +91,11 @@ button{font:inherit;color:inherit}
 #tSpec{right:100px;bottom:calc(50px + env(safe-area-inset-bottom,0px));width:68px;height:68px;font-size:12px;color:#fff;background:linear-gradient(#6aa8ff,#2f6ad0);box-shadow:0 5px 0 #1a3a80,0 10px 20px rgba(0,0,0,.4)}
 #tPot{right:62px;bottom:calc(132px + env(safe-area-inset-bottom,0px));width:64px;height:64px;font-size:12px;color:#fff;background:linear-gradient(#ff7a80,#d0303a);box-shadow:0 5px 0 #7a1018,0 10px 20px rgba(0,0,0,.4)}
 .tbtn:active,.tbtn.on{transform:translateY(3px)}
+/* the dungeon item: a fourth button up and left of the triangle, a small switch badge beside it */
+#tItem{right:150px;bottom:calc(128px + env(safe-area-inset-bottom,0px));width:62px;height:62px;background:linear-gradient(#b9f0a0,#4fa83a);box-shadow:0 5px 0 #2a5a1e,0 10px 20px rgba(0,0,0,.4);padding:0}
+#tItem img{width:42px;height:42px;object-fit:contain;pointer-events:none}
+#tItem b{position:absolute;right:-2px;bottom:-4px;min-width:22px;padding:1px 4px;border-radius:10px;background:#1a1420;color:#fff;font-size:12px;font-weight:400;pointer-events:none}
+#tSwap{right:212px;bottom:calc(160px + env(safe-area-inset-bottom,0px));width:36px;height:36px;font-size:18px;color:#fff;background:linear-gradient(#8a92b0,#4a5070);box-shadow:0 3px 0 #22283a}
 /* select and start, small pills at the bottom middle, as on a controller */
 .pill{position:absolute;bottom:calc(12px + env(safe-area-inset-bottom,0px));width:58px;height:24px;border-radius:12px;border:0;pointer-events:auto;touch-action:none;
   background:linear-gradient(#4a4440,#2a2420);box-shadow:0 3px 0 #0c0a08,0 6px 12px rgba(0,0,0,.4);color:#d8cfc2;font-family:var(--body);font-weight:900;font-size:9.5px;letter-spacing:.14em}
@@ -99,6 +104,15 @@ button{font:inherit;color:inherit}
 @media (pointer:fine){#touch{display:none}}
 @media (max-width:520px){#hud{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}.hp{width:34vw}.meter,.pet{width:30vw}.where{font-size:16px}.where small{font-size:9px;letter-spacing:.08em;white-space:normal;max-width:120px;margin:0 auto}}
 @media (pointer:coarse){#hPot{display:none}#minimap{display:none}#loot{bottom:auto;top:calc(150px + env(safe-area-inset-top,0px))}#msg{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(262px + env(safe-area-inset-bottom,0px));font-size:13px;padding:4px 10px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}}
+
+
+/* the dungeon: keys, the big key, your item under the room's name; the minimap becomes the dungeon's */
+.dgbar{grid-column:3;grid-row:3;display:flex;gap:8px;justify-content:flex-end;align-items:center;pointer-events:none;margin-top:2px}
+.dgbar svg{width:20px;height:20px;filter:drop-shadow(0 1px 0 #000)}
+.dgbar span{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;background:rgba(12,10,9,.6);box-shadow:inset 0 0 0 1px var(--line)}
+.dgbar b{font-family:var(--display);font-weight:400;font-size:16px;color:#fff;text-shadow:0 2px 0 #000}
+.dgbar .dgi img{width:24px;height:24px;object-fit:contain}
+#minimap.dg{width:132px;height:132px}
 
 /* ---------- screens */
 .screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:14px;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));
@@ -329,11 +343,17 @@ h2.t{font-family:var(--display);font-size:clamp(32px,7vw,52px);margin:0;color:va
       <div class="stats"><div><span>ATK</span><b id="hAtk">0</b></div><div><span>DEF</span><b id="hDef">0</b></div></div>
     </div>
     <div class="where" id="hWhere">FLOOR 1<small>STONE KEEP</small></div>
+    <div class="dgbar" id="hDg" hidden>
+      <span class="dgk" title="Small keys"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="4.5" fill="none" stroke="#e8e2d6" stroke-width="2.4"/><path d="M11.5 11.5 20 20M16.5 16.5l2-2M18.5 18.5l2-2" stroke="#e8e2d6" stroke-width="2.4" stroke-linecap="round"/></svg><b id="hKeys">0</b></span>
+      <span class="dgk big" id="hBig" hidden title="The big key"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="5" fill="none" stroke="#ffd24a" stroke-width="3"/><path d="M12 12.5 21 21M17 17l2.5-2.5M19.5 19.5 22 17" stroke="#ffd24a" stroke-width="3" stroke-linecap="round"/><circle cx="8" cy="9" r="1.6" fill="#ff3a4a"/></svg></span>
+      <span class="dgi" id="hItem" hidden title="Your item (F / C, controller X; V or LB/RB switches)"><img alt="" id="hItemPic"><b id="hItemN"></b></span>
+    </div>
     <div class="right">
       <div class="stat gold"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="#f5c242" stroke="#8a5a00" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="#c88f10" stroke-width="1.5"/></svg><span id="hGold">0</span></div>
       <div class="hbtns">
         <button class="hbtn" id="hPot" aria-label="Drink a potion"><svg viewBox="0 0 24 24"><path d="M10 3h4v4l4 6a5 5 0 0 1-12 0l4-6z" fill="#e2384a" stroke="#ffd0d4" stroke-width="1.4" stroke-linejoin="round"/></svg><em id="hPots">1</em></button>
         <button class="hbtn" id="hBag" aria-label="Character and bag"><svg viewBox="0 0 24 24"><path d="M7 8h10l2 12H5z" fill="#a8743a" stroke="#ffe0b0" stroke-width="1.4" stroke-linejoin="round"/><path d="M9 8a3 3 0 0 1 6 0" fill="none" stroke="#ffe0b0" stroke-width="1.6"/></svg></button>
+        <button class="hbtn" id="hMap" aria-label="Dungeon map" hidden><svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z" fill="#c8a870" stroke="#ffe0b0" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 4v14M15 6v14" stroke="#7a5a30" stroke-width="1.3"/></svg></button>
         <button class="hbtn" id="hPause" aria-label="Pause"><svg viewBox="0 0 24 24"><rect x="7" y="5" width="3.5" height="14" rx="1" fill="#f6eee2"/><rect x="13.5" y="5" width="3.5" height="14" rx="1" fill="#f6eee2"/></svg></button>
       </div>
     </div>
@@ -349,6 +369,8 @@ h2.t{font-family:var(--display);font-size:clamp(32px,7vw,52px);margin:0;color:va
     <button class="tbtn" id="tAtk" aria-label="Attack">ATTACK</button>
     <button class="tbtn" id="tSpec" aria-label="Special">ROLL</button>
     <button class="tbtn" id="tPot" aria-label="Potion">POTION</button>
+    <button class="tbtn" id="tItem" aria-label="Use item" hidden><img alt="" id="tItemPic"><b id="tItemN"></b></button>
+    <button class="tbtn" id="tSwap" aria-label="Switch item" hidden>&#x21C4;</button>
     <button class="pill" id="tSel" aria-label="Select: bag">SELECT</button>
     <button class="pill" id="tStart" aria-label="Start: pause">START</button>
   </div>
@@ -381,12 +403,38 @@ h2.t{font-family:var(--display);font-size:clamp(32px,7vw,52px);margin:0;color:va
       <div class="torn" aria-hidden="true"><i></i><b></b><i></i></div>
       <div class="mlist">
         <button class="mitem" id="bNew">Start</button>
+        <button class="mitem" id="bDungeon">Dungeon</button>
         <button class="mitem" id="bCont" hidden>Continue</button>
         <button class="mitem" id="bOpt">Options</button>
       </div>
       <div class="torn" aria-hidden="true"><i></i><b></b><i></i></div>
     </div>
     <p class="hint" id="titleHint">Move with <kbd>WASD</kbd> or the arrows, <kbd>SPACE</kbd> attacks, <kbd>SHIFT</kbd> rolls / blinks / tames, <kbd>Q</kbd> drinks a potion, <kbd>TAB</kbd> opens your bag. PS5 / Xbox controllers work too.</p>
+  </div>
+
+  <!-- a seeded dungeon run: type a seed (or roll one) -->
+  <div class="screen solid" id="sSeed" hidden>
+    <div class="frame" style="width:min(460px,100%);text-align:center;padding:20px">
+      <h2 style="color:var(--gold)">Dungeon Run</h2>
+      <p class="hint" style="margin:6px auto 12px;max-width:36ch">Every seed makes its own dungeon: keys, locked doors, secret walls, the Return Blade, Blast Bombs and a keeper at the end. Same seed, same dungeon: share it with a friend.</p>
+      <label for="seedIn" class="hint" style="display:block;margin-bottom:6px">SEED</label>
+      <input id="seedIn" type="text" maxlength="12" autocomplete="off" spellcheck="false" style="width:100%;font-family:'Press Start 2P',monospace;font-size:20px;letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:12px 8px;border-radius:8px;border:2px solid #c8913e;background:#121626;color:#ffd24a">
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap">
+        <button class="mbtn" id="bSeedRnd" type="button">&#x1F3B2; Random</button>
+        <button class="mbtn go" id="bSeedGo" type="button" style="font-size:20px;padding:9px 28px">Enter</button>
+      </div>
+      <button class="mbtn" id="bSeedBack" type="button" style="margin-top:14px">Back</button>
+    </div>
+  </div>
+
+  <!-- the dungeon map (it fills in as you explore; the map chest shows it all) -->
+  <div class="screen solid" id="sMap" hidden>
+    <div class="frame" style="width:min(560px,100%);text-align:center;padding:16px">
+      <button class="xbtn" id="bMapClose" aria-label="Close">&#x2715;</button>
+      <h2 style="color:var(--gold)" id="mapTitle">DUNGEON 1</h2>
+      <canvas id="mapBig" width="540" height="540" style="width:100%;max-width:440px;aspect-ratio:1;display:block;margin:6px auto"></canvas>
+      <p class="hint" id="mapLegend" style="margin:4px auto 0;max-width:none"></p>
+    </div>
   </div>
 
   <!-- class select -->
