@@ -1561,6 +1561,17 @@ function roll_damage() {
   return dmg;
 }
 export const roll_damage_test = roll_damage;
+// the range a normal (not critical) hit lands in, for the bag screen: as roll_damage, then the class's own bonus
+export function dmg_range() {
+  const a = atk_fine();
+  const one = v => {
+    let d = v;
+    if (T.RAGE && g.hp < (g.maxhp >> 1)) d += Math.floor(d * T.RAGE / 10);
+    if (IS_WARRIOR()) d += d >> 1; else d += (d * T.LONG * 5) >> 5;
+    return d;
+  };
+  return [one(Math.floor(a / FINE)), one(Math.ceil((a + FINE) / FINE))];
+}
 function hit_monster(n, dmg, dir, crit = 0) {
   g.m_hit[n] = 1;
   if (g.any_elite && g.m_elite[n] === EL_ARMORED) dmg = (dmg + 1) >> 1;

@@ -176,6 +176,7 @@ h2.t{font-family:var(--display);font-size:clamp(32px,7vw,52px);margin:0;color:va
 .srow{grid-column:1/3;display:flex;flex-wrap:wrap;gap:6px}
 .srow span{display:inline-flex;align-items:baseline;gap:5px;padding:3px 9px;border-radius:7px;background:rgba(10,12,22,.5);border:1px solid #4a5478;font-weight:900;font-size:12px;letter-spacing:.1em;color:#aab2d0}
 .srow span b{font-family:var(--display);font-weight:400;font-size:17px;letter-spacing:.03em;color:var(--c)}
+.srow span.dmg{border-color:#8a6a2a}
 .srow span.main{border-color:var(--c);box-shadow:0 0 8px color-mix(in srgb,var(--c) 40%,transparent)}
 .sts{display:flex;flex-wrap:wrap;gap:4px 10px;margin:3px 0}
 .sts b{font-family:var(--display);font-weight:400;font-size:16px;letter-spacing:.04em}
@@ -206,6 +207,21 @@ h2.t{font-family:var(--display);font-size:clamp(32px,7vw,52px);margin:0;color:va
 .slot:focus-visible,html.padnav .slot:is(.pfocus){outline:none!important}
 /* the info box under every menu */
 .ibox{min-height:112px}
+/* the bag's item box keeps one size whatever is picked: name, a row of stat chips (each against what's
+   worn), the special power, then the verdict and buttons along the bottom */
+#invInfo{height:186px;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+#invInfo h3{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
+#invInfo .chips{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 4px;flex:none}
+#invInfo .chip{display:inline-flex;align-items:baseline;gap:4px;padding:2px 8px;border-radius:6px;background:rgba(0,0,0,.28);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
+  font-family:var(--display);font-size:14px;letter-spacing:.04em;color:var(--c)}
+#invInfo .chip b{color:#fff;font-weight:400}
+#invInfo .chip i{font-style:normal;font-size:13px}
+#invInfo .spec{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;line-height:1.3}
+#invInfo .acts{margin-top:auto;align-items:center;flex:none;flex-wrap:nowrap}
+#invInfo .acts .mbtn{white-space:nowrap}
+#invInfo .vd{font-weight:900;font-size:13px;margin-right:auto;min-width:0;line-height:1.2}
+@media (max-width:520px){#invInfo{height:200px}#invInfo .chip{font-size:12px;padding:2px 5px}#invInfo .acts{gap:6px}#invInfo .acts .mbtn{font-size:13px;padding:6px 8px}#invInfo .vd{font-size:11px}
+  .srow{gap:4px}.srow span{padding:2px 5px;font-size:10px;letter-spacing:.06em;gap:3px}.srow span b{font-size:14px}}
 .ibox h3{font-size:20px;margin-bottom:4px}
 .ibox p{margin:2px 0;font-weight:800;font-size:14px;color:#c8cee6}
 .ibox p b{color:#fff}

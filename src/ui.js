@@ -207,7 +207,8 @@ function drawInv() {
   $('invAtk').innerHTML = `ATK ${S.atk_fine()} &nbsp; DEF ${S.total_def()}`;
   const main = D.MAIN_STAT[G.player_class];
   const tip = ['', 'warrior damage', 'hunter damage · crit on gear', 'mage damage', 'max health', 'less damage taken'];
-  $('invStats').innerHTML = [1, 2, 3, 4, 5].map(t => `<span class="${t === main ? 'main' : ''}" style="--c:${D.STAT_COLOR[t]}" title="${D.STAT_LONG[t]}: ${tip[t]}">${D.STAT_NAME[t]}<b>${S.stat_total(t)}</b></span>`).join('');
+  const [dlo, dhi] = S.dmg_range();
+  $('invStats').innerHTML = `<span class="dmg" style="--c:#ffd75a" title="Damage of a normal hit (critical hits double it)">DMG<b>${dlo}-${dhi}</b></span>` + [1, 2, 3, 4, 5].map(t => `<span class="${t === main ? 'main' : ''}" style="--c:${D.STAT_COLOR[t]}" title="${D.STAT_LONG[t]}: ${tip[t]}">${D.STAT_NAME[t]}<b>${S.stat_total(t)}</b></span>`).join('');
   // the doll
   const dl = $('doll');
   dl.innerHTML = '';
@@ -246,15 +247,24 @@ function drawInv() {
 }
 function focusSel() { setTimeout(() => { const s = $(UI.modal || 'sInv').querySelector('.sel'); if (s && input.lastDevice !== 'touch') setCur(s, false); }, 0); }
 // the box under the screen: what the picked item is, and what you can do with it
+// what the picked item gives, each number set against the piece worn in the same slot (when it's in the bag)
+const statOf = (arr, k, t) => { let v = 0; for (let j = 0; j < 3; ++j) if (arr[k * 6 + j * 2] === t) v += arr[k * 6 + j * 2 + 1]; return v; };
+function chip(name, col, v, d) {
+  const dd = d === null ? '' : `<i style="color:${d > 0 ? '#7dff86' : d < 0 ? '#ff6a55' : '#8a92b0'}">${d > 0 ? '+' : ''}${d}</i>`;
+  return `<span class="chip" style="--c:${col}">${name} <b>${v}</b>${dd}</span>`;
+}
 function itemLines(kind, rar, lv, spec, val, worn, sa, sk) {
-  const stats = statHTML(sa, sk);
-  if (kind === D.K_TRINKET) {
-    const tt = S.trinket_talents(spec, val);
-    return stats + tt.map(([t, c]) => `<p><b>+${c} ${D.TAL_NAME[G.player_class * D.NTAL + t]}</b> (talent ranks)</p>`).join('');
+  const i = kind - 1, has = G.eq_has[i], cmp = !worn; // (a bag item is compared with what's worn there)
+  let chips = '';
+  if (kind !== D.K_TRINKET) { const v = S.gear_fine(kind, lv); chips += chip(S.stat_name(kind), '#ffd75a', v, cmp ? v - S.worn_fine(kind) : null); }
+  for (let t = 1; t <= 5; t++) {
+    const v = statOf(sa, sk, t), w = has ? statOf(G.eq_st, i, t) : 0;
+    if (v || (cmp && w)) chips += chip(D.STAT_NAME[t], D.STAT_COLOR[t], v, cmp ? v - w : null);
   }
-  const v = S.gear_fine(kind, lv), w = S.worn_fine(kind), d = v - w;
-  return stats + `<p>${S.stat_name(kind)} <b>${v}</b>${worn ? ' &nbsp;WORN' : ` &nbsp;<b style="color:${d >= 0 ? '#7dff86' : '#ff6a55'}">(${d >= 0 ? '+' : ''}${d} vs worn)</b>`}</p>`
-    + `<p>${spec ? `<b style="color:${D.RAR_COLOR[4]}">${D.SPEC_NAME[spec]}</b>: ${D.SPEC_DESC[spec]}` : 'No special power'}</p>`;
+  let extra;
+  if (kind === D.K_TRINKET) extra = S.trinket_talents(spec, val).map(([t, c]) => `+${c} ${D.TAL_NAME[G.player_class * D.NTAL + t]}`).join(' · ') + ' (talent ranks)';
+  else extra = spec ? `<b style="color:${D.RAR_COLOR[4]}">${D.SPEC_NAME[spec]}</b>: ${D.SPEC_DESC[spec]}` : 'No special power';
+  return `<div class="chips">${chips}</div><p class="spec">${extra}</p>`;
 }
 function itemTitle(kind, rar, tier, lv) {
   return `<h3 style="color:${D.RAR_COLOR[rar]}">${esc(D.RAR_NAME[rar])} ${esc(S.item_name(kind, rar, tier))}${kind !== D.K_TRINKET ? ' LV' + lv : ''}</h3>`;
@@ -274,8 +284,8 @@ function drawInfo() {
   let acts = '';
   if (worn) acts = sel.gear ? `<button class="mbtn" id="aUnequip">Unequip</button>` : '';
   else acts = `<button class="mbtn go" id="aEquip">Equip</button><button class="mbtn${UI.sellArm === sel.bag ? ' warn' : ''}" id="aSell">${UI.sellArm === sel.bag ? 'Tap again to sell for ' : 'Sell for '}<span class="coin"></span>${S.sell_price(kind, rar, val)}</button>`;
-  const verdict = worn ? '' : S.bag_better(sel.bag) ? '<p><b style="color:#7dff86">&#x25B2; Better for you than what you wear</b></p>' : '<p style="color:#8a92b0">Not better than what you wear</p>';
-  box.innerHTML = itemTitle(kind, rar, tier, lv) + itemLines(kind, rar, lv, spec, val, worn, sa, sk) + verdict + `<div class="acts">${acts}</div>`;
+  const verdict = worn ? '<span class="vd" style="color:#8a92b0">Worn</span>' : S.bag_better(sel.bag) ? '<span class="vd" style="color:#7dff86">&#x25B2; Better for you</span>' : '<span class="vd" style="color:#8a92b0">Not better than worn</span>';
+  box.innerHTML = itemTitle(kind, rar, tier, lv) + itemLines(kind, rar, lv, spec, val, worn, sa, sk) + `<div class="acts">${verdict}${acts}</div>`;
   if ($('aEquip')) $('aEquip').onclick = equipSel;
   if ($('aSell')) $('aSell').onclick = sellSel;
   if ($('aUnequip')) $('aUnequip').onclick = unequipSel;
