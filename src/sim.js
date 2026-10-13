@@ -7,6 +7,7 @@
 //  only draws this state. No DOM or three.js in here: node runs it for tests.
 // ============================================================================
 import * as D from './data.js';
+import * as DG from './dungeon.js';
 const {
   MAP_W, MAP_H, PLAY_Y, MAXM, MAXI, MAXP, MAXB, MAXBN, MAXOBJ, BOSS_ROOM, LAST_FLOOR,
   T_FLOOR, T_WALL, T_PILLAR, T_DOOR, T_STAIRS, T_FLOOR2, T_DOORWAY, T_HAZARD, T_PIT, T_BRIDGE, T_OBJ, T_CRACK,
@@ -20,7 +21,8 @@ const {
   HZ_NONE, HZ_SPIKES, HZ_THORNS, HZ_ICE, HZ_LAVA, HZ_BONES, HZ_SAND, HZ_CRYSTAL, HZ_DARK, HZ_BLOOD, HZ_STORM, HZ_PATCHES,
   SP_TREASURE, SP_SHRINE, SP_FOUNTAIN, SP_ARENA, SP_TRAP,
   OBJ_CHEST, OBJ_CHEST_OPEN, OBJ_SHRINE, OBJ_SHRINE_USED, OBJ_FOUNTAIN, OBJ_FOUNTAIN_DRY, OBJ_CRACK, OBJ_LAUNCHER,
-  OBJ_ALCH_L, OBJ_ALCH_R, OBJ_GONE,
+  OBJ_ALCH_L, OBJ_ALCH_R, OBJ_GONE, OBJ_BIGCHEST, OBJ_BIGCHEST_OPEN, OBJ_BLOCK, OBJ_PLATE, OBJ_PLATE_ON, OBJ_CRYSTAL, OBJ_CRYSTAL_ON, OBJ_BOMBWALL,
+  DK_NONE, DK_OPEN, DK_SHUT, DK_LOCK, DK_BOSS, DK_CRACK, K_BOMBS,
   EL_FRENZIED, EL_ARMORED, EL_SPLITTING, EL_VAMPIRIC, NTAL, TAL_MAX,
   BS_WALK, BS_WIND, BS_CHARGE, BS_STUN, BS_CAST, BS_LEAP, BF_WIZ, BF_RUN, BF_DRINK, BF_BRUTE, BF_TF,
   KING_WIZ_HP, KING_BRUTE_HP, ALCH_X, MV_CHARGE, MV_BURST, MV_SUMMON, MV_SLAM, MV_SPIRAL, MV_FAN, MV_LEAP, MV_BLINK,
@@ -29,7 +31,7 @@ const {
 } = D;
 
 export const PAD_A = 0x01, PAD_B = 0x02, PAD_SELECT = 0x04, PAD_START = 0x08, PAD_UP = 0x10, PAD_DOWN = 0x20,
-  PAD_LEFT = 0x40, PAD_RIGHT = 0x80;
+  PAD_LEFT = 0x40, PAD_RIGHT = 0x80, PAD_X = 0x100, PAD_L = 0x200; // (X: use the dungeon item, L: switch items)
 
 // ---------------------------------------------------------------- state
 const u8 = n => new Uint8Array(n), u16 = n => new Uint16Array(n), i8 = n => new Int8Array(n);
@@ -81,6 +83,14 @@ export const G = {
   sh_kind: u8(4), sh_rar: u8(4), sh_val: u8(4), sh_spec: u8(4), sh_tier: u8(4), sh_sold: u8(4), sh_lvl: u8(4), sh_price: [0, 0, 0, 0],
   // rescue
   wx: 0, wy: 0, wface: 0, rescue_t: 0,
+  // the seeded dungeons (mode 'dungeon'): the dungeon (dungeon.js), where you are, what each room remembers
+  // (dg_flags: 1 seen, 2 cleared, 4 its treasure taken, 8 its puzzle solved, 16 << d its door d opened),
+  // keys, the items you carry; dg_dk: how each of this room's four doors looks (DK_*)
+  mode: 'floors', dg: null, dg_seed_text: '', dg_no: 1, dg_room: 0, dg_flags: [], dg_keys: 0, dg_items: 0, dg_big: 0, dg_map: 0,
+  dg_bombs: 0, dg_item: 0, dg_dk: u8(4), dg_depth: 1, dg_push: 0, dg_said: 0, dg_bar: 0, dg_done: 0,
+  // the boomerang in flight, and lit bombs
+  bm_t: 0, bm_x: 0, bm_y: 0, bm_dx: 0, bm_dy: 0, bm_back: 0, bm_hit: 0, bm_item: 0,
+  bb_t: u8(3), bb_x: u8(3), bb_y: u8(3), moving_try: 0,
   // messages and events for the view / UI / sound
   msg: '', msg_color: COL_WHITE, msg_t: 0, msg_id: 0,
   ev: [],
@@ -96,7 +106,7 @@ export function rnd() { // xorshift16, as the SNES game
   g.rng = s & 0xFFFF || 1;
   return (g.rng ^ (g.rng >> 8)) & 255;
 }
-export const DEPTH = () => (g.floor_num << 1) - 1;
+export const DEPTH = () => (g.mode === 'dungeon' ? g.dg_depth : (g.floor_num << 1) - 1);
 const IS_WARRIOR = () => g.player_class === 0, IS_MAGE = () => g.player_class === 1, IS_HUNTER = () => g.player_class === 2;
 const T = { // talent ranks by name (game.c's T_*, M_*, H_* macros)
   get MIGHT() { return g.tal[0]; }, get KEEN() { return g.tal[1]; },
@@ -964,6 +974,12 @@ function pickup(n) {
     sfx('pickup'); fx('pickup', { s: n, kind });
     return 1;
   }
+  if (kind === K_BOMBS) {
+    g.dg_bombs = Math.min(BOMB_MAX, g.dg_bombs + g.i_val[n]);
+    set_msg(`+${g.i_val[n]} BOMBS`, COL_GOLD);
+    sfx('pickup'); fx('pickup', { s: n, kind });
+    return 1;
+  }
   if (kind === K_GOLD) {
     const v = g.i_val[n] + Math.floor(g.i_val[n] * T.TREASURE / 5);
     g.gold += v;
@@ -1105,6 +1121,7 @@ export function kill_boss() {
   }
   g.mon_left = 0;
   level_check();
+  if (g.mode === 'dungeon') { g.dg_flags[g.dg_room] |= 2; dg_cleared(); dg_stairs(); }
   g.map[g.door_pos] = T_STAIRS;
   g.door_open = 1;
   fx('door');
@@ -2027,8 +2044,9 @@ function obj_add(x, y, t) {
   g.ob_k[g.nobj] = (y << 4) + x;
   g.ob_t[g.nobj] = t;
   ++g.nobj;
-  if (t < OBJ_CRACK || t >= OBJ_ALCH_L) g.map[(y << 4) + x] = T_OBJ;
-  else if (t === OBJ_CRACK) g.map[(y << 4) + x] = T_CRACK;
+  if (t === OBJ_PLATE || t === OBJ_PLATE_ON) return;
+  if (t === OBJ_CRACK || t === OBJ_BOMBWALL) g.map[(y << 4) + x] = T_CRACK;
+  else if (t < OBJ_CRACK || t >= OBJ_ALCH_L) g.map[(y << 4) + x] = T_OBJ;
 }
 function special_room() {
   switch (g.sp) {
@@ -2078,7 +2096,8 @@ function mimic_type() {
 function obj_use(k, cx, cy) {
   const c = g.ob_k[k];
   switch (g.ob_t[k]) {
-    case OBJ_CHEST:
+    case OBJ_CHEST: case OBJ_BIGCHEST:
+      if (g.mode === 'dungeon') { dg_open_chest(k, cx, cy); return; }
       if (g.mimic_chest === k + 1) {
         g.mimic_chest = 0; g.ob_t[k] = OBJ_GONE; g.map[c] = T_FLOOR;
         fx('obj', { k });
@@ -2139,7 +2158,7 @@ function update_specials() {
   for (let k = 0; k < g.nobj; ++k) {
     const cx = (g.ob_k[k] & 15) << 4, cy = PLAY_Y + ((g.ob_k[k] >> 4) << 4);
     switch (g.ob_t[k]) {
-      case OBJ_CHEST: case OBJ_SHRINE: case OBJ_FOUNTAIN:
+      case OBJ_CHEST: case OBJ_BIGCHEST: case OBJ_SHRINE: case OBJ_FOUNTAIN:
         if (((g.px - cx + 20) & 255) > 40 || ((g.py - cy + 20) & 255) > 40) { if (g.ob_t[k] === OBJ_SHRINE) g.sp_told = 0; break; }
         obj_use(k, cx, cy);
         break;
@@ -2159,6 +2178,7 @@ function update_specials() {
   }
 }
 function room_cleared() {
+  if (g.mode === 'dungeon') { dg_cleared(); return; }
   if (g.door_open) return;
   if (g.arena_left) {
     --g.arena_left;
@@ -2211,6 +2231,7 @@ function update_player(pad, padNew) {
     }
     if (pad & PAD_LEFT) mx = 2; else if (pad & PAD_RIGHT) mx = 1;
     if (pad & PAD_UP) my = 2; else if (pad & PAD_DOWN) my = 1;
+    g.moving_try = (mx | my) ? 1 : 0;
     if (!g.atk_timer) face(sgn(mx), sgn(my));
     if (mx && my && spd) { g.dacc += 181; if (g.dacc >= 256) g.dacc -= 256; else --spd; } // (a diagonal is no faster than straight)
     if (mx | my) { moved = 1; for (k = 0; k < spd; ++k) hero_step(mx, my); }
@@ -2219,6 +2240,7 @@ function update_player(pad, padNew) {
       if (mx | my) { g.ice_dx = mx; g.ice_dy = my; }
       else if (g.hz_here && (g.ice_dx | g.ice_dy)) { hero_step(g.ice_dx, g.ice_dy); hero_step(g.ice_dx, g.ice_dy); moved = 1; hz_hint(); }
     }
+    if (g.mode === 'dungeon') { if (padNew & PAD_X) use_item(); if (padNew & PAD_L) switch_item(); }
     if ((padNew & PAD_A) && IS_MAGE()) {
       if (!g.blink_cd) do_blink(mx, my); else sfx('nope');
     } else if ((padNew & PAD_A) && IS_HUNTER() && !g.pet_type) {
@@ -2256,6 +2278,7 @@ function update_player(pad, padNew) {
       if (!pickup(i)) g.full_item = i + 1;
     } else if (g.full_item === i + 1) g.full_item = 0;
   }
+  if (g.mode === 'dungeon') { dg_player(); if (g.state !== 'play' || !g.dg) return; }
   // walk into the open door / stairs
   if (g.door_open) {
     const x1 = (g.door_pos & 15) << 4, y1 = PLAY_Y + ((g.door_pos >> 4) << 4);
@@ -2271,7 +2294,8 @@ function update_player(pad, padNew) {
       default: go = g.py >= PLAY_Y + 143 && g.px + 8 >= x1 && g.px <= x1 + 8;
     }
     if (go) {
-      if (g.room_num === BOSS_ROOM) next_floor(); else next_room();
+      if (g.mode === 'dungeon') dg_next();
+      else if (g.room_num === BOSS_ROOM) next_floor(); else next_room();
     }
   }
 }
@@ -2379,6 +2403,7 @@ function next_floor() {
 }
 export function new_hero(cls) {
   g.player_class = cls;
+  g.mode = 'floors'; g.dg = null; g.dg_items = 0; g.dg_bombs = 0; g.dg_item = 0; g.dg_keys = 0; g.bm_t = 0;
   g.lvl = 1; g.xp = 0; g.xpnext = 12;
   g.maxhp = cls === 0 ? 20 : (cls === 1 ? 15 : 18);
   g.hp = g.maxhp; g.str = 2; g.gold = 0; g.kills = 0;
@@ -2395,6 +2420,7 @@ export function new_hero(cls) {
 }
 // after death: room 1 of the floor, half the gold
 export function respawn() {
+  if (g.mode === 'dungeon') { dg_respawn(); return; }
   g.room_num = 1;
   g.hp = g.maxhp;
   if (g.pet_type) pet_revive();
@@ -2435,6 +2461,7 @@ export function tick(pad = 0, padNew = 0) {
   if (g.pet_type && !g.pet_down) update_pet();
   update_projectiles();
   update_bolts();
+  if (g.mode === 'dungeon') update_items();
   if (g.hz < 10) update_hazards();
   if (g.nobj) update_specials();
   g.sw_on = 0;
@@ -2444,10 +2471,434 @@ export function tick(pad = 0, padNew = 0) {
   if (!g.hp) { g.state = 'dead'; sfx('death'); fx('dead'); save_game(); }
 }
 
+// ---------------------------------------------------------------- the seeded dungeons (mode 'dungeon')
+// Each screen is built from the dungeon's plan (dungeon.js) and its own seed, so it looks the same every
+// visit; what you've done there (cleared it, opened its chest, its doors, its puzzle) is kept in dg_flags.
+// The four doors sit in the middle of each wall; walking through one takes you to the room beyond.
+export const BOMB_MAX = 20;
+const DOOR_C = [7, (5 << 4) + 15, (10 << 4) + 7, 5 << 4];          // N E S W
+const F_SEEN = 1, F_CLEAR = 2, F_TAKEN = 4, F_SOLVED = 8, F_DOOR = 16;
+const ENTRY = [[112, PLAY_Y + 144], [16, PLAY_Y + 80], [112, PLAY_Y + 16], [224, PLAY_Y + 80]]; // arriving through door d
+export const dg_room = () => g.dg && g.dg.rooms[g.dg_room];
+export function dg_start(seedText, no = 1) {
+  g.mode = 'dungeon';
+  g.dg_seed_text = String(seedText).toUpperCase();
+  g.dg_no = no;
+  g.dg = DG.generateDungeon(DG.seedFrom(g.dg_seed_text + (no > 1 ? '#' + no : '')));
+  g.dg_flags = new Array(g.dg.rooms.length).fill(0);
+  g.dg_keys = 0; g.dg_big = 0; g.dg_map = 0; g.dg_done = 0;
+  g.theme = (no - 1) % 10; g.fmod = FM_CALM; g.floor_num = no;
+  g.bless_atk = 0; g.bless_def = 0; g.bless_regen = 0;
+  dg_enter(g.dg.start, -1);
+  set_msg(`DUNGEON ${no} - SEED ${g.dg_seed_text}`, COL_GOLD, 260);
+}
+// a room's own dice (its look and its monsters' places are the same each visit)
+function dg_dice(r) { g.rng = (r.seed & 0xFFFF) || 1; }
+function dg_floor_free(c) { const t = g.map[c]; return t === T_FLOOR || t === T_FLOOR2; }
+// the cross between the four doors stays clear in every room
+const dg_path = (x, y) => x === 7 || x === 8 || y === 5 || x < 1 || x > 14 || y < 1 || y > 9;
+function dg_put(x, y, t) { if (!dg_path(x, y)) g.map[(y << 4) + x] = t; }
+function dg_decor(style) {
+  switch (style) {
+    case 0: for (const [x, y] of [[3, 2], [12, 2], [3, 8], [12, 8]]) dg_put(x, y, T_PILLAR); break;
+    case 1: for (const [x, y] of [[4, 3], [11, 3], [4, 7], [11, 7]]) dg_put(x, y, T_PILLAR); break;
+    case 2: for (let y = 2; y <= 3; y++) for (let x = 3; x <= 4; x++) { dg_put(x, y, T_WALL); dg_put(15 - x, 10 - y, T_WALL); } break;
+    case 3: for (let x = 3; x <= 5; x++) { dg_put(x, 2, T_PIT); dg_put(15 - x, 8, T_PIT); } break;
+    case 4: for (const [x, y] of [[2, 2], [5, 2], [10, 2], [13, 2], [2, 8], [5, 8], [10, 8], [13, 8]]) dg_put(x, y, T_PILLAR); break;
+    default: break;
+  }
+}
+function dg_spawn(count, from) {
+  for (let i = 0; i < MAXM; ++i) g.m_type[i] = M_NONE;
+  g.mon_left = 0;
+  const [ex, ey] = from >= 0 ? ENTRY[from] : [112, PLAY_Y + 144];
+  for (let n = 0; n < count && n < MAXM; ++n) {
+    let tx = 0, ty = 0, tries;
+    for (tries = 0; tries < 40; ++tries) {
+      tx = 2 + rnd() % 12; ty = 1 + rnd() % 9;
+      if (!dg_floor_free((ty << 4) + tx) && g.map[(ty << 4) + tx] !== T_HAZARD) continue;
+      if (abs((tx << 4) - ex) + abs(PLAY_Y + (ty << 4) - ey) < 72) continue; // (not on top of you at the door)
+      break;
+    }
+    if (tries === 40) continue;
+    set_monster(n, g.roster[rnd() % g.nroster], tx << 4, PLAY_Y + (ty << 4));
+    ++g.mon_left;
+  }
+}
+const DG_MONS = { [DG.R_PLAIN]: 3, [DG.R_FIGHT]: 4, [DG.R_BLOCK]: 1, [DG.R_SPIKES]: 2, [DG.R_CHEST]: 2, [DG.R_BIG]: 4, [DG.R_BOOMSW]: 2 };
+const dg_barred_kind = k => k === DG.R_FIGHT || k === DG.R_BLOCK || k === DG.R_BIG || k === DG.R_BOSS;
+// build room `id`, arriving through its door `from` (-1: the entrance, or a respawn)
+export function dg_enter(id, from) {
+  const d = g.dg, r = d.rooms[id];
+  g.dg_room = id;
+  for (let i = 0; i < MAXI; ++i) g.i_kind[i] = K_NONE;
+  for (let i = 0; i < MAXP; ++i) g.pr_t[i] = 0;
+  for (let i = 0; i < MAXB; ++i) g.bo_t[i] = 0;
+  for (let i = 0; i < 3; ++i) g.bb_t[i] = 0;
+  g.bm_t = 0; g.bm_item = 0;
+  for (let i = 0; i < MAXM; ++i) { g.m_frz[i] = 0; g.m_slow[i] = 0; g.m_burn[i] = 0; g.m_type[i] = 0; }
+  for (let i = 0; i < MAXBN; ++i) g.bn_t[i] = 0;
+  g.full_item = 0; g.tame_n = 0; g.mimic_chest = 0; g.mimic_n = 0; g.arena_left = 0; g.elite_said = 0; g.any_elite = 0;
+  g.hz = HZ_NONE; g.hz_tiled = 0; g.hz_t = 0; g.hz_frame = 0; g.ice_dx = 0; g.ice_dy = 0; g.sw_on = 0; g.sp = 0;
+  g.boss_on = 0; g.vend_state = 0; g.roll_timer = 0; g.dg_push = 0; g.dg_said = 0;
+  g.door_open = 0; g.door_pos = 0; g.nobj = 0; g.room_num = 2;
+  g.dg_depth = 1 + (g.dg_no - 1) * 6 + r.zone;
+  g.hz_atk = (3 + g.dg_depth + Math.floor(g.dg_depth / 3)) & 255;
+  const f = g.dg_flags[id] |= F_SEEN;
+  dg_dice(r);
+  pick_roster();
+  // the walls and floor
+  for (let ty = 0; ty < MAP_H; ++ty) for (let tx = 0; tx < MAP_W; ++tx)
+    g.map[(ty << 4) + tx] = (tx === 0 || tx === MAP_W - 1 || ty === 0 || ty === MAP_H - 1) ? T_WALL : ((rnd() & 7) ? T_FLOOR : T_FLOOR2);
+  const cleared = !!(f & F_CLEAR);
+  // the inside, by the room's kind
+  const k = r.kind;
+  const ctr = (x, y, t) => obj_add(x, y, t);
+  switch (k) {
+    case DG.R_START: g.map[(3 << 4) + 5] = T_PILLAR; g.map[(3 << 4) + 10] = T_PILLAR; break;
+    case DG.R_BOSS: case DG.R_PREBOSS:
+      if (k === DG.R_PREBOSS) { dg_decor(4); ctr(11, 3, f & F_TAKEN ? OBJ_FOUNTAIN_DRY : OBJ_FOUNTAIN); }
+      break;
+    case DG.R_BLOCK: {
+      // a block to push onto a plate, in one corner of the room
+      dg_decor(rnd() & 1);
+      const right = rnd() & 1, top = rnd() & 1, y = top ? 3 : 7;
+      const bx = right ? 12 : 3, px = right ? 10 : 5;
+      for (const x of [bx - 1, bx, bx + 1, px]) if (x > 0 && x < 15) g.map[(y << 4) + x] = T_FLOOR;
+      if (f & F_SOLVED) { ctr(px, y, OBJ_PLATE_ON); ctr(px, y, OBJ_BLOCK); }
+      else { ctr(px, y, OBJ_PLATE); ctr(bx, y, OBJ_BLOCK); }
+      break;
+    }
+    case DG.R_BOOMSW: {
+      // the crystal switch on an island in a corner, across a pit nobody can walk over
+      dg_decor(1);
+      const cx = rnd() & 1 ? 12 : 3, cy = rnd() & 1 ? 7 : 3;
+      for (let y = cy - 1; y <= cy + 1; y++) for (let x = cx - 1; x <= cx + 1; x++) g.map[(y << 4) + x] = T_PIT;
+      g.map[(cy << 4) + cx] = T_FLOOR;
+      const open = r.doors.some((e, dd) => e && e.kind === DG.E_BOOM && (f & (F_DOOR << dd)));
+      ctr(cx, cy, open ? OBJ_CRYSTAL_ON : OBJ_CRYSTAL);
+      break;
+    }
+    case DG.R_SPIKES: {
+      dg_decor(rnd() % 3);
+      g.hz = HZ_SPIKES; g.hz_tiled = 1;
+      for (let n = 0; n < 4; ++n) {
+        const x = 2 + rnd() % 11, y = 1 + rnd() % 8;
+        for (let yy = y; yy < y + 2; ++yy) for (let xx = x; xx < x + 2; ++xx) if (dg_floor_free((yy << 4) + xx) && yy < 10 && xx < 15) g.map[(yy << 4) + xx] = T_HAZARD;
+      }
+      break;
+    }
+    default: dg_decor(rnd() % 6);
+  }
+  // the room's treasure: a chest (a guard room's appears when its guards fall)
+  if (r.content) {
+    const big = r.content === DG.C_BOOMERANG || r.content === DG.C_BIGKEY;
+    const taken = !!(f & F_TAKEN);
+    const at = [[7, 3], [10, 3], [5, 7]][rnd() % 3];
+    g.map[(at[1] << 4) + at[0]] = T_FLOOR;
+    if (r.kind !== DG.R_FIGHT || cleared || taken) {
+      if (r.kind === DG.R_TREASURE || r.kind === DG.R_HIDDEN) { ctr(5, 3, taken ? OBJ_CHEST_OPEN : OBJ_CHEST); ctr(10, 3, taken ? OBJ_CHEST_OPEN : OBJ_CHEST); }
+      else ctr(at[0], at[1], big ? (taken ? OBJ_BIGCHEST_OPEN : OBJ_BIGCHEST) : (taken ? OBJ_CHEST_OPEN : OBJ_CHEST));
+    }
+  }
+  // the doors
+  const barred = k === DG.R_BLOCK ? !(f & F_SOLVED) : dg_barred_kind(k) && !cleared; // (a puzzle room bars until it's solved)
+  g.dg_bar = barred ? 1 : 0;
+  for (let dd = 0; dd < 4; ++dd) {
+    const e = r.doors[dd], c = DOOR_C[dd];
+    if (!e) { g.dg_dk[dd] = DK_NONE; continue; }
+    const opened = !!(f & (F_DOOR << dd));
+    let dk;
+    switch (e.kind) {
+      case DG.E_KEY: dk = opened ? DK_OPEN : DK_LOCK; break;
+      case DG.E_BOSS: dk = opened ? DK_OPEN : DK_BOSS; break;
+      case DG.E_BOMB: dk = opened ? DK_OPEN : DK_CRACK; break;
+      case DG.E_BOOM: dk = opened ? DK_OPEN : DK_SHUT; break;
+      default: dk = DK_OPEN;
+    }
+    if (barred && dk === DK_OPEN) dk = DK_SHUT;
+    g.dg_dk[dd] = dk;
+    if (dk === DK_CRACK) { g.map[c] = T_WALL; ctr(c & 15, c >> 4, OBJ_BOMBWALL); }
+    else g.map[c] = dk === DK_OPEN ? T_DOORWAY : T_DOOR;
+  }
+  // who's here
+  if (k === DG.R_BOSS) {
+    if (!cleared) {
+      g.boss_tier = 1; g.room_num = BOSS_ROOM; spawn_boss(); g.room_num = 2;
+    } else dg_stairs();
+  } else if (!cleared && DG_MONS[k]) dg_spawn(DG_MONS[k] + (g.dg_no > 2 ? 1 : 0), from);
+  if (!g.mon_left && !g.boss_on && !cleared && k !== DG.R_BLOCK) g.dg_flags[id] |= F_CLEAR;
+  // the hero (and the pet) at the door they came through
+  const [hx, hy] = from >= 0 ? ENTRY[from] : [112, PLAY_Y + 128];
+  g.px = hx; g.py = hy;
+  if (from < 0) { g.pdir = DIR_UP; g.pdx = 0; g.pdy = -1; }
+  g.pet_x = hx; g.pet_y = hy; g.pet_cd = 30; g.pet_inv = 30;
+  g.atk_timer = 0; g.anim_t = 0; g.shot_pend = 0; g.inv_timer = from >= 0 ? 20 : 60;
+  if (g.boss_on) { set_msg(boss_name(), COL_RED, 160); sfx('roar'); }
+  else if (r.kind === DG.R_BOSS) set_msg('THE KEEPER IS GONE. THE STAIRS LEAD ON', COL_GOLD);
+  else if (barred && g.mon_left) set_msg('THE DOORS SLAM SHUT!', COL_RED, 120);
+  else if (barred && k === DG.R_BLOCK) set_msg('THE DOORS SLAM SHUT! PUSH THE BLOCK', COL_RED, 160);
+  if (barred) sfx('door');
+  g.rng = ((g.rng ^ (g.frame << 8) ^ g.kills) & 0xFFFF) || 1; // (the fight's dice from here, not the room's)
+  g.state = 'play';
+  save_game();
+  fx('room', { from, dg: 1 });
+}
+// the stairs out of a beaten keeper's room
+function dg_stairs() {
+  const r = dg_room();
+  const d = r.doors[0] ? 2 : 0;
+  g.door_pos = DOOR_C[d]; g.door_wall = d === 0 ? DW_TOP : DW_BOTTOM;
+  g.map[g.door_pos] = T_STAIRS; g.door_open = 1;
+}
+function dg_open_door(dd, msg) {
+  const r = dg_room(), e = r.doors[dd];
+  g.dg_flags[g.dg_room] |= F_DOOR << dd;
+  g.dg_flags[e.to] |= F_DOOR << DG.OPP[dd];
+  g.dg_dk[dd] = DK_OPEN; g.map[DOOR_C[dd]] = T_DOORWAY;
+  sfx('door'); fx('dgdoor', { d: dd });
+  if (msg) set_msg(msg, COL_GOLD);
+}
+// guards beaten / puzzle solved: the barred doors open (and a guard room's chest appears)
+function dg_cleared() {
+  const r = dg_room();
+  if (!r || g.boss_on) return;
+  if (r.kind === DG.R_BLOCK && !(g.dg_flags[g.dg_room] & F_SOLVED)) { g.dg_flags[g.dg_room] |= F_CLEAR; return; }
+  if (g.dg_flags[g.dg_room] & F_CLEAR && !g.dg_bar) return;
+  g.dg_flags[g.dg_room] |= F_CLEAR;
+  if (g.dg_bar) {
+    g.dg_bar = 0;
+    for (let dd = 0; dd < 4; ++dd) {
+      const e = r.doors[dd];
+      if (!e || g.dg_dk[dd] !== DK_SHUT) continue;
+      if (e.kind === DG.E_BOOM && !(g.dg_flags[g.dg_room] & (F_DOOR << dd))) continue;
+      g.dg_dk[dd] = DK_OPEN; g.map[DOOR_C[dd]] = T_DOORWAY;
+    }
+    sfx('door'); fx('dgdoor', { d: -1 });
+    set_msg('THE DOORS OPEN', COL_GOLD);
+  }
+  if (r.kind === DG.R_FIGHT && r.content && !(g.dg_flags[g.dg_room] & F_TAKEN)) {
+    // (not where you stand: it would shut you in)
+    const hx1 = (g.px + 3) >> 4, hx2 = (g.px + 12) >> 4, hy1 = (g.py + 6 - PLAY_Y) >> 4, hy2 = (g.py + 15 - PLAY_Y) >> 4;
+    const at = [[7, 3], [10, 3], [5, 7], [10, 7], [4, 3]].find(([x, y]) => (x < hx1 - 0 || x > hx2 || y < hy1 || y > hy2) && dg_floor_free((y << 4) + x)) || [12, 2];
+    g.map[(at[1] << 4) + at[0]] = T_FLOOR;
+    obj_add(at[0], at[1], OBJ_CHEST);
+    set_msg('A CHEST APPEARS!', COL_GOLD); sfx('rare'); fx('dgref');
+  }
+  save_game();
+}
+function dg_open_chest(k, cx, cy) {
+  const r = dg_room();
+  g.ob_t[k] = g.ob_t[k] === OBJ_BIGCHEST ? OBJ_BIGCHEST_OPEN : OBJ_CHEST_OPEN;
+  fx('obj', { k });
+  // a treasure room's second chest: gold
+  if ((g.dg_flags[g.dg_room] & F_TAKEN) || !r.content) { drop_gold(cx + 4, cy + 20, 5 + DEPTH() * 2); set_msg('TREASURE!', COL_GOLD); sfx('coin'); return; }
+  g.dg_flags[g.dg_room] |= F_TAKEN;
+  let s;
+  switch (r.content) {
+    case DG.C_KEY: g.dg_keys++; s = 'A SMALL KEY!'; break;
+    case DG.C_BIGKEY: g.dg_big = 1; s = 'THE BIG KEY! IT OPENS THE KEEPER\'S DOOR'; break;
+    case DG.C_MAP: g.dg_map = 1; s = 'THE DUNGEON MAP!'; break;
+    case DG.C_BOMBS:
+      g.dg_items |= DG.I_BOMBS; g.dg_bombs = Math.max(g.dg_bombs, 10); if (!g.dg_item) g.dg_item = DG.I_BOMBS;
+      s = 'BLAST BOMBS! PRESS ITEM TO SET ONE DOWN'; break;
+    case DG.C_BOOMERANG:
+      g.dg_items |= DG.I_BOOMERANG; g.dg_item = DG.I_BOOMERANG;
+      s = 'THE RETURN BLADE! THROW IT WITH ITEM'; break;
+    case DG.C_GEAR: drop_gear(cx + 4, cy + 20, 2); s = 'TREASURE!'; break;
+    default: drop_gold(cx + 4, cy + 20, 10 + DEPTH() * 3); s = 'TREASURE!';
+  }
+  set_msg(s, COL_GOLD, 260);
+  sfx(r.content === DG.C_BOOMERANG || r.content === DG.C_BOMBS || r.content === DG.C_BIGKEY ? 'legend' : 'rare');
+  fx('dgget', { c: r.content, x: cx, y: cy });
+  save_game();
+}
+// each step in a dungeon: locked doors you walk into, blocks you push, the doors you walk out of
+function dg_player() {
+  const r = dg_room();
+  if (!r) return;
+  const facing = [g.pdy < 0, g.pdx > 0, g.pdy > 0, g.pdx < 0];
+  const near = [
+    g.py <= PLAY_Y + 20 && abs(g.px - 112) <= 8, g.px >= 220 && abs(g.py - (PLAY_Y + 80)) <= 8,
+    g.py >= PLAY_Y + 140 && abs(g.px - 112) <= 8, g.px <= 20 && abs(g.py - (PLAY_Y + 80)) <= 8];
+  for (let dd = 0; dd < 4; ++dd) {
+    if (!near[dd] || !facing[dd] || !g.moving_try) continue;
+    const dk = g.dg_dk[dd];
+    if (dk === DK_LOCK) {
+      if (g.dg_keys > 0) { g.dg_keys--; dg_open_door(dd, 'UNLOCKED!'); }
+      else if (!g.dg_said) { g.dg_said = 1; set_msg('LOCKED. A SMALL KEY OPENS IT', COL_WHITE); sfx('nope'); }
+    } else if (dk === DK_BOSS) {
+      if (g.dg_big) dg_open_door(dd, 'THE BIG KEY TURNS...');
+      else if (!g.dg_said) { g.dg_said = 1; set_msg('THE KEEPER\'S DOOR. FIND THE BIG KEY', COL_RED); sfx('nope'); }
+    } else if (dk === DK_SHUT && !g.dg_said && !g.dg_bar) { g.dg_said = 1; set_msg('SHUT FAST. A SWITCH SOMEWHERE OPENS IT', COL_WHITE); }
+  }
+  if (!near.some(Boolean)) g.dg_said = 0;
+  // line up with an open door you're walking at (the old games did this too)
+  const nudge = (v, to) => (v < to ? v + 1 : v > to ? v - 1 : v);
+  if (g.moving_try) {
+    if ((facing[0] && g.dg_dk[0] === DK_OPEN && g.py <= PLAY_Y + 24) || (facing[2] && g.dg_dk[2] === DK_OPEN && g.py >= PLAY_Y + 136)) { if (abs(g.px - 112) <= 10) g.px = nudge(g.px, 112); }
+    if ((facing[1] && g.dg_dk[1] === DK_OPEN && g.px >= 216) || (facing[3] && g.dg_dk[3] === DK_OPEN && g.px <= 24)) { if (abs(g.py - (PLAY_Y + 80)) <= 10) g.py = nudge(g.py, PLAY_Y + 80); }
+  }
+  // push a block: lean on it for a moment
+  let pushed = false;
+  if (g.moving_try && (g.pdx === 0 || g.pdy === 0)) {
+    const cx = (g.px + 8 + g.pdx * 12) >> 4, cy = (g.py + 11 + g.pdy * 10 - PLAY_Y) >> 4;
+    for (let k = 0; k < g.nobj; ++k) {
+      if (g.ob_t[k] !== OBJ_BLOCK || g.ob_k[k] !== ((cy << 4) | cx)) continue;
+      pushed = true;
+      if (++g.dg_push >= 18) {
+        g.dg_push = 0;
+        const nx = cx + g.pdx, ny = cy + g.pdy, nc = (ny << 4) | nx;
+        let free = nx > 0 && nx < 15 && ny > 0 && ny < 10 && (dg_floor_free(nc));
+        for (let n = 0; free && n < MAXM; ++n) if (g.m_type[n] && ((g.m_x[n] + 8) >> 4) === nx && ((g.m_y[n] + 8 - PLAY_Y) >> 4) === ny) free = false;
+        if (free) {
+          const oc = g.ob_k[k];
+          g.map[oc] = T_FLOOR; g.map[nc] = T_OBJ; g.ob_k[k] = nc;
+          sfx('slam'); fx('objmove', { k, from: oc });
+          for (let j = 0; j < g.nobj; ++j) if (g.ob_t[j] === OBJ_PLATE && g.ob_k[j] === nc) {
+            g.ob_t[j] = OBJ_PLATE_ON; fx('obj', { k: j });
+            g.dg_flags[g.dg_room] |= F_SOLVED;
+            set_msg('CLICK!', COL_GOLD); sfx('rare');
+            g.dg_bar = 1; dg_cleared();
+          }
+        }
+      }
+    }
+  }
+  if (!pushed) g.dg_push = 0;
+  // out through a door
+  let go = -1;
+  if (g.py <= PLAY_Y - 2 && g.dg_dk[0] === DK_OPEN) go = 0;
+  else if (g.px >= 238 && g.dg_dk[1] === DK_OPEN) go = 1;
+  else if (g.py >= PLAY_Y + 158 && g.dg_dk[2] === DK_OPEN) go = 2;
+  else if (g.px <= 0 && g.dg_dk[3] === DK_OPEN) go = 3;
+  if (go >= 0 && r.doors[go]) dg_enter(r.doors[go].to, DG.OPP[go]);
+}
+// the next dungeon down (the stairs out of a keeper's room): a new layout from the same seed
+function dg_next() {
+  g.dg_done = g.dg_no;
+  sfx('levelup');
+  if (g.pet_type) pet_revive();
+  g.hp = g.maxhp;
+  dg_start(g.dg_seed_text, g.dg_no + 1);
+  fx('floor');
+}
+// back to the entrance after a fall (keys and items kept, half the gold)
+function dg_respawn() {
+  g.hp = g.maxhp;
+  if (g.pet_type) pet_revive();
+  g.gold >>= 1;
+  dg_enter(g.dg.start, -1);
+}
+
+// ---------------------------------------------------------------- the dungeon items
+// the RETURN BLADE flies out, stuns what it hits, carries back loot it touches, trips crystal switches
+// (it flies over pits; walls send it home); BLAST BOMBS sit 2 seconds, then blow: they hurt everything near,
+// you too, and open cracked walls
+function use_item() {
+  if (g.dg_item === DG.I_BOOMERANG && (g.dg_items & DG.I_BOOMERANG)) {
+    if (g.bm_t) return;
+    g.bm_t = 1; g.bm_back = 0; g.bm_hit = 0; g.bm_item = 0;
+    g.bm_x = g.px + 4 + g.pdx * 8; g.bm_y = g.py + 6 + g.pdy * 8;
+    const l = g.pdx && g.pdy ? 0.7071 : 1;
+    g.bm_dx = g.pdx * 3.4 * l; g.bm_dy = g.pdy * 3.4 * l;
+    sfx('swing'); fx('bmthrow');
+  } else if (g.dg_item === DG.I_BOMBS && (g.dg_items & DG.I_BOMBS)) {
+    if (!g.dg_bombs) { set_msg('NO BOMBS LEFT', COL_RED); sfx('nope'); return; }
+    let k = 0;
+    while (k < 3 && g.bb_t[k]) ++k;
+    if (k === 3) return;
+    const x = g.px + 4 + g.pdx * 12, y = g.py + 8 + g.pdy * 12;
+    g.bb_t[k] = 120; g.bb_x[k] = Math.max(16, Math.min(232, x)); g.bb_y[k] = Math.max(PLAY_Y + 16, Math.min(PLAY_Y + 152, y));
+    --g.dg_bombs;
+    sfx('pickup'); fx('bombset', { b: k });
+  }
+}
+function switch_item() {
+  const have = [DG.I_BOOMERANG, DG.I_BOMBS].filter(i => g.dg_items & i);
+  if (have.length < 2) return;
+  g.dg_item = have[(have.indexOf(g.dg_item) + 1) % have.length];
+  sfx('pickup'); fx('itemswap');
+}
+function update_items() {
+  // the boomerang
+  if (g.bm_t) {
+    ++g.bm_t;
+    if (!g.bm_back) {
+      g.bm_x += g.bm_dx; g.bm_y += g.bm_dy;
+      if (g.bm_t > 34 || g.bm_x < 4 || g.bm_x > 244 || g.bm_y < PLAY_Y + 4 || g.bm_y > PLAY_Y + 164) g.bm_back = 1;
+    } else {
+      const tx = g.px + 4 - g.bm_x, ty = g.py + 6 - g.bm_y, l = Math.hypot(tx, ty);
+      if (l < 8) { g.bm_t = 0; if (g.bm_item) { const n = g.bm_item - 1; g.bm_item = 0; if (g.i_kind[n]) { g.i_x[n] = g.px + 4; g.i_y[n] = g.py + 6; } } fx('bmcatch'); return; }
+      g.bm_x += tx / l * 4; g.bm_y += ty / l * 4;
+    }
+    const bx = g.bm_x | 0, by = g.bm_y | 0;
+    // the crystal switch
+    for (let k = 0; k < g.nobj; ++k) {
+      if (g.ob_t[k] !== OBJ_CRYSTAL) continue;
+      const cx = (g.ob_k[k] & 15) << 4, cy = PLAY_Y + ((g.ob_k[k] >> 4) << 4);
+      if (bx + 7 >= cx && bx <= cx + 15 && by + 7 >= cy && by <= cy + 15) {
+        g.ob_t[k] = OBJ_CRYSTAL_ON; fx('obj', { k }); g.bm_back = 1;
+        const r = dg_room();
+        for (let dd = 0; dd < 4; ++dd) if (r.doors[dd] && r.doors[dd].kind === DG.E_BOOM) dg_open_door(dd, 'THE CRYSTAL GLOWS. A DOOR OPENS!');
+      }
+    }
+    if (!g.bm_back && solid(bx + 4, by + 4)) g.bm_back = 1;
+    // monsters: stunned (and a nick)
+    for (let n = 0; n < MAXM; ++n) {
+      const t = g.m_type[n];
+      if (!t || (g.bm_hit & (1 << n))) continue;
+      if (bx + 7 < g.m_x[n] + 2 - D.MON_HIT_W[t] || bx > g.m_x[n] + 13 + D.MON_HIT_W[t] || by + 7 < g.m_y[n] - D.MON_HIT_H[t] || by > g.m_y[n] + 13) continue;
+      g.bm_hit |= 1 << n;
+      g.m_frz[n] = 120; g.m_kb[n] = 0;
+      hit_monster(n, 1, kdir(g.pdx, g.pdy), 0);
+      fx('stun', { n });
+      g.bm_back = 1;
+    }
+    // the keeper: stunned (its weakness)
+    if (g.boss_on && !(g.bm_hit & 64) && bx + 7 >= g.bx + 3 - g.bhw && bx <= g.bx + 28 + g.bhw && by + 7 >= g.by + 4 - g.bhh && by <= g.by + 30) {
+      g.bm_hit |= 64; g.bm_back = 1;
+      if (g.bstate !== BS_STUN) { boss_stun(-90); // (a stun counts up to 40-60 frames: this is about 2.5 s)
+        set_msg('STUNNED! STRIKE NOW!', COL_GOLD); sfx('crit'); fx('bstun'); }
+    }
+    // loot rides home on it
+    if (!g.bm_item) for (let n = 0; n < MAXI; ++n) {
+      if (!g.i_kind[n]) continue;
+      if (bx + 7 >= g.i_x[n] && bx <= g.i_x[n] + 8 && by + 7 >= g.i_y[n] && by <= g.i_y[n] + 8) { g.bm_item = n + 1; g.bm_back = 1; break; }
+    }
+    if (g.bm_item) { const n = g.bm_item - 1; if (g.i_kind[n]) { g.i_x[n] = bx; g.i_y[n] = by; fx('itemmove', { s: n }); } }
+  }
+  // bombs
+  for (let k = 0; k < 3; ++k) {
+    if (!g.bb_t[k] || --g.bb_t[k]) continue;
+    const x = g.bb_x[k], y = g.bb_y[k];
+    fx('explode', { x: x - 4, y: y - 4 }); sfx('slam');
+    const R = 30, inR = (ax, ay) => abs(ax - x) < R && abs(ay - y) < R;
+    for (let n = 0; n < MAXM; ++n) {
+      const t = g.m_type[n];
+      if (!t || !inR(g.m_x[n] + 8, g.m_y[n] + 8)) continue;
+      hit_monster(n, roll_damage() * 2 + 4, kdir(Math.sign(g.m_x[n] + 8 - x), Math.sign(g.m_y[n] + 8 - y)), 0);
+    }
+    if (g.boss_on && abs(g.bx + 16 - x) < R + 12 && abs(g.by + 18 - y) < R + 12) hit_boss(roll_damage() * 3 + 6, 0);
+    if (inR(g.px + 8, g.py + 10) && !g.inv_timer) { hurt_player(Math.max(2, g.hz_atk)); }
+    for (let j = 0; j < g.nobj; ++j) {
+      if (g.ob_t[j] !== OBJ_BOMBWALL && g.ob_t[j] !== OBJ_CRACK) continue;
+      const c = g.ob_k[j], cx = ((c & 15) << 4) + 8, cy = PLAY_Y + ((c >> 4) << 4) + 8;
+      if (abs(cx - x) > R + 8 || abs(cy - y) > R + 8) continue;
+      if (g.ob_t[j] === OBJ_CRACK) { crack_break(j, cx - 8, cy - 8); continue; }
+      g.ob_t[j] = OBJ_GONE; fx('obj', { k: j }); fx('crack', { x: cx - 8, y: cy - 8 });
+      const dd = DOOR_C.indexOf(c);
+      if (dd >= 0) dg_open_door(dd, 'THE WALL CRUMBLES. A WAY THROUGH!');
+    }
+  }
+}
+
 // ---------------------------------------------------------------- saving (the browser's storage)
 export const SAVE_KEY = 'dungeonheart.save.v1';
 const SAVE_FIELDS = ['lvl', 'xp', 'xpnext', 'hp', 'maxhp', 'hpgear', 'str', 'gold', 'kills', 'floor_num', 'deepest', 'player_class',
-  'potions', 'pet_type', 'pet_name', 'brole'];
+  'potions', 'pet_type', 'pet_name', 'brole',
+  // (a dungeon run: its seed, where you are, what each room remembers, keys and items)
+  'mode', 'dg_seed_text', 'dg_no', 'dg_room', 'dg_flags', 'dg_keys', 'dg_items', 'dg_big', 'dg_map', 'dg_bombs', 'dg_item'];
 const SAVE_ARRAYS = ['eq_val', 'eq_rar', 'eq_spec', 'eq_tier', 'eq_has', 'eq_lvl', 'b_kind', 'b_rar', 'b_tier', 'b_val', 'b_spec', 'b_lvl', 'tal', 'eq_st', 'b_st'];
 export const storage = { get: () => null, set: () => { } }; // (main.js plugs in localStorage)
 export function save_data() {
@@ -2470,6 +2921,15 @@ export function load_game() {
   tal_sync(); sta_sync();
   if (g.pet_type) pet_revive();
   g.hp = g.maxhp;
+  if (g.mode === 'dungeon' && g.dg_seed_text) {
+    const flags = g.dg_flags.slice(), room = g.dg_room;
+    g.dg = DG.generateDungeon(DG.seedFrom(g.dg_seed_text + (g.dg_no > 1 ? '#' + g.dg_no : '')));
+    g.dg_flags = g.dg.rooms.map((_, i) => flags[i] | 0);
+    g.theme = (g.dg_no - 1) % 10; g.fmod = FM_CALM; g.floor_num = g.dg_no;
+    dg_enter(room < g.dg.rooms.length ? room : g.dg.start, -1);
+    return true;
+  }
+  g.mode = 'floors';
   setup_floor();
   start_room();
   return true;

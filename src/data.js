@@ -4,7 +4,7 @@
 // ============================================================================
 
 export const MAP_W = 16, MAP_H = 11, PLAY_Y = 32;
-export const MAXM = 6, WARDEN_MAX = 3, MAXI = 8, MAXP = 16, MAXB = 6, MAXBN = 4, MAXOBJ = 4;
+export const MAXM = 6, WARDEN_MAX = 3, MAXI = 8, MAXP = 16, MAXB = 6, MAXBN = 4, MAXOBJ = 10;
 export const BOSS_ROOM = 6, LAST_FLOOR = 50;
 
 // map cells
@@ -41,7 +41,7 @@ export const MOD_NAME = ['CALM HALLS', 'FAST FOES', 'TOUGH FOES', 'FIERCE FOES',
 
 // gear
 export const K_NONE = 0, K_WEAPON = 1, K_ARMOR = 2, K_SHIELD = 3, K_BOOTS = 4, K_GLOVES = 5, K_HELMET = 6,
-  K_TRINKET = 7, K_POTION = 8, K_GOLD = 9, NGEAR = 7, NGEAR_DROP = 6;
+  K_TRINKET = 7, K_POTION = 8, K_GOLD = 9, K_BOMBS = 10, NGEAR = 7, NGEAR_DROP = 6; // (K_BOMBS: a pack of bombs on the floor)
 export const SP_NONE = 0, SP_VAMPIRE = 1, SP_CRIT = 2, SP_QUICK = 3, SP_REGEN = 4, SP_THORNS = 5, SP_BLOCK = 6;
 export const SPEC_NAME = ['', 'VAMPIRE', 'CRIT', 'QUICK', 'REGEN', 'THORNS', 'BLOCK'];
 export const SPEC_DESC = ['', 'Heal 1 HP per hit', '25% double damage', 'Roll recharges 2x', 'Heal over time',
@@ -112,7 +112,13 @@ export const SP_TREASURE = 1, SP_SHRINE = 2, SP_FOUNTAIN = 3, SP_ARENA = 4, SP_T
 export const SP_TEXT = ['', 'A TREASURE ROOM!', 'A SHRINE: GOLD FOR A BLESSING', 'A HEALING FOUNTAIN',
   'THE ARENA: SURVIVE 3 WAVES', 'A TRAPPED ROOM! MIND THE WALL'];
 export const OBJ_CHEST = 1, OBJ_CHEST_OPEN = 2, OBJ_SHRINE = 3, OBJ_SHRINE_USED = 4, OBJ_FOUNTAIN = 5,
-  OBJ_FOUNTAIN_DRY = 6, OBJ_CRACK = 7, OBJ_LAUNCHER = 8, OBJ_ALCH_L = 9, OBJ_ALCH_R = 10, OBJ_GONE = 255;
+  OBJ_FOUNTAIN_DRY = 6, OBJ_CRACK = 7, OBJ_LAUNCHER = 8, OBJ_ALCH_L = 9, OBJ_ALCH_R = 10, OBJ_GONE = 255,
+  // the dungeons': a great chest, a block to push onto a floor plate, a crystal switch (only the
+  // boomerang reaches it), a cracked wall only bombs open
+  OBJ_BIGCHEST = 11, OBJ_BIGCHEST_OPEN = 12, OBJ_BLOCK = 13, OBJ_PLATE = 14, OBJ_PLATE_ON = 15, OBJ_CRYSTAL = 16, OBJ_CRYSTAL_ON = 17,
+  OBJ_BOMBWALL = 18;
+// the dungeons' doors, as drawn (sim.dg_dk): none, open, a shutter, a small-key lock, the boss lock, a cracked wall
+export const DK_NONE = 0, DK_OPEN = 1, DK_SHUT = 2, DK_LOCK = 3, DK_BOSS = 4, DK_CRACK = 5;
 
 // elites
 export const EL_FRENZIED = 1, EL_ARMORED = 2, EL_SPLITTING = 3, EL_VAMPIRIC = 4;
