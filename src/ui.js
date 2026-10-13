@@ -29,7 +29,7 @@ export function show(id) {
   $('touch').hidden = !!id || !(G.state === 'play');
   $('minimap').hidden = !!id || G.state !== 'play';
   if (id) {
-    setTimeout(() => { const f = firstFocus(); if (f && input.lastDevice !== 'touch') setCur(f, false); }, 30);
+    setTimeout(() => { const f = firstFocus(); if (f && input.lastDevice !== 'touch') { setCur(f, false); if (f.dataset.focusSel && !f.classList.contains('sel') && input.lastDevice === 'pad') f.click(); } }, 30);
   }
   UI.hooks.onModal && UI.hooks.onModal(id);
 }
@@ -50,7 +50,8 @@ function curEl() {
 function firstFocus() {
   const s = UI.modal && $(UI.modal);
   if (!s) return null;
-  return s.querySelector('.sel,.btn:not([disabled]):not([hidden]),button.card') || s.querySelector('button:not([disabled])');
+  for (const q of ['.sel', '.slot:not(.ghost)[data-focus-sel]', '.tal[data-focus-sel]', '.btn:not([disabled]):not([hidden]),button.card', 'button:not([disabled])']) { const e = s.querySelector(q); if (e) return e; }
+  return null;
 }
 // arrow keys and the d-pad move the focus to the nearest button that way
 function navigate(dir) {
@@ -71,7 +72,7 @@ function navigate(dir) {
     const d = main + side * 2.2;
     if (d < bd) { bd = d; best = e; }
   }
-  if (best) { setCur(best); if (best.dataset.focusSel) best.click(); }
+  if (best) { setCur(best); if (best.dataset.focusSel && !best.classList.contains('sel')) best.click(); }
   else if (cur.tagName === 'INPUT' && (dir === 'left' || dir === 'right')) { cur.value = +cur.value + (dir === 'right' ? 1 : -1); cur.dispatchEvent(new Event('input')); }
 }
 export function menuStep() {
@@ -220,7 +221,7 @@ function drawInv() {
     b.innerHTML = slotHTML(kind, G.eq_rar[i], G.eq_lvl[i], !has, G.eq_tier[i]);
     styleSlot(b, G.eq_rar[i], has);
     b.onclick = () => { if (UI.sel && UI.sel.gear === i && input.lastDevice !== 'touch') { unequipSel(); return; } UI.sel = { gear: i }; UI.sellArm = -1; drawInv(); focusSel(); };
-    b.setAttribute('aria-label', slotLabel(kind));
+    b.setAttribute('aria-label', slotLabel(kind)); b.dataset.focusSel = '1';
     dl.appendChild(b);
   }
   // the bag
@@ -235,7 +236,7 @@ function drawInv() {
     if (kind) b.innerHTML = slotHTML(kind, G.b_rar[k], G.b_lvl[k], false, G.b_tier[k]);
     styleSlot(b, G.b_rar[k], kind);
     b.onclick = () => { if (UI.sel && UI.sel.bag === k && input.lastDevice !== 'touch') { equipSel(); return; } UI.sel = { bag: k }; UI.sellArm = -1; drawInv(); focusSel(); };
-    b.setAttribute('aria-label', kind ? S.item_name(kind, G.b_rar[k], G.b_tier[k]) : 'Empty');
+    b.setAttribute('aria-label', kind ? S.item_name(kind, G.b_rar[k], G.b_tier[k]) : 'Empty'); b.dataset.focusSel = '1';
     bg.appendChild(b);
   }
   $('bagTitle').textContent = `BAG ${n}/${D.BAG}`;
@@ -296,6 +297,21 @@ function drawTal() {
   const cls = G.player_class, wrap = $('trees'), pts = S.tal_avail();
   $('talTitle').textContent = `${D.CLASS_NAME[cls]} TALENTS`;
   $('talPoints').textContent = `POINTS ${pts}`;
+  // the hunter's pet: who it is and how it's doing (or how to get one)
+  const tp = $('talPet'); tp.hidden = cls !== 2;
+  if (cls === 2) {
+    const pet = G.pet_type; tp.classList.toggle('none', !pet);
+    if (pet) {
+      $('talPetPic').src = petPic(pet); $('talPetPic').hidden = false;
+      $('talPetName').textContent = (G.pet_name || D.PET_NAME[pet]).toUpperCase();
+      $('talPetInfo').textContent = `${D.PET_NAME[pet]} · ${G.pet_down ? 'DOWN: back next floor, or drink a potion at full HP' : `HP ${G.pet_hp}/${S.pet_max()}`}`;
+      $('talPetFill').style.width = (G.pet_down ? 0 : G.pet_hp / S.pet_max() * 100) + '%';
+    } else {
+      $('talPetPic').hidden = true;
+      $('talPetName').textContent = 'NO PET YET';
+      $('talPetInfo').textContent = 'Hit a weak slime, bat or spider, then tame it with the blue button.';
+    }
+  }
   wrap.innerHTML = '';
   for (let tr = 0; tr < 3; tr++) {
     const div = document.createElement('div'); div.className = 'tree'; div.style.setProperty('--c', D.TREE_COLOR[cls * 3 + tr]);
@@ -306,7 +322,7 @@ function drawTal() {
       const b = document.createElement('button');
       b.className = 'tal' + (S.tal_unlocked(idx) ? '' : ' lock') + (have ? '' : ' zero') + (UI.talSel === idx ? ' sel' : '') + (have >= max ? ' max' : '');
       b.innerHTML = `<span class="med">${talGlyph(cls * D.NTAL + idx)}</span><span class="rk">${have}/${max}${S.trinket_bonus(idx) ? '+' : ''}</span><span class="pips">${Array.from({ length: max }, (_, i) => `<i class="${i < have ? 'on' : ''}"></i>`).join('')}</span>`;
-      b.setAttribute('aria-label', D.TAL_NAME[cls * D.NTAL + idx]);
+      b.setAttribute('aria-label', D.TAL_NAME[cls * D.NTAL + idx]); b.dataset.focusSel = '1';
       b.onclick = () => { if (UI.talSel === idx && input.lastDevice !== 'touch') { learn(); return; } UI.talSel = idx; UI.resetArm = 0; drawTal(); focusSel(); };
       tl.appendChild(b);
     }

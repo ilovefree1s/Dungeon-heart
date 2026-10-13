@@ -112,7 +112,7 @@ button{font:inherit;color:inherit}
    heart; a tagline; the menu centered between gold rules with ruby studs */
 #sTitle{justify-content:space-between;background:radial-gradient(ellipse at 50% 45%,rgba(8,7,6,0) 40%,rgba(8,7,6,.55) 100%)}
 #sTitle .tspace{flex:1;min-height:40px}
-.ttop{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:clamp(60px,19vh,230px);width:100%}
+.tlead{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:clamp(60px,19vh,230px);width:100%}
 .tlogo{margin:0;font-family:"Cinzel Decorative",Georgia,serif;font-weight:900;line-height:.92;display:flex;flex-direction:column;align-items:center;pointer-events:none;text-transform:none}
 .tlogo .t1{font-size:clamp(44px,9.5vw,112px);color:#f2b230;-webkit-text-stroke:.045em #2a1406;paint-order:stroke fill;letter-spacing:.01em;
   text-shadow:0 .03em 0 #ffe08a,0 .06em 0 #b06a10,0 .09em 0 #5a2c06,0 .12em 0 #1a0a02,0 .2em .35em rgba(0,0,0,.7)}
@@ -135,7 +135,7 @@ button{font:inherit;color:inherit}
 .tmenu .mitem:hover,.tmenu .mitem:focus-visible,.tmenu .mlist:not(:has(.mitem:hover,.mitem:focus-visible,.mitem.pfocus)) .mitem:not([hidden]):first-child,html.padnav .tmenu .mitem:is(.pfocus),html.padnav .tmenu .mlist:not(:has(.mitem:hover,.mitem:is(.pfocus))) .mitem:not([hidden]):first-child{color:#ffd24a;background:none;outline:none!important}
 .tmenu .mitem:hover::after,.tmenu .mitem:focus-visible::after,.tmenu .mlist:not(:has(.mitem:hover,.mitem:focus-visible,.mitem.pfocus)) .mitem:not([hidden]):first-child::after,html.padnav .tmenu .mitem:is(.pfocus)::after,html.padnav .tmenu .mlist:not(:has(.mitem:hover,.mitem:is(.pfocus))) .mitem:not([hidden]):first-child::after{
   content:"";position:absolute;left:12px;top:50%;transform:translateY(-50%);border-left:16px solid #ffd24a;border-top:10px solid transparent;border-bottom:10px solid transparent;filter:drop-shadow(2px 2px 0 #120c08)}
-@media (max-width:640px){.ttop{margin-top:30vh}.tmenu{margin-bottom:4vh}}
+@media (max-width:640px){.tlead{margin-top:30vh}.tmenu{margin-bottom:4vh}}
 #titleHint{position:absolute;left:16px;bottom:calc(12px + env(safe-area-inset-bottom,0px));margin:0;max-width:44ch;text-align:left;font-size:12px;opacity:.75}
 @media (pointer:coarse){#titleHint{display:none}}
 .logo svg{width:.9em;height:.9em;filter:drop-shadow(0 5px 0 #5a0c14)}
@@ -196,7 +196,7 @@ h2.t{font-family:var(--display);font-size:clamp(32px,7vw,52px);margin:0;color:va
 .slot img{width:90%;height:90%;object-fit:contain;pointer-events:none;filter:drop-shadow(0 3px 2px rgba(0,0,0,.5))}
 .slot.ghost img{filter:grayscale(1) brightness(.55);opacity:.32}
 .slot .lv{position:absolute;right:2px;bottom:1px;font-family:var(--display);font-size:12px;color:#fff;text-shadow:0 1px 0 #000,0 0 3px #000}
-.slot.sel::after{content:"";position:absolute;inset:-7px;pointer-events:none;
+.slot.sel::after,html.padnav .slot.pfocus::after{content:"";position:absolute;inset:-7px;pointer-events:none;
   background:linear-gradient(#ffd75a,#ffd75a) 0 0/12px 3px,linear-gradient(#ffd75a,#ffd75a) 0 0/3px 12px,linear-gradient(#ffd75a,#ffd75a) 100% 0/12px 3px,linear-gradient(#ffd75a,#ffd75a) 100% 0/3px 12px,
     linear-gradient(#ffd75a,#ffd75a) 0 100%/12px 3px,linear-gradient(#ffd75a,#ffd75a) 0 100%/3px 12px,linear-gradient(#ffd75a,#ffd75a) 100% 100%/12px 3px,linear-gradient(#ffd75a,#ffd75a) 100% 100%/3px 12px;
   background-repeat:no-repeat;filter:drop-shadow(0 0 4px #ffb31f);animation:selp 1s ease-in-out infinite}
@@ -215,7 +215,17 @@ h2.t{font-family:var(--display);font-size:clamp(32px,7vw,52px);margin:0;color:va
 .mbtn.warn{background:linear-gradient(#ff7a6a,#c0302a)}
 .mbtn[disabled]{opacity:.4;cursor:default}
 /* talents: three columns of medallions joined by a line */
-.ttop{display:flex;align-items:center;gap:14px;padding-right:58px;flex-wrap:wrap}
+.ttop{display:flex;align-items:center;gap:8px 14px;padding-right:58px;flex-wrap:wrap}
+.ttop h2{margin:0}
+/* the hunter's pet, in the talents header */
+.tpet{display:flex;align-items:center;gap:8px;margin-left:auto;min-width:0}
+.tpet img{width:44px;height:44px;object-fit:contain;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5))}
+.tpet b{display:block;font-family:var(--display);font-size:16px;letter-spacing:.04em;color:#ffb26a;font-weight:400;line-height:1.1}
+.tpet small{display:block;font-size:11px;font-weight:800;color:var(--dim);max-width:28ch;line-height:1.3}
+.tpet .pbar{width:120px;height:7px;border-radius:4px;background:#1a1420;overflow:hidden;margin-top:3px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.tpet .pbar i{display:block;height:100%;background:linear-gradient(#ffc27a,#e07a2a)}
+.tpet.none .pbar{display:none}
+@media (max-width:520px){.tpet{margin-left:4px}.tpet img{width:36px;height:36px}.tpet .pbar{width:90px}}
 .trees{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .tree{display:flex;flex-direction:column;align-items:center;position:relative}
 .tree h3{font-size:clamp(14px,3.6vw,20px);color:var(--c);margin-bottom:8px}
@@ -328,7 +338,7 @@ h2.t{font-family:var(--display);font-size:clamp(32px,7vw,52px);margin:0;color:va
 
   <!-- title -->
   <div class="screen" id="sTitle">
-    <div class="ttop">
+    <div class="tlead">
       <h1 class="tlogo" aria-label="Dungeon Heart"><span class="t1">Dungeon</span><span class="t2row"><svg class="tsword" viewBox="0 0 1000 80" preserveAspectRatio="none" aria-hidden="true">
 <defs><linearGradient id="bl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6fa"/><stop offset=".45" stop-color="#c4ccd8"/><stop offset=".55" stop-color="#8a94a6"/><stop offset="1" stop-color="#5a6274"/></linearGradient>
 <linearGradient id="gd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a0"/><stop offset=".5" stop-color="#e8a82a"/><stop offset="1" stop-color="#8a5a10"/></linearGradient></defs>
@@ -420,7 +430,8 @@ h2.t{font-family:var(--display);font-size:clamp(32px,7vw,52px);margin:0;color:va
     <div class="wrapM">
       <div class="frame">
         <button class="xbtn" id="bTalClose" aria-label="Close">&#x2715;</button>
-        <div class="ttop"><h2 id="talTitle">WARRIOR TALENTS</h2><span class="big" id="talPoints" style="color:var(--gold)">POINTS 0</span><button class="mbtn" id="bTalGear" style="font-size:14px;padding:5px 10px">&#x25C0; GEAR</button></div>
+        <div class="ttop"><h2 id="talTitle">WARRIOR TALENTS</h2><span class="big" id="talPoints" style="color:var(--gold)">POINTS 0</span><button class="mbtn" id="bTalGear" style="font-size:14px;padding:5px 10px">&#x25C0; GEAR</button>
+          <div class="tpet" id="talPet" hidden><img alt="" id="talPetPic"><div><b id="talPetName"></b><small id="talPetInfo"></small><div class="pbar"><i id="talPetFill"></i></div></div></div></div>
       </div>
       <div class="frame"><div class="trees" id="trees"></div></div>
       <div class="frame ibox" id="talInfo"></div>
