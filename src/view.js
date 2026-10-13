@@ -234,6 +234,7 @@ export function onEvents(ev, ui) {
   for (const e of ev) {
     switch (e.k) {
       case 'room': onRoom(); ui.roomStart(); break;
+      case 'petfree': burst(ax(e.x), 1.2, az(e.y), '#ffe0a0', 18, 5, 0.9, true, 0.7, -2); ring(ax(e.x), az(e.y), '#ffe0a0', 0.4, 3, 0.5); break;
       case 'hit': {
         const m = V.mons[e.n]; const x = m ? m.root.position.x : ax(e.x), z = m ? m.root.position.z : az(e.y);
         burst(x, 1.5, z, e.crit ? '#ffd36a' : '#fff4d0', e.crit ? 10 : 6, 6, 0.55, true, 0.4);

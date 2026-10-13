@@ -350,6 +350,14 @@ export function pet_max() {
   v += Math.floor(v * T.VITAL / 5);
   return v;
 }
+// set the pet free (the bag screen's button), so another can be tamed
+export function pet_abandon() {
+  if (!g.pet_type) return;
+  set_msg(`${(g.pet_name || D.PET_NAME[g.pet_type]).toUpperCase()} WAS SET FREE`, COL_GOLD);
+  if (!g.pet_down) fx('petfree', { x: g.pet_x, y: g.pet_y });
+  g.pet_type = 0; g.pet_name = ''; g.pet_down = 0; g.pet_hp = 0; g.tame_n = 0;
+  sfx('door');
+}
 function pet_revive() { g.pet_down = 0; g.pet_hp = pet_max(); }
 const has_thorns = () => g.eq_spec[1] === SP_THORNS || g.eq_spec[2] === SP_THORNS || g.eq_spec[5] === SP_THORNS;
 

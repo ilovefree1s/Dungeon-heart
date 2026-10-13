@@ -17,7 +17,7 @@ The whole SNES game (`ilovefree1s/dungeon-loot`, folder `snes/`), rebuilt in 3D:
   (treasure, shrine, fountain, arena, trapped room).
 - A boss every floor behind the door you choose, and the Tower King on floor 50.
 - Gear in 7 slots and 5 rarities, trinkets, the traveling merchant and trade-ups,
-  3 talent trees per class, the hunter's pets.
+  3 talent trees per class, the hunter's pets (named when tamed, set free from the talents screen).
 - Gear stats: every piece rolls up to three of Strength, Dexterity, Intelligence, Stamina and
   Defense (more on rarer gear, mostly your class's main stat). Strength is the warrior's damage,
   Dexterity the hunter's (and crit chance on gear), Intelligence the mage's; the other two help a
@@ -32,8 +32,8 @@ The whole SNES game (`ilovefree1s/dungeon-loot`, folder `snes/`), rebuilt in 3D:
 | Attack | Space, J, Z | A / ✕, X / ▢ | ATTACK |
 | Roll / blink / tame | Shift, K, X, L | B / ○ | the blue button |
 | Potion | Q, E, R | Y / △, Select | POTION |
-| Bag & talents | Tab, I, B | Start | SELECT (or the bag button) |
-| Pause | Esc, P | | START (or the pause button) |
+| Bag & talents | Tab, I, B | Start | START (or the bag button) |
+| Pause | Esc, P | | SELECT (or the pause button) |
 
 ## How it works
 - `src/sim.js` holds the game's rules, ported from the SNES game. It runs 60 steps a

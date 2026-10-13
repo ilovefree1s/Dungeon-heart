@@ -300,8 +300,14 @@ function sellSel() {
 }
 
 // ---------------------------------------------------------------- talents (three trees of medallions)
-function openTal() { sfx('pickup'); show('sTal'); drawTal(); focusSel(); }
+function openTal() { sfx('pickup'); UI.freeArm = 0; show('sTal'); drawTal(); focusSel(); }
 $('bTalClose').onclick = () => closeModal();
+// setting the pet free asks twice (as selling does), then it's gone and another can be tamed
+$('bPetFree').onclick = () => {
+  if (!G.pet_type) return;
+  if (UI.freeArm !== G.pet_type) { UI.freeArm = G.pet_type; sfx('nope'); drawTal(); return; }
+  UI.freeArm = 0; S.pet_abandon(); S.save_game(); drawTal();
+};
 $('bTalGear').onclick = () => { show('sInv'); drawInv(); focusSel(); };
 function drawTal() {
   const cls = G.player_class, wrap = $('trees'), pts = S.tal_avail();
@@ -316,6 +322,8 @@ function drawTal() {
       $('talPetName').textContent = (G.pet_name || D.PET_NAME[pet]).toUpperCase();
       $('talPetInfo').textContent = `${D.PET_NAME[pet]} · ${G.pet_down ? 'DOWN: back next floor, or drink a potion at full HP' : `HP ${G.pet_hp}/${S.pet_max()}`}`;
       $('talPetFill').style.width = (G.pet_down ? 0 : G.pet_hp / S.pet_max() * 100) + '%';
+      const fb = $('bPetFree'), armed = UI.freeArm === pet;
+      fb.textContent = armed ? 'Sure? Tap again' : 'Set free'; fb.classList.toggle('warn', armed);
     } else {
       $('talPetPic').hidden = true;
       $('talPetName').textContent = 'NO PET YET';
@@ -575,7 +583,7 @@ export function frame(dt) {
 $('hPot').onclick = () => { S.drink_potion(); };
 $('hBag').addEventListener('click', () => $('hBag').classList.remove('alert'));
 // the touch controller's SELECT (the bag) and START (pause), as on the SNES pad
-for (const [id, go] of [['tSel', () => openInv()], ['tStart', () => openPause()]]) {
+for (const [id, go] of [['tSel', () => openPause()], ['tStart', () => openInv()]]) {
   const b = $(id);
   b.addEventListener('pointerdown', e => { e.preventDefault(); input.lastDevice = 'touch'; b.classList.add('on'); if (!UI.modal && G.state === 'play') go(); });
   for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => b.classList.remove('on'));
