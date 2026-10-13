@@ -13,13 +13,17 @@ const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', Arr
   KeyQ: 'pot', KeyE: 'pot', KeyR: 'pot', Tab: 'bag', KeyI: 'bag', KeyB: 'bag', Enter: 'ok', NumpadEnter: 'ok', Escape: 'back', Backspace: 'back', KeyP: 'pause' };
 let onAny = () => { };
 export function onFirstInput(f) { onAny = f; }
+// the menu cursor is drawn by the game (html.padnav .pfocus), not left to the browser's focus ring,
+// which Safari never shows for a controller
+function navMode(on) { document.documentElement.classList.toggle('padnav', on); }
+addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' || e.button === 0) navMode(false); }, true);
 addEventListener('keydown', e => {
   const k = KEYMAP[e.code];
   if (!k) return;
   if (e.target && e.target.tagName === 'INPUT' && (e.target.type === 'text' || k === 'left' || k === 'right')) return; // (typing a name)
   e.preventDefault();
   onAny();
-  st.lastDevice = 'kb';
+  st.lastDevice = 'kb'; navMode(true);
   if (!keys[k]) { keys[k] = 1; st.menuEdge.push(k); press(k); }
 });
 addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) { keys[k] = 0; e.preventDefault(); } });
@@ -68,9 +72,12 @@ function pollPad() {
     ok: on(0), back: on(1), lb: on(4), rb: on(5) };
   for (const k in now) {
     if (now[k] && !st.gpPrev[k]) {
-      onAny(); st.lastDevice = 'pad';
+      onAny(); st.lastDevice = 'pad'; navMode(true);
       if (k === 'atk' || k === 'spec' || k === 'pot') press(k);
-      st.menuEdge.push(k === 'atk' ? 'ok' : k === 'spec' ? 'back' : k);
+      // (A is both 'atk' and 'ok', B both 'spec' and 'back': each press counts once in the menus;
+      // X, the other attack button, also confirms)
+      if (k === 'atk') { if (now.atk && !now.ok && !st.gpPrev.ok) st.menuEdge.push('ok'); }
+      else if (k !== 'spec') st.menuEdge.push(k);
     }
   }
   st.gpPrev = now;

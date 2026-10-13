@@ -29,9 +29,23 @@ export function show(id) {
   $('touch').hidden = !!id || !(G.state === 'play');
   $('minimap').hidden = !!id || G.state !== 'play';
   if (id) {
-    setTimeout(() => { const f = firstFocus(); if (f && input.lastDevice !== 'touch') f.focus({ preventScroll: true }); }, 30);
+    setTimeout(() => { const f = firstFocus(); if (f && input.lastDevice !== 'touch') setCur(f, false); }, 30);
   }
   UI.hooks.onModal && UI.hooks.onModal(id);
+}
+// the menu cursor: an element of the open screen, marked .pfocus (and given the browser focus too)
+function setCur(el, scroll = true) {
+  if (!el) return;
+  if (UI.cur && UI.cur !== el) UI.cur.classList.remove('pfocus');
+  UI.cur = el; el.classList.add('pfocus');
+  try { el.focus({ preventScroll: true }); } catch (e) { }
+  if (scroll) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+function curEl() {
+  const s = UI.modal && $(UI.modal);
+  if (!s) return null;
+  for (const c of [UI.cur, document.activeElement]) if (c && s.contains(c) && c.offsetParent !== null && !c.closest('[hidden]')) return c;
+  return null;
 }
 function firstFocus() {
   const s = UI.modal && $(UI.modal);
@@ -43,8 +57,8 @@ function navigate(dir) {
   const s = $(UI.modal);
   if (!s) return;
   const els = [...s.querySelectorAll('button:not([disabled]),input')].filter(e => e.offsetParent !== null && !e.closest('[hidden]'));
-  const cur = document.activeElement && s.contains(document.activeElement) ? document.activeElement : null;
-  if (!cur) { (els[0] || {}).focus && els[0].focus(); return; }
+  const cur = curEl();
+  if (!cur) { setCur(firstFocus() || els[0]); return; }
   const r = cur.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
   let best = null, bd = 1e9;
   for (const e of els) {
@@ -57,7 +71,7 @@ function navigate(dir) {
     const d = main + side * 2.2;
     if (d < bd) { bd = d; best = e; }
   }
-  if (best) { best.focus({ preventScroll: false }); if (best.dataset.focusSel) best.click(); }
+  if (best) { setCur(best); if (best.dataset.focusSel) best.click(); }
   else if (cur.tagName === 'INPUT' && (dir === 'left' || dir === 'right')) { cur.value = +cur.value + (dir === 'right' ? 1 : -1); cur.dispatchEvent(new Event('input')); }
 }
 export function menuStep() {
@@ -70,7 +84,7 @@ export function menuStep() {
       continue;
     }
     if (k === 'up' || k === 'down' || k === 'left' || k === 'right') { navigate(k); continue; }
-    if (k === 'ok') { const a = document.activeElement; if (a && $(UI.modal).contains(a)) { a.click(); } continue; }
+    if (k === 'ok') { const a = curEl(); if (a) a.click(); else setCur(firstFocus()); continue; }
     if (k === 'back' || (k === 'bag' && (UI.modal === 'sInv' || UI.modal === 'sTal'))) { back(); continue; }
     if (k === 'lb' && UI.modal === 'sTal') { $('bTalGear').click(); continue; }
     if (k === 'rb' && UI.modal === 'sInv') { openTal(); continue; }
@@ -229,7 +243,7 @@ function drawInv() {
   $('talPts').textContent = pts ? pts : '';
   drawInfo();
 }
-function focusSel() { setTimeout(() => { const s = $(UI.modal || 'sInv').querySelector('.sel'); if (s && input.lastDevice !== 'touch') s.focus({ preventScroll: true }); }, 0); }
+function focusSel() { setTimeout(() => { const s = $(UI.modal || 'sInv').querySelector('.sel'); if (s && input.lastDevice !== 'touch') setCur(s, false); }, 0); }
 // the box under the screen: what the picked item is, and what you can do with it
 function itemLines(kind, rar, lv, spec, val, worn, sa, sk) {
   const stats = statHTML(sa, sk);
@@ -348,7 +362,7 @@ function drawShop(focusK) {
   const lv = document.createElement('button'); lv.className = 'ware cmd'; lv.innerHTML = '<b>Leave</b>';
   lv.onclick = () => leaveShop();
   list.append(tr, lv);
-  if (focusK !== undefined && input.lastDevice !== 'touch') list.children[focusK].focus();
+  if (focusK !== undefined && input.lastDevice !== 'touch') setCur(list.children[focusK], false);
 }
 function leaveShop() { S.shop_close(); show(null); }
 
