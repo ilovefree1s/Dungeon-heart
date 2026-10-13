@@ -151,6 +151,11 @@ export function map_at(x, y) {
 export function blocked(x, y) {
   return wsolid(x + 3, y + 6) || wsolid(x + 12, y + 6) || wsolid(x + 3, y + 15) || wsolid(x + 12, y + 15);
 }
+// monsters: walls, and in a dungeon the doorways too (a knock-back mustn't shove them out of the room)
+function mblocked(x, y) {
+  if (g.mode === 'dungeon' && (x < 13 || x > 227 || y < PLAY_Y + 10 || y > PLAY_Y + 144)) return true;
+  return blocked(x, y);
+}
 function blocked32(x, y) {
   return solid(x + 4, y + 10) || solid(x + 16, y + 10) || solid(x + 27, y + 10) || solid(x + 4, y + 31) || solid(x + 16, y + 31) || solid(x + 27, y + 31);
 }
@@ -316,8 +321,8 @@ function mon_step(n, dx, dy) {
   if (dx === 1) ++x; else if (dx === 2) --x;
   if (dy === 1) ++y; else if (dy === 2) --y;
   let moved = 0;
-  if (x !== g.m_x[n] && !blocked(x, g.m_y[n])) { g.m_x[n] = x; moved = 1; }
-  if (y !== g.m_y[n] && !blocked(g.m_x[n], y)) { g.m_y[n] = y; moved = 1; }
+  if (x !== g.m_x[n] && !mblocked(x, g.m_y[n])) { g.m_x[n] = x; moved = 1; }
+  if (y !== g.m_y[n] && !mblocked(g.m_x[n], y)) { g.m_y[n] = y; moved = 1; }
   return moved;
 }
 function mon_unstick(n, moved) {
@@ -565,8 +570,8 @@ function ex_step(n, dx, dy) {
   let x = g.m_x[n], y = g.m_y[n];
   if (dx === 1) ++x; else if (dx === 2) --x;
   if (dy === 1) ++y; else if (dy === 2) --y;
-  if (x !== g.m_x[n] && !blocked(x, g.m_y[n])) g.m_x[n] = x;
-  if (y !== g.m_y[n] && !blocked(g.m_x[n], y)) g.m_y[n] = y;
+  if (x !== g.m_x[n] && !mblocked(x, g.m_y[n])) g.m_x[n] = x;
+  if (y !== g.m_y[n] && !mblocked(g.m_x[n], y)) g.m_y[n] = y;
 }
 function ex_float(n, dx, dy) {
   if (dx === 1 && g.m_x[n] < 224) ++g.m_x[n]; else if (dx === 2 && g.m_x[n] > 16) --g.m_x[n];
@@ -2468,6 +2473,11 @@ export function tick(pad = 0, padNew = 0) {
   if (g.state !== 'play') return;
   update_monsters();
   update_monsters_ex();
+  // (in a dungeon nothing leaves the room: fliers and knock-backs stay inside its walls; x is a byte, so -3 reads 253)
+  if (g.mode === 'dungeon') for (let n = 0; n < MAXM; ++n) if (g.m_type[n]) {
+    const x = g.m_x[n] > 240 ? 13 : g.m_x[n];
+    g.m_x[n] = Math.max(13, Math.min(227, x)); g.m_y[n] = Math.max(PLAY_Y + 10, Math.min(PLAY_Y + 144, g.m_y[n]));
+  }
   if (g.pet_type && !g.pet_down) update_pet();
   update_projectiles();
   update_bolts();

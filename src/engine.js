@@ -449,6 +449,19 @@ export function torch(x, z, rotY, th) {
   R.torches.push({ fl, core, light, halo, ph: Math.random() * 10 });
 }
 
+// a dungeon's objects, each made once out of sight when it starts, so the GPU prepares their materials
+// then and not with a hitch the first time one shows up (a crystal, the great chest, a lock...)
+export function prewarmDungeon(G) {
+  const th = THEMES[G.theme];
+  const types = [D.OBJ_CHEST, D.OBJ_BIGCHEST, D.OBJ_BLOCK, D.OBJ_PLATE, D.OBJ_CRYSTAL, D.OBJ_BOMBWALL, D.OBJ_FOUNTAIN];
+  const fake = { ob_k: types.map((_, i) => 16 * 5 + 2 + i), ob_t: types, map: new Uint8Array(176), theme: G.theme };
+  const grp = new THREE.Group(); grp.position.y = -200; scene.add(grp);
+  types.forEach((_, k) => { const o = buildObject(fake, k, th); roomGroup.remove(o.g); grp.add(o.g); });
+  grp.add(lockIcon(false), lockIcon(true));
+  try { renderer.compile(scene, camera); } catch (e) { }
+  scene.remove(grp);
+  grp.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+}
 const lockIcons = {};
 function lockIcon(boss) {
   if (!lockIcons[boss]) {

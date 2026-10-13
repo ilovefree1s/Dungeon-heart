@@ -99,6 +99,8 @@ export function playDungeon(seedText, cls = 0, maxFrames = 60 * 60 * 30) {
         const ax = dx >= 0 ? -1 : 1, ay = dy >= 0 ? -1 : 1;
         const bx = S.blocked(G.px + ax * 2, G.py) ? (G.px < 112 ? 1 : -1) : ax, by = S.blocked(G.px, G.py + ay * 2) ? (G.py < PLAY_Y + 80 ? 1 : -1) : ay;
         pad |= bx > 0 ? PADS.right : PADS.left; pad |= by > 0 ? PADS.down : PADS.up;
+        // (pinned in a corner: roll or blink out toward the middle, as a player would)
+        if (G.pet_type === 0 && (frames & 63) === 0) padNew |= S.PAD_A;
       } else if (dist < (G.boss_on ? 30 : 20)) {
         face(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? D.DIR_RIGHT : D.DIR_LEFT) : (dy > 0 ? D.DIR_DOWN : D.DIR_UP));
         if (!G.atk_timer && !G.swing_cd) padNew |= S.PAD_B;

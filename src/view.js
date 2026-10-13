@@ -2,7 +2,7 @@
 //  DUNGEON HEART  -  view: draws the game's state (sim.js) in 3D each frame,
 //  and turns its events into particles, flashes, shakes and numbers.
 // ============================================================================
-import { THREE, scene, camera, TEX, TAU, V3, R, ax, az, wx, wz, PX, CELL, buildRoom, placeCamera, shake, camSlide, hemi, sun, roomGroup,
+import { THREE, scene, camera, TEX, TAU, V3, R, ax, az, wx, wz, PX, CELL, buildRoom, placeCamera, shake, camSlide, prewarmDungeon, hemi, sun, roomGroup,
   textSprite, std, mesh, sph, THEMES, view as camView, IS_TOUCH, GlowLight } from './engine.js';
 import { buildPet } from './pets.js';
 import { buildTitleWorld } from './titlescene.js';
@@ -324,7 +324,7 @@ export function onEvents(ev, ui) {
   V.ui = ui;
   for (const e of ev) {
     switch (e.k) {
-      case 'room': onRoom(e.dg ? e.from : -2); ui.roomStart(); break;
+      case 'room': onRoom(e.dg ? e.from : -2); if (e.dg && V.warmed !== G.dg_seed_text + G.dg_no) { V.warmed = G.dg_seed_text + G.dg_no; prewarmDungeon(G); } ui.roomStart(); break;
       // a dungeon door opened, a chest appeared: the room's stonework is rebuilt (the monsters stay)
       case 'dgdoor': case 'dgref': buildRoom(G, V.roomSeed); ui.drawMinimap && ui.drawMinimap(); if (e.k === 'dgdoor' && e.d >= 0) { const c = [7, 95, 167, 80][e.d]; burst(wx((c & 15) * 16 + 8), 2, wz(D.PLAY_Y + (c >> 4) * 16 + 8), '#ffd36a', 16, 5, 0.7, true, 0.5); } break;
       case 'objmove': { const o = R.objs[e.k]; if (o) { o.from = o.g.position.clone(); o.moveT = 0; const c = G.ob_k[e.k]; o.to = new THREE.Vector3(wx((c & 15) * 16 + 8), 0, wz(D.PLAY_Y + (c >> 4) * 16 + 8)); } break; }
