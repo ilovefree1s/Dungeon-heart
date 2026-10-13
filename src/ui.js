@@ -515,7 +515,7 @@ function stepNums(dt) {
   }
 }
 const touchUI = () => input.lastDevice === 'touch';
-export function dgFound(c) {
+export function dgFound(c, v) {
   const how = touchUI() ? 'the green button' : (input.lastDevice === 'pad' ? 'X' : 'F or C');
   const swap = touchUI() ? 'the small arrows' : (input.lastDevice === 'pad' ? 'LB / RB' : 'V');
   const t = {
@@ -523,6 +523,9 @@ export function dgFound(c) {
     [DG.C_BOMBS]: ['BLAST BOMBS', `Set one down with ${how}. Stand clear! They open cracked walls.`],
     [DG.C_BIGKEY]: ['THE BIG KEY', 'It opens the keeper\'s door.'],
     [DG.C_MAP]: ['THE DUNGEON MAP', 'Every room is on your map now (the map button, M or Select).'],
+    [DG.C_KEY]: ['A SMALL KEY', 'It opens one door with a padlock. Keys: ' + G.dg_keys],
+    [DG.C_GEAR]: ['TREASURE', 'Gear fell out of the chest: walk over it to take it.'],
+    [DG.C_GOLD]: ['+' + (v || 0) + ' GOLD', 'Spend it at the merchant after the keeper.'],
   }[c];
   if (t) banner(t[0], t[1], 3.2);
 }

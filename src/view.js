@@ -8,6 +8,7 @@ import { buildPet } from './pets.js';
 import { buildTitleWorld } from './titlescene.js';
 import { buildHero, equipHeroWeapon, equipHeroGear, animHero, buildMonster, buildBoss, buildKingWizard, buildWife, buildMerchant, buildItem, makeFlashable } from './models.js';
 import * as D from './data.js';
+import * as DG from './dungeon.js';
 import { sfx } from './audio.js';
 import { G, faded, tame_zone, ANIM_LEN, ANIM_SHOT, slash_index, TAL } from './sim.js';
 
@@ -114,6 +115,47 @@ function boltColor() {
   if (t[0] >= t[1] && t[0] >= t[2]) return '#ff7a2a';
   if (t[1] >= t[2]) return '#7ad8ff';
   return '#c27cff';
+}
+
+// ---------------------------------------------------------------- what a chest gave: its picture rises out of it
+const riseIcons = [];
+const riseTex = {};
+function iconTex(c) {
+  if (riseTex[c]) return riseTex[c];
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d');
+  // a soft gold halo behind every prize
+  const gr = x.createRadialGradient(64, 64, 8, 64, 64, 62); gr.addColorStop(0, 'rgba(255,230,140,.85)'); gr.addColorStop(1, 'rgba(255,200,80,0)');
+  x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+  x.lineJoin = 'round'; x.lineCap = 'round';
+  const key = (col, big) => {
+    const s = big ? 1.15 : 1; x.save(); x.translate(64, 64); x.scale(s, s); x.rotate(-0.6);
+    x.strokeStyle = '#3a2408'; x.lineWidth = 16; x.beginPath(); x.arc(-22, 0, 16, 0, 7); x.moveTo(-6, 0); x.lineTo(40, 0); x.moveTo(30, 0); x.lineTo(30, 14); x.moveTo(40, 0); x.lineTo(40, 12); x.stroke();
+    x.strokeStyle = col; x.lineWidth = 9; x.beginPath(); x.arc(-22, 0, 16, 0, 7); x.moveTo(-6, 0); x.lineTo(40, 0); x.moveTo(30, 0); x.lineTo(30, 14); x.moveTo(40, 0); x.lineTo(40, 12); x.stroke();
+    if (big) { x.fillStyle = '#ff3a4a'; x.beginPath(); x.arc(-22, 0, 7, 0, 7); x.fill(); }
+    x.restore();
+  };
+  if (c === DG.C_KEY) key('#e8e2d6');
+  else if (c === DG.C_BIGKEY) key('#ffd24a', true);
+  else if (c === DG.C_MAP) { x.fillStyle = '#3a2408'; x.fillRect(22, 30, 84, 68); x.fillStyle = '#e8d2a0'; x.fillRect(27, 35, 74, 58); x.strokeStyle = '#7a5a30'; x.lineWidth = 4; x.beginPath(); x.moveTo(52, 35); x.lineTo(52, 93); x.moveTo(76, 35); x.lineTo(76, 93); x.stroke(); x.fillStyle = '#c0202a'; x.font = '900 30px sans-serif'; x.textAlign = 'center'; x.fillText('✕', 64, 75); }
+  else if (c === DG.C_BOMBS) { x.fillStyle = '#2a2a34'; x.beginPath(); x.arc(60, 72, 30, 0, 7); x.fill(); x.strokeStyle = '#8a8a9a'; x.lineWidth = 3; x.stroke(); x.fillStyle = '#5a5a64'; x.fillRect(52, 34, 16, 10); x.strokeStyle = '#c8a070'; x.lineWidth = 5; x.beginPath(); x.moveTo(62, 34); x.quadraticCurveTo(70, 20, 84, 22); x.stroke(); x.fillStyle = '#ffd36a'; x.beginPath(); x.arc(86, 21, 7, 0, 7); x.fill(); }
+  else if (c === DG.C_BOOMERANG) { x.translate(64, 64); x.rotate(-0.4); x.fillStyle = '#5a6070'; x.beginPath(); x.moveTo(-46, 30); x.quadraticCurveTo(-20, -10, 40, -40); x.quadraticCurveTo(10, -6, 0, 40); x.quadraticCurveTo(-20, 26, -46, 30); x.fill(); x.fillStyle = '#e4e8f0'; x.beginPath(); x.moveTo(-40, 26); x.quadraticCurveTo(-16, -6, 34, -34); x.quadraticCurveTo(6, -4, -2, 34); x.quadraticCurveTo(-20, 22, -40, 26); x.fill(); x.fillStyle = '#f0b73c'; x.beginPath(); x.arc(-8, 6, 9, 0, 7); x.fill(); x.fillStyle = '#40e0ff'; x.beginPath(); x.arc(-8, 6, 4, 0, 7); x.fill(); }
+  else { for (let i = 0; i < 5; i++) { const cx = 40 + (i % 3) * 22, cy = 80 - Math.floor(i / 3) * 18; x.fillStyle = '#8a5a00'; x.beginPath(); x.ellipse(cx, cy + 3, 18, 10, 0, 0, 7); x.fill(); x.fillStyle = '#f5c242'; x.beginPath(); x.ellipse(cx, cy, 18, 10, 0, 0, 7); x.fill(); } }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  return (riseTex[c] = t);
+}
+function riseIcon(c, x, z) {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: iconTex(c), transparent: true, depthWrite: false, depthTest: false }));
+  sp.position.set(x, 2.5, z); sp.scale.setScalar(0.5); sp.renderOrder = 20; scene.add(sp);
+  riseIcons.push({ sp, t: 0 });
+}
+function stepRise(dt) {
+  for (let i = riseIcons.length - 1; i >= 0; i--) {
+    const r = riseIcons[i]; r.t += dt;
+    const k = Math.min(1, r.t / 0.5);
+    r.sp.position.y = 2.5 + k * 3.5; r.sp.scale.setScalar(0.5 + k * 2.6);
+    r.sp.material.opacity = r.t < 1.6 ? 1 : Math.max(0, 1 - (r.t - 1.6) / 0.5);
+    if (r.t > 2.1) { scene.remove(r.sp); r.sp.material.dispose(); riseIcons.splice(i, 1); }
+  }
 }
 
 // ---------------------------------------------------------------- the dungeon items in the world
@@ -286,7 +328,7 @@ export function onEvents(ev, ui) {
       // a dungeon door opened, a chest appeared: the room's stonework is rebuilt (the monsters stay)
       case 'dgdoor': case 'dgref': buildRoom(G, V.roomSeed); ui.drawMinimap && ui.drawMinimap(); if (e.k === 'dgdoor' && e.d >= 0) { const c = [7, 95, 167, 80][e.d]; burst(wx((c & 15) * 16 + 8), 2, wz(D.PLAY_Y + (c >> 4) * 16 + 8), '#ffd36a', 16, 5, 0.7, true, 0.5); } break;
       case 'objmove': { const o = R.objs[e.k]; if (o) { o.from = o.g.position.clone(); o.moveT = 0; const c = G.ob_k[e.k]; o.to = new THREE.Vector3(wx((c & 15) * 16 + 8), 0, wz(D.PLAY_Y + (c >> 4) * 16 + 8)); } break; }
-      case 'dgget': ui.drawMinimap && ui.drawMinimap(); ui.dgFound && ui.dgFound(e.c); burst(ax(e.x), 3, az(e.y), '#ffe9a0', 30, 6, 1.0, true, 0.9, -1); ring(ax(e.x), az(e.y), '#ffd36a', 0.5, 6, 0.6); ui.flash && ui.flash('#fff2c0', 0.25); break;
+      case 'dgget': ui.drawMinimap && ui.drawMinimap(); ui.dgFound && ui.dgFound(e.c, e.v); riseIcon(e.c, ax(e.x), az(e.y)); burst(ax(e.x), 3, az(e.y), '#ffe9a0', 30, 6, 1.0, true, 0.9, -1); ring(ax(e.x), az(e.y), '#ffd36a', 0.5, 6, 0.6); ui.flash && ui.flash('#fff2c0', 0.25); break;
       case 'bstun': if (V.boss) { const p = V.boss.position; burst(p.x, 7, p.z, '#ffe080', 14, 3, 0.8, true, 0.8, 0); } break;
       case 'stun': { const m = V.mons[e.n]; if (m) burst(m.root.position.x, 2.6, m.root.position.z, '#ffe080', 8, 2.5, 0.6, true, 0.6, 0); break; }
       case 'bombset': break;
@@ -595,7 +637,7 @@ export function update(dt, input) {
     const ot = G.ob_t[o.k];
     if (o.moveT !== undefined && o.moveT < 1) { o.moveT = Math.min(1, o.moveT + dt * 5); o.g.position.lerpVectors(o.from, o.to, o.moveT); }
     if (o.t === D.OBJ_BIGCHEST || o.t === D.OBJ_BIGCHEST_OPEN) {
-      if (ot === D.OBJ_BIGCHEST_OPEN) { o.parts.lidG.rotation.x = smooth(o.parts.lidG.rotation.x, -1.9, dt, 5); o.parts.shine.material.opacity = 0.1; }
+      if (ot === D.OBJ_BIGCHEST_OPEN) { o.parts.lidG.rotation.x = smooth(o.parts.lidG.rotation.x, -1.25, dt, 5); o.parts.shine.material.opacity = 0.1; }
       else o.parts.shine.material.opacity = 0.35 + Math.sin(t * 3) * 0.12;
     } else if (o.parts.gemC) {
       const on = ot === D.OBJ_CRYSTAL_ON;
@@ -606,7 +648,7 @@ export function update(dt, input) {
       o.parts.plate.position.y = on ? 0.03 : 0.09; o.parts.mark.material.color.set(on ? '#7dff86' : '#ffcf6a');
     } else if (o.parts.wall) { if (ot === D.OBJ_GONE) o.g.visible = false; }
     else if (o.t === D.OBJ_CHEST || o.t === D.OBJ_CHEST_OPEN || ot === D.OBJ_CHEST_OPEN) {
-      if (ot === D.OBJ_CHEST_OPEN && o.parts.lidG) { o.parts.lidG.rotation.x = smooth(o.parts.lidG.rotation.x, -1.9, dt, 6); o.parts.shine.material.opacity = 0.1; }
+      if (ot === D.OBJ_CHEST_OPEN && o.parts.lidG) { o.parts.lidG.rotation.x = smooth(o.parts.lidG.rotation.x, -1.25, dt, 6); o.parts.shine.material.opacity = 0.1; if (o.parts.glowIn) o.parts.glowIn.material.opacity = 0.35 + Math.sin(t * 3) * 0.1; }
       if (ot === D.OBJ_GONE) o.g.visible = false;
       else if (o.parts.shine) o.parts.shine.material.opacity = ot === D.OBJ_CHEST ? 0.3 + Math.sin(t * 3) * 0.1 : 0.05;
     } else if (o.parts.orb) {
@@ -639,7 +681,7 @@ export function update(dt, input) {
   stepParts(dt); stepRings(dt); stepLightning(dt);
   if (shake.t > 0) shake.t -= dt;
   // the dungeon items: the boomerang spinning out and back, bombs with lit fuses
-  updateItems(dt, t);
+  updateItems(dt, t); stepRise(dt);
   camSlide.multiplyScalar(Math.max(0, 1 - dt * 7));
   placeCamera(V.heroPos.x, V.heroPos.z, false);
 }

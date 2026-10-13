@@ -2702,7 +2702,9 @@ function dg_open_chest(k, cx, cy) {
   g.ob_t[k] = g.ob_t[k] === OBJ_BIGCHEST ? OBJ_BIGCHEST_OPEN : OBJ_CHEST_OPEN;
   fx('obj', { k });
   // a treasure room's second chest: gold
-  if ((g.dg_flags[g.dg_room] & F_TAKEN) || !r.content) { drop_gold(cx + 4, cy + 20, 5 + DEPTH() * 2); set_msg('TREASURE!', COL_GOLD); sfx('coin'); return; }
+  // (gold goes straight into your purse, so you see what you got)
+  const gold = v => { v += Math.floor(v * T.TREASURE / 5); g.gold += v; return v; };
+  if ((g.dg_flags[g.dg_room] & F_TAKEN) || !r.content) { const v = gold(5 + DEPTH() * 2); set_msg(`+${v} GOLD`, COL_GOLD); sfx('coin'); fx('dgget', { c: DG.C_GOLD, v, x: cx, y: cy }); return; }
   g.dg_flags[g.dg_room] |= F_TAKEN;
   let s;
   switch (r.content) {
@@ -2715,8 +2717,8 @@ function dg_open_chest(k, cx, cy) {
     case DG.C_BOOMERANG:
       g.dg_items |= DG.I_BOOMERANG; g.dg_item = DG.I_BOOMERANG;
       s = 'THE RETURN BLADE! THROW IT WITH ITEM'; break;
-    case DG.C_GEAR: drop_gear(cx + 4, cy + 20, 2); s = 'TREASURE!'; break;
-    default: drop_gold(cx + 4, cy + 20, 10 + DEPTH() * 3); s = 'TREASURE!';
+    case DG.C_GEAR: drop_gear(cx + 4, cy + 20, 2); s = 'TREASURE! GEAR FELL OUT'; break;
+    default: { const v = gold(10 + DEPTH() * 3); s = `+${v} GOLD`; fx('dgget', { c: DG.C_GOLD, v, x: cx, y: cy }); set_msg(s, COL_GOLD); sfx('coin'); save_game(); return; }
   }
   set_msg(s, COL_GOLD, 260);
   sfx(r.content === DG.C_BOOMERANG || r.content === DG.C_BOMBS || r.content === DG.C_BIGKEY ? 'legend' : 'rare');

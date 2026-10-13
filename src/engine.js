@@ -755,7 +755,11 @@ function buildObject(G, k, th) {
     const lock = mesh(new THREE.BoxGeometry(0.4, 0.45, 0.12), gold); lock.position.set(0, 1.2, 0.84); g.add(lock);
     const shine = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.soft, color: '#ffd36a', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.35 }));
     shine.scale.set(4, 4, 1); shine.position.y = 1; g.add(shine);
-    o.parts = { lidG, shine };
+    // inside: dark wood and a glow (seen once it's open)
+    const inside = mesh(new THREE.BoxGeometry(2.1, 0.05, 1.3), std({ color: '#2a1608', roughness: 0.9 }), false); inside.position.y = 1.31; g.add(inside);
+    const glowIn = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 1.2), new THREE.MeshBasicMaterial({ color: '#ffd36a', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    glowIn.rotation.x = -Math.PI / 2; glowIn.position.y = 1.34; g.add(glowIn);
+    o.parts = { lidG, shine, glowIn };
   } else if (t === D.OBJ_SHRINE || t === D.OBJ_SHRINE_USED) {
     const stone = std({ color: '#a89c8c', roughness: 0.7 });
     const base = mesh(new THREE.CylinderGeometry(1.3, 1.5, 0.7, 8), stone); base.position.y = 0.35; g.add(base);
