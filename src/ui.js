@@ -425,6 +425,7 @@ function drawShop(focusK) {
   const lv = document.createElement('button'); lv.className = 'ware cmd'; lv.innerHTML = '<b>Leave</b>';
   lv.onclick = () => leaveShop();
   list.append(tr, lv);
+  ctlBar('shopCtl', [['dpad', 'CHOOSE'], ['a', 'BUY'], ['b', 'LEAVE']]);
   if (focusK !== undefined && input.lastDevice !== 'touch') setCur(list.children[focusK], false);
 }
 function leaveShop() { S.shop_close(); show(null); }
@@ -432,6 +433,7 @@ function leaveShop() { S.shop_close(); show(null); }
 // ---------------------------------------------------------------- trade up: pick from the bag, get one better
 $('bTradeBack').onclick = () => openShopScreen();
 function drawTrade() {
+  ctlBar('tradeCtl', [['dpad', 'CHOOSE'], ['a', 'PICK / TRADE'], ['b', 'BACK']]);
   $('tradeGold').innerHTML = coinTxt(G.gold);
   const marks = [...UI.marks];
   const rar = marks.length ? G.b_rar[marks[0]] : -1;
@@ -640,6 +642,13 @@ function padStyle() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   for (const p of pads) if (p && p.connected) return /054c|playstation|dualsense|dualshock|wireless controller/i.test(p.id) ? 'ps' : 'xbox';
   return 'xbox';
+}
+// a screen's button row: [[button, what it does]], buttons 'a' 'b' 'x' 'y' 'dpad'; keyboard keys after a key press
+function ctlBar(id, rows) {
+  const F = PAD_FACE[padStyle()], kb = input.lastDevice === 'kb' && !(navigator.getGamepads && [...navigator.getGamepads()].some(p => p && p.connected));
+  const FACE = { y: 0, x: 1, b: 2, a: 3 }, KEY = { a: 'ENTER', b: 'ESC', x: 'F', y: 'Q', dpad: '↑ ↓ ← →' };
+  const chip = k => kb ? `<i class="sm">${KEY[k]}</i>` : k === 'dpad' ? '<i class="sm">✚</i>' : `<i style="background:${F.c[FACE[k]]}">${F.n[FACE[k]]}</i>`;
+  $(id).innerHTML = rows.map(([k, t]) => `<span>${chip(k)}${t}</span>`).join('');
 }
 function drawPadHelp() {
   const el = $('padHelp');

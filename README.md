@@ -32,7 +32,7 @@ dungeon, the same one every time (share a seed with a friend):
   explore (a map chest shows it all).
 - Small keys open locked doors, a big key opens the keeper's door; secret rooms hide behind cracked walls.
 - Items, each found in a chest: **Blast Bombs** (blow open cracked walls) and the **Return Blade** (a
-  boomerang: stuns enemies, fetches loot, trips crystal switches across pits). The keeper is weak to it.
+  boomerang: stuns enemies, fetches loot, trips crystal switches across pits). The keeper is too strong for it: the blade glances off.
 - Guard rooms bar their doors until they're clear; block puzzles, spike halls, treasure rooms.
 - Beat the keeper and the stairs lead to the next dungeon.
 

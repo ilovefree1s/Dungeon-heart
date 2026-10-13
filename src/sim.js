@@ -1857,8 +1857,9 @@ function pet_step(gx, gy) {
 }
 function pet_hurt(atk) {
   if (g.pet_type === M_SLIME) atk >>= 1;
-  const def = Math.floor(total_def() / (FINE * 2));
-  const d = atk > def ? atk - def : 1;
+  // the pet wears your armor the way you do (hurt_player's sum), then shrugs off half of what gets through
+  const q = atk * FINE + total_def();
+  const d = Math.max(1, Math.round(atk * atk * FINE / q / 2));
   g.pet_inv = 40;
   sfx('hurt'); fx('pethurt', { d });
   if (g.pet_hp > d) { g.pet_hp -= d; return; }
@@ -2877,11 +2878,10 @@ function update_items() {
       fx('stun', { n });
       g.bm_back = 1;
     }
-    // the keeper: stunned (its weakness)
+    // the keeper: too strong to stun, the blade glances off
     if (g.boss_on && !(g.bm_hit & 64) && bx + 7 >= g.bx + 3 - g.bhw && bx <= g.bx + 28 + g.bhw && by + 7 >= g.by + 4 - g.bhh && by <= g.by + 30) {
       g.bm_hit |= 64; g.bm_back = 1;
-      if (g.bstate !== BS_STUN) { boss_stun(-90); // (a stun counts up to 40-60 frames: this is about 2.5 s)
-        set_msg('STUNNED! STRIKE NOW!', COL_GOLD); sfx('crit'); fx('bstun'); }
+      set_msg('THE BLADE GLANCES OFF!', COL_WHITE); sfx('block');
     }
     // loot rides home on it
     if (!g.bm_item) for (let n = 0; n < MAXI; ++n) {

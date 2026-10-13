@@ -109,15 +109,15 @@ ok(G.dg_dk.some(k => k === D.DK_OPEN), 'the entrance has an open door');
     ok(!G.dg_dk.some(k => k === D.DK_SHUT), 'and the doors open');
   }
 }
-// the keeper: the boomerang stuns it; beaten, stairs lead to the next dungeon
+// the keeper: the boomerang glances off (no stun); beaten, stairs lead to the next dungeon
 {
   const kr = G.dg.rooms[G.dg.boss];
   goTo(kr.id);
   ok(G.boss_on, 'the keeper is there');
   G.px = G.bx - 30; G.py = G.by + 8; S.faceDir(D.DIR_RIGHT); G.dg_item = DG.I_BOOMERANG;
   step(1, 0, S.PAD_X);
-  let stunned = false; for (let i = 0; i < 40 && !stunned; i++) { step(1); stunned = G.bstate === D.BS_STUN; }
-  ok(stunned, 'the boomerang stuns the keeper');
+  let stunned = false, glanced = false; for (let i = 0; i < 40; i++) { const b = G.bstate; step(1); stunned ||= G.bstate === D.BS_STUN && b !== D.BS_STUN && G.btimer < 0; glanced ||= G.msg === 'THE BLADE GLANCES OFF!'; }
+  ok(glanced && !stunned, 'the boomerang glances off the keeper');
   G.bhp = 1; G.px = G.bx - 14; G.py = G.by + 10; S.faceDir(D.DIR_RIGHT);
   for (let i = 0; i < 60 && G.boss_on; i++) { G.swing_cd = 0; G.atk_timer = 0; step(1, S.PAD_B, S.PAD_B); step(14); }
   ok(!G.boss_on && G.map[G.door_pos] === D.T_STAIRS, 'beaten: stairs appear');

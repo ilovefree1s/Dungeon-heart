@@ -91,9 +91,7 @@ export function playDungeon(seedText, cls = 0, maxFrames = 60 * 60 * 30) {
     if (foes.length) {
       const [mx, my] = foes.sort((a, b) => Math.hypot(a[0] - G.px, a[1] - G.py) - Math.hypot(b[0] - G.px, b[1] - G.py))[0];
       const dx = mx - G.px, dy = my - G.py, dist = Math.abs(dx) + Math.abs(dy);
-      if (G.boss_on && (G.dg_items & DG.I_BOOMERANG) && G.bstate !== D.BS_STUN && !G.bm_t && dist < 120 && (Math.abs(dy) < 10 || Math.abs(dx) < 10)) {
-        G.dg_item = DG.I_BOOMERANG; face(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? D.DIR_RIGHT : D.DIR_LEFT) : (dy > 0 ? D.DIR_DOWN : D.DIR_UP)); padNew |= S.PAD_X;
-      } else if (!G.boss_on && dist < 9) {
+      if (!G.boss_on && dist < 9) {
         // right on top of it: the swing goes over its head; step back first
         // (toward the middle of the room if a wall is behind you)
         const ax = dx >= 0 ? -1 : 1, ay = dy >= 0 ? -1 : 1;
