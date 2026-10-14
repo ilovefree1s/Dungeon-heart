@@ -49,12 +49,12 @@ the boomerang, the grapple chain, block puzzles, the keeper); `node tests/dgmech
 | | Keyboard | Controller | Phone |
 |---|---|---|---|
 | Move | WASD / arrows | left stick / d-pad | the stick |
-| Attack | Space, J, Z | A / ✕, X / ▢ | ATTACK |
-| Roll / blink / tame | Shift, K, X, L | B / ○ | the blue button |
-| Potion | Q, E, R | Y / △, Select | POTION |
-| Dungeon item (use / switch) | F or C / V | X / LB, RB | the green button / the small arrows |
+| Attack | Space, J, Z | X / ▢ (and A / ✕ until you carry a dungeon item) | ATTACK |
+| Roll / blink / tame | Shift, K, X, L | Y / △ | the blue button |
+| Potion | Q, E, R | B / ○, Select | POTION |
+| Dungeon item (use / switch) | F or C / V | A / ✕ / LB, RB | the green button / the small arrows |
 | Dungeon map | M | Select (in a dungeon) | the map button |
-| Bag & talents | Tab, I, B | Start | START (or the bag button) |
+| Bag & talents | Tab, I, B | Start (in menus: A / ✕ picks, B / ○ backs out, Y / △ sells) | START (or the bag button) |
 | Pause | Esc, P | | SELECT (or the pause button) |
 
 ## How it works

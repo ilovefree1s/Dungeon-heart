@@ -62,8 +62,10 @@ export function initTouch() {
   btn('tAtk', PAD_B, 'tAtk'); btn('tSpec', PAD_A, 'tSpec'); btn('tPot', PAD_SELECT, 'tPot'); btn('tItem', PAD_X, 'tItem'); btn('tSwap', PAD_L, 'tSwap');
 }
 
-// controllers (standard mapping): A / cross attack, B / circle special, X / square attack (in a dungeon with an
-// item: the item), Y / triangle potion, LB / RB switch items, select potion, start bag; d-pad or left stick
+// controllers (standard mapping, by where the button sits): left (X / square) attacks; bottom (A / cross) uses the
+// dungeon item (attacks until you have one); top (Y / triangle) rolls, blinks or tames; right (B / circle) drinks
+// a potion; LB / RB switch items, select potion (the map in a dungeon), start the bag; d-pad or left stick.
+// In menus: bottom or left confirms, right goes back, top sells (in the bag).
 let gp = null;
 function pollPad() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -74,20 +76,18 @@ function pollPad() {
   const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
   const im = itemMode();
   const dgm = G.mode === 'dungeon';
-  const now = { atk: on(0) || (on(2) && !im), item: on(2) && im, swap: (on(4) || on(5)) && im, spec: on(1), pot: on(3) || (on(8) && !dgm), map: on(8) && dgm, bag: on(9), up: on(12) || ay < -0.5, down: on(13) || ay > 0.5, left: on(14) || ax < -0.5, right: on(15) || ax > 0.5,
-    ok: on(0), back: on(1), lb: on(4), rb: on(5) };
-  for (const k in now) {
-    if (now[k] && !st.gpPrev[k]) {
-      onAny(); st.lastDevice = 'pad'; navMode(true);
-      if (k === 'atk' || k === 'spec' || k === 'pot' || k === 'item' || k === 'swap') press(k);
-      // (A is both 'atk' and 'ok', B both 'spec' and 'back': each press counts once in the menus;
-      // X, the other attack button, also confirms)
-      if (k === 'atk') { if (now.atk && !now.ok && !st.gpPrev.ok) st.menuEdge.push('ok'); }
-      else if (k === 'item') { if (!now.ok && !st.gpPrev.ok) st.menuEdge.push('ok'); }
-      else if (k !== 'spec' && k !== 'swap') st.menuEdge.push(k);
-    }
+  const up = on(12) || ay < -0.5, down = on(13) || ay > 0.5, left = on(14) || ax < -0.5, right = on(15) || ax > 0.5;
+  // the game's buttons
+  const now = { atk: on(2) || (on(0) && !im), item: on(0) && im, swap: (on(4) || on(5)) && im, spec: on(3), pot: on(1) || (on(8) && !dgm), up, down, left, right };
+  // the menus' (one press, one key)
+  const menu = { ok: on(0) || on(2), back: on(1), pot: on(3), map: on(8) && dgm, bag: on(9), up, down, left, right, lb: on(4), rb: on(5) };
+  for (const k in now) if (now[k] && !st.gpPrev[k]) {
+    onAny(); st.lastDevice = 'pad'; navMode(true);
+    if (k === 'atk' || k === 'spec' || k === 'pot' || k === 'item' || k === 'swap') press(k);
   }
-  st.gpPrev = now;
+  const prevM = st.gpPrevM || {};
+  for (const k in menu) if (menu[k] && !prevM[k]) { onAny(); st.lastDevice = 'pad'; navMode(true); st.menuEdge.push(k); }
+  st.gpPrev = now; st.gpPrevM = menu;
   return { now, ax: Math.abs(ax) > 0.25 ? ax : 0, ay: Math.abs(ay) > 0.25 ? ay : 0 };
 }
 

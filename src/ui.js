@@ -520,7 +520,7 @@ function stepNums(dt) {
 }
 const touchUI = () => input.lastDevice === 'touch';
 export function dgFound(c, v) {
-  const how = touchUI() ? 'the green button' : (input.lastDevice === 'pad' ? 'X' : 'F or C');
+  const how = touchUI() ? 'the green button' : (input.lastDevice === 'pad' ? PAD_FACE[padStyle()].n[3] : 'F or C');
   const swap = touchUI() ? 'the small arrows' : (input.lastDevice === 'pad' ? 'LB / RB' : 'V');
   const t = {
     [DG.C_BOOMERANG]: ['THE RETURN BLADE', `Throw it with ${how}: it stuns, fetches loot, trips crystal switches. ${swap} switches items.`],
@@ -689,8 +689,8 @@ function drawPadHelp() {
   for (const id of ['phL', 'phR']) $(id).setAttribute('fill', swap ? '#8a7a5a' : '#4a4440');
   const b = i => `<i style="background:${F.c[i]}">${F.n[i]}</i>`, sm = t => `<i class="sm">${t}</i>`;
   const rows = [
-    [b(3), 'ATTACK'], [b(2), spec],
-    [b(1), item || 'ATTACK'], [b(0), 'POTION'],
+    [b(1), 'ATTACK'], [b(0), spec],
+    [b(3), item || 'ATTACK'], [b(2), 'POTION'],
     [sm(F.sel), dg ? 'MAP' : 'POTION'], [sm(F.start), 'BAG'],
   ];
   if (swap) rows.push([sm(F.l) + sm(F.r), 'SWITCH ITEM', 1]);
