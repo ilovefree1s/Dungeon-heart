@@ -95,9 +95,15 @@ button{font:inherit;color:inherit}
 #tItem{right:150px;bottom:calc(128px + env(safe-area-inset-bottom,0px));width:62px;height:62px;background:linear-gradient(#b9f0a0,#4fa83a);box-shadow:0 5px 0 #2a5a1e,0 10px 20px rgba(0,0,0,.4);padding:0}
 #tItem img{width:42px;height:42px;object-fit:contain;pointer-events:none}
 #tItem.none{filter:grayscale(1) brightness(.7)}
-#tItem i,#tSwap i{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:5px;font-style:normal;font-family:var(--body);font-weight:900;font-size:10px;letter-spacing:.1em;color:#fff;text-shadow:0 1px 2px #000;white-space:nowrap;pointer-events:none}
+#tItem i{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:5px;font-style:normal;font-family:var(--body);font-weight:900;font-size:10px;letter-spacing:.1em;color:#fff;text-shadow:0 1px 2px #000;white-space:nowrap;pointer-events:none}
 #tItem b{position:absolute;right:-2px;bottom:-4px;min-width:22px;padding:1px 4px;border-radius:10px;background:#1a1420;color:#fff;font-size:12px;font-weight:400;pointer-events:none}
-#tSwap{right:220px;bottom:calc(150px + env(safe-area-inset-bottom,0px));width:44px;height:44px;font-size:21px;color:#fff;background:linear-gradient(#8a92b0,#4a5070);box-shadow:0 3px 0 #22283a}
+/* switch items: an arrow at each side, just under the room (placed by the UI); each shows the item it goes to */
+.tsw{position:absolute;top:0;display:flex;align-items:center;gap:4px;height:48px;padding:0 10px;border:0;border-radius:24px;pointer-events:auto;touch-action:none;
+  background:linear-gradient(#5a6280,#363c56);box-shadow:0 4px 0 #1a1e2e,0 8px 16px rgba(0,0,0,.4);color:#fff;font-size:20px}
+.tsw img{width:32px;height:32px;object-fit:contain;filter:drop-shadow(0 1px 0 #000)}
+.tsw:active,.tsw.on{transform:translateY(3px);box-shadow:0 1px 0 #1a1e2e}
+.tsw.one{opacity:.45}
+#tPrev{left:max(14px,env(safe-area-inset-left,0px))}#tNext{right:max(14px,env(safe-area-inset-right,0px))}
 /* select and start, small pills at the bottom middle, as on a controller */
 .pill{position:absolute;bottom:calc(12px + env(safe-area-inset-bottom,0px));width:58px;height:24px;border-radius:12px;border:0;pointer-events:auto;touch-action:none;
   background:linear-gradient(#4a4440,#2a2420);box-shadow:0 3px 0 #0c0a08,0 6px 12px rgba(0,0,0,.4);color:#d8cfc2;font-family:var(--body);font-weight:900;font-size:9.5px;letter-spacing:.14em}
@@ -417,7 +423,8 @@ h2.t{font-family:var(--display);font-size:clamp(32px,7vw,52px);margin:0;color:va
     <button class="tbtn" id="tSpec" aria-label="Special">ROLL</button>
     <button class="tbtn" id="tPot" aria-label="Potion">POTION</button>
     <button class="tbtn" id="tItem" aria-label="Use item" hidden><img alt="" id="tItemPic"><b id="tItemN"></b><i id="tItemL">ITEM</i></button>
-    <button class="tbtn" id="tSwap" aria-label="Switch item" hidden>&#x21C4;<i>SWITCH</i></button>
+    <button class="tsw" id="tPrev" aria-label="Previous item" hidden><span>&#x25C0;</span><img alt=""></button>
+    <button class="tsw" id="tNext" aria-label="Next item" hidden><img alt=""><span>&#x25B6;</span></button>
     <button class="pill" id="tSel" aria-label="Select: bag">SELECT</button>
     <button class="pill" id="tStart" aria-label="Start: pause">START</button>
   </div>

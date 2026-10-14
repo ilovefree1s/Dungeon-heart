@@ -3,12 +3,12 @@
 //  Xbox controllers, turned into the SNES game's pad bits each step. In menus
 //  the same keys move a focus and press buttons.
 // ============================================================================
-import { PAD_A, PAD_B, PAD_SELECT, PAD_START, PAD_UP, PAD_DOWN, PAD_LEFT, PAD_RIGHT, PAD_X, PAD_L, G } from './sim.js';
+import { PAD_A, PAD_B, PAD_SELECT, PAD_START, PAD_UP, PAD_DOWN, PAD_LEFT, PAD_RIGHT, PAD_X, PAD_L, PAD_R, G } from './sim.js';
 // (in a dungeon, once you carry an item: its own button)
 const itemMode = () => G.mode === 'dungeon' && G.dg_items;
 
 const keys = {};
-const st = { stickX: 0, stickY: 0, stickId: null, tAtk: 0, tSpec: 0, tPot: 0, tItem: 0, tSwap: 0, edge: 0, menuEdge: [], dx: 0, dy: 0, gpPrev: {}, lastDevice: 'kb' };
+const st = { stickX: 0, stickY: 0, stickId: null, tAtk: 0, tSpec: 0, tPot: 0, tItem: 0, tPrev: 0, tNext: 0, edge: 0, menuEdge: [], dx: 0, dy: 0, gpPrev: {}, lastDevice: 'kb' };
 export const input = st;
 const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
   Space: 'atk', KeyJ: 'atk', KeyZ: 'atk', ShiftLeft: 'spec', ShiftRight: 'spec', KeyK: 'spec', KeyX: 'spec', KeyL: 'spec',
@@ -39,7 +39,8 @@ function press(k) {
   else if (k === 'spec') st.edge |= PAD_A;
   else if (k === 'pot') st.edge |= PAD_SELECT;
   else if (k === 'item') st.edge |= PAD_X;
-  else if (k === 'swap') st.edge |= PAD_L;
+  else if (k === 'swap' || k === 'next') st.edge |= PAD_R;
+  else if (k === 'prev') st.edge |= PAD_L;
 }
 
 // touch: a stick on the left, buttons on the right
@@ -62,7 +63,7 @@ export function initTouch() {
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
     el.addEventListener('contextmenu', e => e.preventDefault());
   };
-  btn('tAtk', PAD_B, 'tAtk'); btn('tSpec', PAD_A, 'tSpec'); btn('tPot', PAD_SELECT, 'tPot'); btn('tItem', PAD_X, 'tItem'); btn('tSwap', PAD_L, 'tSwap');
+  btn('tAtk', PAD_B, 'tAtk'); btn('tSpec', PAD_A, 'tSpec'); btn('tPot', PAD_SELECT, 'tPot'); btn('tItem', PAD_X, 'tItem'); btn('tPrev', PAD_L, 'tPrev'); btn('tNext', PAD_R, 'tNext');
 }
 
 // controllers (standard mapping, by where the button sits): left (X / square) attacks; bottom (A / cross) uses the
@@ -81,12 +82,12 @@ function pollPad() {
   const dgm = G.mode === 'dungeon';
   const up = on(12) || ay < -0.5, down = on(13) || ay > 0.5, left = on(14) || ax < -0.5, right = on(15) || ax > 0.5;
   // the game's buttons
-  const now = { atk: on(2) || (on(0) && !im), item: on(0) && im, swap: (on(4) || on(5)) && im, spec: on(3), pot: on(1) || (on(8) && !dgm), up, down, left, right };
+  const now = { atk: on(2) || (on(0) && !im), item: on(0) && im, prev: on(4) && im, next: on(5) && im, spec: on(3), pot: on(1) || (on(8) && !dgm), up, down, left, right };
   // the menus' (one press, one key)
   const menu = { ok: on(0) || on(2), back: on(1), pot: on(3), map: on(8) && dgm, bag: on(9), up, down, left, right, lb: on(4), rb: on(5) };
   for (const k in now) if (now[k] && !st.gpPrev[k]) {
     onAny(); st.lastDevice = 'pad'; navMode(true);
-    if (k === 'atk' || k === 'spec' || k === 'pot' || k === 'item' || k === 'swap') press(k);
+    if (k === 'atk' || k === 'spec' || k === 'pot' || k === 'item' || k === 'prev' || k === 'next') press(k);
   }
   const prevM = st.gpPrevM || {};
   for (const k in menu) if (menu[k] && !prevM[k]) { onAny(); st.lastDevice = 'pad'; navMode(true); st.menuEdge.push(k); }

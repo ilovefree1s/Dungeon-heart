@@ -5,7 +5,7 @@
 // ============================================================================
 import * as S from './sim.js';
 import * as D from './data.js';
-import { camera, V3 } from './engine.js';
+import { camera, V3, wz } from './engine.js';
 import { sfx, startAudio, setMusic, setSfx, audioState } from './audio.js';
 import { menuKeys, input } from './input.js';
 import { itemPic, heroPic, merchantPic, petPic } from './icons.js';
@@ -521,7 +521,7 @@ function stepNums(dt) {
 const touchUI = () => input.lastDevice === 'touch' || (document.documentElement.classList.contains('touchy') && input.lastDevice !== 'pad');
 export function dgFound(c, v) {
   const how = touchUI() ? 'the green button' : (input.lastDevice === 'pad' ? PAD_FACE[padStyle()].n[3] : 'F or C');
-  const swap = touchUI() ? 'the SWITCH button' : (input.lastDevice === 'pad' ? 'LB / RB' : 'V');
+  const swap = touchUI() ? 'the arrows under the room' : (input.lastDevice === 'pad' ? 'LB / RB' : 'V');
   const t = {
     [DG.C_BOOMERANG]: ['THE RETURN BLADE', `Throw it with ${how}: it stuns, fetches loot, trips crystal switches. ${swap} switches items.`],
     [DG.C_HAMMER]: ['THE IRON HAMMER', `Swing it with ${how}: it pounds wooden pegs into the floor and crushes what's in front of you.`],
@@ -676,6 +676,31 @@ function drawItemBox() {
   $('ibRest').innerHTML = rest.length ? rest.map(i => `<img alt="" src="${ITEM_SVG[i]}">`).join('') + `<i>${sw}</i>` : '';
   if (swapped) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
 }
+// the switch arrows (touch): at the two sides, just under the room's front wall; each shows the item it moves to
+const _v = new V3();
+function placeSwitch(it) {
+  const show = !!it && !$('touch').hidden;
+  $('tPrev').hidden = $('tNext').hidden = !show;
+  if (!show) return;
+  // (where the room's front edge is on screen; it moves with the camera)
+  _v.set(0, 0, wz(D.PLAY_Y + 176)).project(camera);
+  let y = Math.round((1 - _v.y) / 2 * innerHeight + 10);
+  // (no room under it, as on a phone held sideways: the pair goes side by side above the stick)
+  const st = $('stick').getBoundingClientRect(), side = y + 52 > st.top;
+  if (side) y = Math.round(st.top - 62);
+  if (UI.lastHud.swY !== y || UI.lastHud.swSide !== side) {
+    UI.lastHud.swY = y; UI.lastHud.swSide = side;
+    $('tPrev').style.top = $('tNext').style.top = y + 'px';
+    $('tNext').style.right = side ? 'auto' : ''; $('tNext').style.left = side ? (st.left + 98) + 'px' : '';
+    $('tPrev').style.left = side ? st.left + 'px' : '';
+  }
+  const have = DG.ITEMS.filter(i => G.dg_items & i), k = have.indexOf(it), key = have.join() + ':' + it;
+  if (UI.lastHud.swKey === key) return;
+  UI.lastHud.swKey = key;
+  const prev = have[(k - 1 + have.length) % have.length], next = have[(k + 1) % have.length];
+  $('tPrev').querySelector('img').src = ITEM_SVG[prev]; $('tNext').querySelector('img').src = ITEM_SVG[next];
+  for (const id of ['tPrev', 'tNext']) $(id).classList.toggle('one', have.length < 2);
+}
 const manyItems = () => (G.dg_items & (G.dg_items - 1)) !== 0; // (two or more: they can be switched)
 function drawPadHelp() {
   const el = $('padHelp');
@@ -730,8 +755,8 @@ export function frame(dt) {
     // (on a touch screen the item button is always there in the dungeons: grey until you find one)
     $('tItem').hidden = $('touch').hidden; $('tItem').classList.toggle('none', !it); $('tItemPic').hidden = !it;
     if (!it && UI.lastHud.item) { UI.lastHud.item = 0; setText('tItemL', 'ITEM'); }
-    $('tSwap').hidden = !it || !manyItems() || $('touch').hidden;
-  } else if (UI.lastHud.dgOn !== 0) { UI.lastHud.dgOn = 0; $('hDg').hidden = true; $('hMap').hidden = true; $('tItem').hidden = true; $('tSwap').hidden = true; }
+    placeSwitch(it);
+  } else if (UI.lastHud.dgOn !== 0) { UI.lastHud.dgOn = 0; $('hDg').hidden = true; $('hMap').hidden = true; $('tItem').hidden = true; $('tPrev').hidden = $('tNext').hidden = true; }
   if (G.mode === 'dungeon') UI.lastHud.dgOn = 1;
   const wh = G.room_num === D.BOSS_ROOM ? 'BOSS' : 'ROOM ' + G.room_num;
   if (G.mode !== 'dungeon' && UI.lastHud.where !== G.floor_num + wh) {

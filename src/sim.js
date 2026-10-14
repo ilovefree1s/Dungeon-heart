@@ -31,7 +31,7 @@ const {
 } = D;
 
 export const PAD_A = 0x01, PAD_B = 0x02, PAD_SELECT = 0x04, PAD_START = 0x08, PAD_UP = 0x10, PAD_DOWN = 0x20,
-  PAD_LEFT = 0x40, PAD_RIGHT = 0x80, PAD_X = 0x100, PAD_L = 0x200; // (X: use the dungeon item, L: switch items)
+  PAD_LEFT = 0x40, PAD_RIGHT = 0x80, PAD_X = 0x100, PAD_L = 0x200, PAD_R = 0x400; // (X: use the dungeon item; R: next item, L: the one before)
 
 // ---------------------------------------------------------------- state
 const u8 = n => new Uint8Array(n), u16 = n => new Uint16Array(n), i8 = n => new Int8Array(n);
@@ -2259,7 +2259,7 @@ function update_player(pad, padNew) {
       if (mx | my) { g.ice_dx = mx; g.ice_dy = my; }
       else if (g.hz_here && (g.ice_dx | g.ice_dy)) { hero_step(g.ice_dx, g.ice_dy); hero_step(g.ice_dx, g.ice_dy); moved = 1; hz_hint(); }
     }
-    if (g.mode === 'dungeon') { if (padNew & PAD_X) use_item(); if (padNew & PAD_L) switch_item(); }
+    if (g.mode === 'dungeon') { if (padNew & PAD_X) use_item(); if (padNew & PAD_R) switch_item(1); else if (padNew & PAD_L) switch_item(-1); }
     if ((padNew & PAD_A) && IS_MAGE()) {
       if (!g.blink_cd) do_blink(mx, my); else sfx('nope');
     } else if ((padNew & PAD_A) && IS_HUNTER() && !g.pet_type) {
@@ -2914,10 +2914,10 @@ function use_item() {
     sfx('pickup'); fx('bombset', { b: k });
   }
 }
-function switch_item() {
+function switch_item(step = 1) {
   const have = DG.ITEMS.filter(i => g.dg_items & i);
   if (have.length < 2) return;
-  g.dg_item = have[(have.indexOf(g.dg_item) + 1) % have.length];
+  g.dg_item = have[(have.indexOf(g.dg_item) + step + have.length) % have.length];
   sfx('pickup'); fx('itemswap');
 }
 // the GRAPPLE CHAIN shoots out 7 cells: a post or a chest catches it and it pulls you over (pits too);
