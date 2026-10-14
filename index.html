@@ -121,7 +121,20 @@ button{font:inherit;color:inherit}
 #padHelp li.wide{grid-column:1/3}
 #padHelp i,.ctlbar i{flex:none;display:grid;place-items:center;min-width:18px;height:18px;padding:0 3px;border-radius:9px;font-style:normal;font-size:10px;color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35);text-shadow:0 1px 0 #000}
 #padHelp i.sm,.ctlbar i.sm{border-radius:5px;font-size:8.5px;letter-spacing:.04em;background:#3a3430}
-@media (pointer:coarse),(max-width:760px),(max-height:520px){#padHelp{display:none}}
+/* the selected dungeon item, big, beside the controller card; the others you carry small beneath it */
+#itemBox{position:absolute;right:236px;bottom:calc(14px + env(safe-area-inset-bottom,0px));width:132px;padding:8px 8px 7px;border-radius:12px;background:rgba(12,10,9,.78);
+  box-shadow:inset 0 0 0 2px var(--gold),0 0 18px rgba(255,200,80,.25);pointer-events:none;text-align:center}
+#itemBox .lab{font-weight:900;font-size:9.5px;letter-spacing:.16em;color:var(--dim)}
+#itemBox .big{position:relative;width:64px;height:64px;margin:4px auto 2px;border-radius:12px;background:radial-gradient(circle,rgba(255,215,120,.28),rgba(255,215,120,0) 70%)}
+#itemBox .big img{width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 2px 0 #000)}
+#itemBox .big b{position:absolute;right:-6px;bottom:-4px;min-width:24px;padding:1px 5px;border-radius:10px;background:#1a1420;box-shadow:inset 0 0 0 1.5px var(--gold);font-family:var(--display);font-weight:400;font-size:14px;color:#fff}
+#itemBox .nm{font-family:var(--display);font-size:13.5px;white-space:nowrap;letter-spacing:.04em;color:var(--gold);text-shadow:0 2px 0 #000;line-height:1.1}
+#itemBox .rest{display:flex;justify-content:center;align-items:center;gap:6px;margin-top:5px;min-height:22px}
+#itemBox .rest img{width:22px;height:22px;object-fit:contain;opacity:.45;filter:grayscale(.4)}
+#itemBox .rest i{font-style:normal;font-weight:900;font-size:9px;letter-spacing:.06em;color:var(--dim);padding:1px 4px;border-radius:5px;background:#3a3430}
+#itemBox.pop .big{animation:itemPop .35s ease-out}
+@keyframes itemPop{0%{transform:scale(.6)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
+@media (pointer:coarse),(max-width:760px),(max-height:520px){#padHelp{display:none}#itemBox{display:none}}
 /* the menus' own button row: what each button does on this screen */
 .ctlbar{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;margin-top:10px;font-weight:900;font-size:12px;letter-spacing:.06em;color:var(--text)}
 .ctlbar span{display:inline-flex;align-items:center;gap:6px}
@@ -376,6 +389,7 @@ h2.t{font-family:var(--display);font-size:clamp(32px,7vw,52px);margin:0;color:va
     <div id="msg"></div>
   </div>
   <canvas id="minimap" width="300" height="88" hidden aria-label="Floor map"></canvas>
+  <div id="itemBox" hidden aria-label="Selected item"><div class="lab">ITEM</div><div class="big"><img alt="" id="ibPic"><b id="ibN" hidden></b></div><div class="nm" id="ibName"></div><div class="rest" id="ibRest"></div></div>
   <div id="padHelp" hidden aria-label="Controller buttons">
     <svg class="pad" viewBox="0 0 150 72" aria-hidden="true">
       <rect x="22" y="4" width="30" height="9" rx="4.5" fill="#4a4440" id="phL"/><rect x="98" y="4" width="30" height="9" rx="4.5" fill="#4a4440" id="phR"/>

@@ -30,6 +30,7 @@ export function show(id) {
   $('touch').hidden = !!id || !(G.state === 'play');
   $('minimap').hidden = !!id || G.state !== 'play';
   $('padHelp').hidden = !!id || G.state !== 'play';
+  $('itemBox').hidden = !!id || G.state !== 'play' || !(G.mode === 'dungeon' && G.dg_items);
   if (id) {
     setTimeout(() => { const f = firstFocus(); if (f && input.lastDevice !== 'touch') { setCur(f, false); if (f.dataset.focusSel && !f.classList.contains('sel') && input.lastDevice === 'pad') f.click(); } }, 30);
   }
@@ -652,6 +653,25 @@ function ctlBar(id, rows) {
   const chip = k => kb ? `<i class="sm">${KEY[k]}</i>` : k === 'dpad' ? '<i class="sm">✚</i>' : `<i style="background:${F.c[FACE[k]]}">${F.n[FACE[k]]}</i>`;
   $(id).innerHTML = rows.map(([k, t]) => `<span>${chip(k)}${t}</span>`).join('');
 }
+// the item box: the one in use, big; the others you carry, small and dim (with the switch buttons)
+const ITEM_NAME = { [DG.I_BOOMERANG]: 'RETURN BLADE', [DG.I_BOMBS]: 'BLAST BOMBS', [DG.I_HOOK]: 'GRAPPLE CHAIN' };
+function drawItemBox() {
+  const el = $('itemBox'), it = G.mode === 'dungeon' && G.dg_items ? G.dg_item : 0;
+  const show = !!it && !UI.modal && G.state === 'play';
+  if (el.hidden === show) el.hidden = !show;
+  if (!show) return;
+  const n = it === DG.I_BOMBS ? String(G.dg_bombs) : '';
+  setText('ibN', n); $('ibN').hidden = !n;
+  const key = it + ':' + G.dg_items + ':' + input.lastDevice;
+  if (UI.lastHud.itemBox === key) return;
+  const swapped = UI.lastHud.itemBox && UI.lastHud.itemBox.split(':')[0] !== String(it);
+  UI.lastHud.itemBox = key;
+  $('ibPic').src = ITEM_SVG[it]; $('ibName').textContent = ITEM_NAME[it];
+  const rest = [DG.I_BOOMERANG, DG.I_BOMBS, DG.I_HOOK].filter(i => i !== it && (G.dg_items & i));
+  const F = PAD_FACE[padStyle()], sw = input.lastDevice === 'kb' ? 'V' : F.l + '/' + F.r;
+  $('ibRest').innerHTML = rest.length ? rest.map(i => `<img alt="" src="${ITEM_SVG[i]}">`).join('') + `<i>${sw}</i>` : '';
+  if (swapped) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+}
 const manyItems = () => (G.dg_items & (G.dg_items - 1)) !== 0; // (two or more: they can be switched)
 function drawPadHelp() {
   const el = $('padHelp');
@@ -720,7 +740,7 @@ export function frame(dt) {
   else { mn = 'ROLL'; mv = G.roll_cd ? 1 - G.roll_cd / (G.eq_spec[3] === D.SP_QUICK ? 20 : 40) : 1; }
   setText('hMeterN', mn); setW('abfill', mv * 100);
   setText('tSpec', cls === 1 ? 'BLINK' : (cls === 2 && !G.pet_type ? 'TAME' : 'ROLL'));
-  drawPadHelp();
+  drawPadHelp(); drawItemBox();
   const pet = G.pet_type;
   $('hPet').hidden = !pet;
   if (pet) { setText('hPetN', G.pet_down ? 'PET DOWN' : (G.pet_name || D.PET_NAME[pet]).toUpperCase()); setW('petfill', G.pet_down ? 0 : G.pet_hp / S.pet_max() * 100); }
