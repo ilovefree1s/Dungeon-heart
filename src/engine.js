@@ -453,14 +453,31 @@ export function torch(x, z, rotY, th) {
 // then and not with a hitch the first time one shows up (a crystal, the great chest, a lock...)
 export function prewarmDungeon(G) {
   const th = THEMES[G.theme];
-  const types = [D.OBJ_CHEST, D.OBJ_BIGCHEST, D.OBJ_BLOCK, D.OBJ_PLATE, D.OBJ_CRYSTAL, D.OBJ_BOMBWALL, D.OBJ_FOUNTAIN, D.OBJ_POST];
+  const types = [D.OBJ_CHEST, D.OBJ_BIGCHEST, D.OBJ_BLOCK, D.OBJ_PLATE, D.OBJ_CRYSTAL, D.OBJ_BOMBWALL, D.OBJ_FOUNTAIN, D.OBJ_POST, D.OBJ_BRAZIER_LIT];
   const fake = { ob_k: types.map((_, i) => 16 * 5 + 2 + i), ob_t: types, map: new Uint8Array(176), theme: G.theme };
   const grp = new THREE.Group(); grp.position.y = -200; scene.add(grp);
   types.forEach((_, k) => { const o = buildObject(fake, k, th); roomGroup.remove(o.g); grp.add(o.g); });
-  grp.add(lockIcon(false), lockIcon(true));
+  grp.add(lockIcon(false), lockIcon(true), pegIcon());
   try { renderer.compile(scene, camera); } catch (e) { }
   scene.remove(grp);
   grp.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+}
+// the sign over a pegged doorway: a hammer
+let pegIconTex = null;
+function pegIcon() {
+  if (!pegIconTex) {
+    const [c, x] = cnv(128, 128);
+    x.fillStyle = 'rgba(10,8,6,.75)'; x.beginPath(); x.arc(64, 64, 60, 0, 7); x.fill();
+    x.strokeStyle = '#ffd36a'; x.lineWidth = 5; x.stroke();
+    x.save(); x.translate(64, 64); x.rotate(-0.7);
+    x.fillStyle = '#a8743a'; x.fillRect(-6, -8, 12, 52);
+    x.fillStyle = '#2a2a30'; x.fillRect(-30, -34, 60, 30); x.fillStyle = '#9a9aa8'; x.fillRect(-26, -30, 52, 22);
+    x.restore();
+    pegIconTex = new THREE.CanvasTexture(c); pegIconTex.colorSpace = THREE.SRGBColorSpace;
+  }
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: pegIconTex, depthTest: false, transparent: true }));
+  s.scale.set(2.4, 2.4, 1); s.renderOrder = 9;
+  return s;
 }
 const lockIcons = {};
 function lockIcon(boss) {
@@ -537,7 +554,7 @@ function buildDoor(c, th, G) {
   if (G.mode === 'dungeon') {
     const di = [7, 95, 167, 80].indexOf(c), dk = di >= 0 ? G.dg_dk[di] : 0;
     const dh = front ? 1.0 : H - 1.2;
-    if (dk === D.DK_LOCK || dk === D.DK_BOSS || dk === D.DK_SHUT) { decor = new THREE.Group(); decor.position.z = 0.2; g.add(decor); }
+    if (dk === D.DK_LOCK || dk === D.DK_BOSS || dk === D.DK_SHUT || dk === D.DK_PEGS) { decor = new THREE.Group(); decor.position.z = 0.2; g.add(decor); }
     // (seen from above, a lock needs a sign: a padlock or a skull floating over the door)
     if (dk === D.DK_LOCK || dk === D.DK_BOSS) { const ic = lockIcon(dk === D.DK_BOSS); ic.position.set(0, H + 1.6, 0.6); decor.add(ic); }
     if (dk === D.DK_LOCK) {
@@ -554,6 +571,16 @@ function buildDoor(c, th, G) {
       for (const s of [-1, 1]) { const e = new THREE.Mesh(sph(0.1, 8, 6), new THREE.MeshBasicMaterial({ color: '#ff3a2a' })); e.position.set(0.16 * s, dh * 0.55, 0.72); decor.add(e); }
       for (const s of [-1, 1]) for (const y of [0.18, 0.82]) { const ch = mesh(new THREE.TorusGeometry(0.14, 0.05, 6, 10), goldL); ch.position.set(s * (CELL / 2 - 0.6), dh * y, 0.2); ch.rotation.y = 0.5; decor.add(ch); }
       for (const { leaf } of leaves) leaf.traverse(o => { if (o.isMesh && o.material === plank) o.material = red; });
+    } else if (dk === D.DK_PEGS) {
+      // three thick wooden pegs standing in the open doorway (the hammer pounds them down)
+      for (const { leaf } of leaves) leaf.visible = false;
+      const wood = std({ color: '#8a5a30', roughness: 0.7 }), cap = std({ color: '#c8c8d0', metalness: 0.9, roughness: 0.3 });
+      [-1.25, 0, 1.25].forEach((px, i) => {
+        const h = 2.4 + (i === 1 ? 0.4 : 0);
+        const peg = mesh(new THREE.CylinderGeometry(0.42, 0.48, h, 8), wood); peg.position.set(px, h / 2, 0.4); decor.add(peg);
+        const top = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.25, 8), cap); top.position.set(px, h + 0.1, 0.4); decor.add(top);
+      });
+      const ic = pegIcon(); ic.position.set(0, H + 1.6, 0.6); decor.add(ic);
     } else if (dk === D.DK_SHUT) {
       for (let i = 0; i < 5; i++) { const bar = mesh(new THREE.BoxGeometry(0.16, dh + 0.2, 0.16), iron); bar.position.set((i - 2) * 0.55, dh / 2, 0.1); decor.add(bar); }
       for (const y of [0.3, 0.75]) { const cb = mesh(new THREE.BoxGeometry(CELL - 0.6, 0.16, 0.16), iron); cb.position.set(0, dh * y, 0.1); decor.add(cb); }
@@ -844,6 +871,25 @@ function buildObject(G, k, th) {
     const shine = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.soft, color: '#ffc850', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.45 }));
     shine.scale.set(3.6, 3.6, 1); shine.position.y = 3.75; g.add(shine);
     o.parts = { post: true };
+  } else if (t === D.OBJ_PEGS) {
+    o.parts = { pegs: true }; // (drawn with its door)
+  } else if (t === D.OBJ_BRAZIER || t === D.OBJ_BRAZIER_LIT) {
+    // a brazier: an iron bowl on a stone stand; cold coals until the ember wand lights it
+    const stone = std({ color: new THREE.Color(th.pillar).lerp(new THREE.Color('#8a8070'), 0.4), roughness: 0.8 });
+    const iron = std({ color: '#3a3a42', metalness: 0.8, roughness: 0.4 });
+    const ped = mesh(new THREE.CylinderGeometry(0.75, 1.05, 1.8, 8), stone); ped.position.y = 0.9; g.add(ped);
+    const bowl = mesh(new THREE.CylinderGeometry(1.35, 0.8, 0.8, 12, 1, true), iron); bowl.position.y = 2.2; g.add(bowl);
+    const rim = mesh(new THREE.TorusGeometry(1.35, 0.1, 6, 16), iron); rim.rotation.x = Math.PI / 2; rim.position.y = 2.6; g.add(rim);
+    const coalM = std({ color: '#1a1410', roughness: 0.9, emissive: '#ff4a10', emissiveIntensity: t === D.OBJ_BRAZIER_LIT ? 0.8 : 0 });
+    const coal = mesh(new THREE.CylinderGeometry(1.15, 1.15, 0.2, 12), coalM); coal.position.y = 2.4; g.add(coal);
+    // (the flames are always there, shown once it's lit)
+    const fire = new THREE.Group(); fire.position.y = 2.6; g.add(fire);
+    for (let i = 0; i < 3; i++) {
+      const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.flame, color: i ? '#ffb040' : '#ff6a1a', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+      f.scale.set(2.2 - i * 0.4, 3.2 - i * 0.6, 1); f.position.y = 1.2 + i * 0.2; fire.add(f);
+    }
+    const l = new GlowLight('#ff9a40', 0, 10, 2); l.position.y = 3.6; g.add(l);
+    o.parts = { fire, coal: coalM, brazierL: l };
   } else if (t === D.OBJ_BOMBWALL) {
     // a cracked stretch of the outer wall (bombs open it)
     const cx = c & 15, cy = c >> 4, front = cy === 10, h = front ? WH_FRONT : WH;

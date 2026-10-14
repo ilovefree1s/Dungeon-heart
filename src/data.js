@@ -116,9 +116,10 @@ export const OBJ_CHEST = 1, OBJ_CHEST_OPEN = 2, OBJ_SHRINE = 3, OBJ_SHRINE_USED 
   // the dungeons': a great chest, a block to push onto a floor plate, a crystal switch (only the
   // boomerang reaches it), a cracked wall only bombs open
   OBJ_BIGCHEST = 11, OBJ_BIGCHEST_OPEN = 12, OBJ_BLOCK = 13, OBJ_PLATE = 14, OBJ_PLATE_ON = 15, OBJ_CRYSTAL = 16, OBJ_CRYSTAL_ON = 17,
-  OBJ_BOMBWALL = 18, OBJ_POST = 19; // (a grapple post: the chain catches on it)
+  OBJ_BOMBWALL = 18, OBJ_POST = 19, // (a grapple post: the chain catches on it)
+  OBJ_PEGS = 20, OBJ_BRAZIER = 21, OBJ_BRAZIER_LIT = 22; // (wooden pegs in a doorway; a brazier the ember wand lights)
 // the dungeons' doors, as drawn (sim.dg_dk): none, open, a shutter, a small-key lock, the boss lock, a cracked wall
-export const DK_NONE = 0, DK_OPEN = 1, DK_SHUT = 2, DK_LOCK = 3, DK_BOSS = 4, DK_CRACK = 5;
+export const DK_NONE = 0, DK_OPEN = 1, DK_SHUT = 2, DK_LOCK = 3, DK_BOSS = 4, DK_CRACK = 5, DK_PEGS = 6; // (pegs: the hammer pounds them down)
 
 // elites
 export const EL_FRENZIED = 1, EL_ARMORED = 2, EL_SPLITTING = 3, EL_VAMPIRIC = 4;

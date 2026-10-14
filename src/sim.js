@@ -21,8 +21,8 @@ const {
   HZ_NONE, HZ_SPIKES, HZ_THORNS, HZ_ICE, HZ_LAVA, HZ_BONES, HZ_SAND, HZ_CRYSTAL, HZ_DARK, HZ_BLOOD, HZ_STORM, HZ_PATCHES,
   SP_TREASURE, SP_SHRINE, SP_FOUNTAIN, SP_ARENA, SP_TRAP,
   OBJ_CHEST, OBJ_CHEST_OPEN, OBJ_SHRINE, OBJ_SHRINE_USED, OBJ_FOUNTAIN, OBJ_FOUNTAIN_DRY, OBJ_CRACK, OBJ_LAUNCHER,
-  OBJ_ALCH_L, OBJ_ALCH_R, OBJ_GONE, OBJ_BIGCHEST, OBJ_BIGCHEST_OPEN, OBJ_BLOCK, OBJ_PLATE, OBJ_PLATE_ON, OBJ_CRYSTAL, OBJ_CRYSTAL_ON, OBJ_BOMBWALL, OBJ_POST,
-  DK_NONE, DK_OPEN, DK_SHUT, DK_LOCK, DK_BOSS, DK_CRACK, K_BOMBS,
+  OBJ_ALCH_L, OBJ_ALCH_R, OBJ_GONE, OBJ_BIGCHEST, OBJ_BIGCHEST_OPEN, OBJ_BLOCK, OBJ_PLATE, OBJ_PLATE_ON, OBJ_CRYSTAL, OBJ_CRYSTAL_ON, OBJ_BOMBWALL, OBJ_POST, OBJ_PEGS, OBJ_BRAZIER, OBJ_BRAZIER_LIT,
+  DK_NONE, DK_OPEN, DK_SHUT, DK_LOCK, DK_BOSS, DK_CRACK, DK_PEGS, K_BOMBS,
   EL_FRENZIED, EL_ARMORED, EL_SPLITTING, EL_VAMPIRIC, NTAL, TAL_MAX,
   BS_WALK, BS_WIND, BS_CHARGE, BS_STUN, BS_CAST, BS_LEAP, BF_WIZ, BF_RUN, BF_DRINK, BF_BRUTE, BF_TF,
   KING_WIZ_HP, KING_BRUTE_HP, ALCH_X, MV_CHARGE, MV_BURST, MV_SUMMON, MV_SLAM, MV_SPIRAL, MV_FAN, MV_LEAP, MV_BLINK,
@@ -91,7 +91,7 @@ export const G = {
   // the boomerang in flight, and lit bombs
   bm_t: 0, bm_x: 0, bm_y: 0, bm_dx: 0, bm_dy: 0, bm_back: 0, bm_hit: 0, bm_item: 0,
   bb_t: u8(3), bb_x: u8(3), bb_y: u8(3), moving_try: 0,
-  hk_t: 0, hk_st: 0, hk_x: 0, hk_y: 0, hk_dx: 0, hk_dy: 0, hk_hit: 0, hk_item: 0, hk_ox: 0, hk_oy: 0, dg_gen: 0,
+  hm_t: 0, fb_t: 0, fb_x: 0, fb_y: 0, fb_dx: 0, fb_dy: 0, hk_t: 0, hk_st: 0, hk_x: 0, hk_y: 0, hk_dx: 0, hk_dy: 0, hk_hit: 0, hk_item: 0, hk_ox: 0, hk_oy: 0, dg_gen: 0,
   // messages and events for the view / UI / sound
   msg: '', msg_color: COL_WHITE, msg_t: 0, msg_id: 0,
   ev: [],
@@ -2232,7 +2232,7 @@ function update_player(pad, padNew) {
           hit_monster(k, ((g.lvl + 1 + g.eq_val[0]) * T.CHARGE) >> 1, g.pdir);
       }
     }
-  } else if (g.hk_t) {
+  } else if (g.hk_t || g.hm_t) {
     g.moving_try = 0; // (the chain is out: you hold on until it's back, or it has pulled you over)
   } else {
     let spd = 1;
@@ -2504,17 +2504,28 @@ const DOOR_C = [7, (5 << 4) + 15, (10 << 4) + 7, 5 << 4];          // N E S W
 const F_SEEN = 1, F_CLEAR = 2, F_TAKEN = 4, F_SOLVED = 8, F_DOOR = 16;
 const ENTRY = [[112, PLAY_Y + 16], [224, PLAY_Y + 80], [112, PLAY_Y + 144], [16, PLAY_Y + 80]]; // arriving through door d (N E S W): just inside it
 export const dg_room = () => g.dg && g.dg.rooms[g.dg_room];
+// floor `no` of the run: its dungeon (from the run's seed), its look, and the items you're sure to carry
+function dg_floor(no) {
+  g.dg_no = no; g.floor_num = no;
+  if (no > g.deepest) g.deepest = no;
+  g.dg = DG.generateDungeon(DG.seedFrom(g.dg_seed_text + (no > 1 ? '#' + no : '')), no);
+  g.theme = ((no - 1) + Math.floor((no - 1) / 10) * 3) % 10; // (as the tower's floors were)
+  g.fmod = no === 1 ? FM_CALM : (no * 5 + 3) % 6;
+  // (anything found on an earlier floor is yours: a floor may need it)
+  const had = g.dg_items;
+  g.dg_items |= DG.itemsBefore(no);
+  if (!had && g.dg_items) g.dg_item = DG.ITEMS.find(i => g.dg_items & i);
+  if (g.dg_items & DG.I_BOMBS) g.dg_bombs = Math.max(g.dg_bombs, 8);
+}
 export function dg_start(seedText, no = 1) {
   g.mode = 'dungeon'; g.dg_gen = DG.GEN;
   g.dg_seed_text = String(seedText).toUpperCase();
-  g.dg_no = no;
-  g.dg = DG.generateDungeon(DG.seedFrom(g.dg_seed_text + (no > 1 ? '#' + no : '')));
+  dg_floor(no);
   g.dg_flags = new Array(g.dg.rooms.length).fill(0);
   g.dg_keys = 0; g.dg_big = 0; g.dg_map = 0; g.dg_done = 0;
-  g.theme = (no - 1) % 10; g.fmod = FM_CALM; g.floor_num = no;
   g.bless_atk = 0; g.bless_def = 0; g.bless_regen = 0;
   dg_enter(g.dg.start, -1);
-  set_msg(`DUNGEON ${no} - SEED ${g.dg_seed_text}`, COL_GOLD, 260);
+  set_msg(no === LAST_FLOOR ? `FLOOR ${no}: THE TOWER KING WAITS` : `FLOOR ${no} - ${D.THEME_NAME[g.theme]}`, COL_GOLD, 260);
 }
 // a room's own dice (its look and its monsters' places are the same each visit)
 function dg_dice(r) { g.rng = (r.seed & 0xFFFF) || 1; }
@@ -2551,7 +2562,8 @@ function dg_spawn(count, from) {
     ++g.mon_left;
   }
 }
-const DG_MONS = { [DG.R_PLAIN]: 3, [DG.R_FIGHT]: 4, [DG.R_BLOCK]: 1, [DG.R_SPIKES]: 2, [DG.R_CHEST]: 2, [DG.R_BIG]: 4, [DG.R_BOOMSW]: 2, [DG.R_CHASM]: 2 };
+const BRAZIERS = [[[3, 2], [12, 8]], [[12, 2], [3, 8]]];
+const DG_MONS = { [DG.R_PLAIN]: 3, [DG.R_FIGHT]: 4, [DG.R_BLOCK]: 1, [DG.R_SPIKES]: 2, [DG.R_CHEST]: 2, [DG.R_BIG]: 4, [DG.R_BOOMSW]: 2, [DG.R_CHASM]: 2, [DG.R_TORCH]: 2 };
 // a chasm room: two rows (or columns) of pit cut off the door to the next zone, a grapple post on
 // each side. [pit cells' test, the far post, the near post, a safe spot on the near side] by that door
 export const CHASM = [
@@ -2569,14 +2581,14 @@ export function dg_enter(id, from) {
   for (let i = 0; i < MAXP; ++i) g.pr_t[i] = 0;
   for (let i = 0; i < MAXB; ++i) g.bo_t[i] = 0;
   for (let i = 0; i < 3; ++i) g.bb_t[i] = 0;
-  g.bm_t = 0; g.bm_item = 0; g.hk_t = 0; g.hk_item = 0;
+  g.bm_t = 0; g.bm_item = 0; g.hk_t = 0; g.hk_item = 0; g.hm_t = 0; g.fb_t = 0;
   for (let i = 0; i < MAXM; ++i) { g.m_frz[i] = 0; g.m_slow[i] = 0; g.m_burn[i] = 0; g.m_type[i] = 0; }
   for (let i = 0; i < MAXBN; ++i) g.bn_t[i] = 0;
   g.full_item = 0; g.tame_n = 0; g.mimic_chest = 0; g.mimic_n = 0; g.arena_left = 0; g.elite_said = 0; g.any_elite = 0;
   g.hz = HZ_NONE; g.hz_tiled = 0; g.hz_t = 0; g.hz_frame = 0; g.ice_dx = 0; g.ice_dy = 0; g.sw_on = 0; g.sp = 0;
   g.boss_on = 0; g.vend_state = 0; g.roll_timer = 0; g.dg_push = 0; g.dg_said = 0;
   g.door_open = 0; g.door_pos = 0; g.nobj = 0; g.room_num = 2;
-  g.dg_depth = 1 + (g.dg_no - 1) * 8 + r.zone;
+  g.dg_depth = (g.dg_no << 1) - 1; // (the monsters get tougher floor by floor, as the tower's did)
   g.hz_atk = (3 + g.dg_depth + Math.floor(g.dg_depth / 3)) & 255;
   const f = g.dg_flags[id] |= F_SEEN;
   dg_dice(r);
@@ -2619,6 +2631,13 @@ export function dg_enter(id, from) {
       ctr(C.far[0], C.far[1], OBJ_POST); ctr(C.near[0], C.near[1], OBJ_POST);
       break;
     }
+    case DG.R_TORCH: {
+      // the brazier hall: two cold braziers; light both and the sealed door opens
+      dg_decor(4);
+      const open = r.doors.some((e, dd) => e && e.kind === DG.E_FIRE && (f & (F_DOOR << dd)));
+      for (const [x, y] of BRAZIERS[rnd() & 1]) { g.map[(y << 4) + x] = T_FLOOR; ctr(x, y, open ? OBJ_BRAZIER_LIT : OBJ_BRAZIER); }
+      break;
+    }
     case DG.R_SPIKES: {
       dg_decor(rnd() % 3);
       g.hz = HZ_SPIKES; g.hz_tiled = 1;
@@ -2653,18 +2672,25 @@ export function dg_enter(id, from) {
       case DG.E_KEY: dk = opened ? DK_OPEN : DK_LOCK; break;
       case DG.E_BOSS: dk = opened ? DK_OPEN : DK_BOSS; break;
       case DG.E_BOMB: dk = opened ? DK_OPEN : DK_CRACK; break;
-      case DG.E_BOOM: dk = opened ? DK_OPEN : DK_SHUT; break;
+      case DG.E_BOOM: case DG.E_FIRE: dk = opened ? DK_OPEN : DK_SHUT; break;
+      case DG.E_PEG: dk = opened ? DK_OPEN : DK_PEGS; break;
       default: dk = DK_OPEN; // (and a chasm's door: open, the pit is the lock)
     }
     if (barred && dk === DK_OPEN) dk = DK_SHUT;
     g.dg_dk[dd] = dk;
     if (dk === DK_CRACK) { g.map[c] = T_WALL; ctr(c & 15, c >> 4, OBJ_BOMBWALL); }
+    else if (dk === DK_PEGS) { g.map[c] = T_DOOR; ctr(c & 15, c >> 4, OBJ_PEGS); g.map[c] = T_DOOR; }
     else g.map[c] = dk === DK_OPEN ? T_DOORWAY : T_DOOR;
   }
   // who's here
   if (k === DG.R_BOSS) {
     if (!cleared) {
       g.boss_tier = 1; g.room_num = BOSS_ROOM; spawn_boss(); g.room_num = 2;
+      if (g.floor_num === LAST_FLOOR) {
+        // (the king's alchemy table, which he runs to when he's losing)
+        for (let i = 0; i < 2; ++i) { g.map[(1 << 4) + ALCH_X + i] = T_FLOOR; g.map[(2 << 4) + ALCH_X + i] = T_FLOOR; g.map[(3 << 4) + ALCH_X + i] = T_FLOOR; }
+        obj_add(ALCH_X, 1, OBJ_ALCH_L); obj_add(ALCH_X + 1, 1, OBJ_ALCH_R);
+      }
     } else dg_stairs();
   } else if (!cleared && DG_MONS[k]) dg_spawn(DG_MONS[k] + (g.dg_no > 2 ? 1 : 0), from);
   if (!g.mon_left && !g.boss_on && !cleared && k !== DG.R_BLOCK) g.dg_flags[id] |= F_CLEAR;
@@ -2674,7 +2700,9 @@ export function dg_enter(id, from) {
   if (from < 0) { g.pdir = DIR_UP; g.pdx = 0; g.pdy = -1; }
   g.pet_x = hx; g.pet_y = hy; g.pet_cd = 30; g.pet_inv = 30;
   g.atk_timer = 0; g.anim_t = 0; g.shot_pend = 0; g.inv_timer = from >= 0 ? 20 : 60;
-  if (g.boss_on) { set_msg(boss_name(), COL_RED, 160); sfx('roar'); }
+  if (g.boss_on) { if (g.bintro) set_msg('KING: SHE IS MINE! TURN BACK!', COL_RED, 0); else set_msg(boss_name(), COL_RED, 160); sfx('roar'); }
+  else if (k === DG.R_TORCH && r.doors.some((e, dd) => e && e.kind === DG.E_FIRE && !(f & (F_DOOR << dd))))
+    set_msg(g.dg_items & DG.I_FIRE ? 'A SEALED DOOR. LIGHT BOTH BRAZIERS' : 'A SEALED DOOR. THE BRAZIERS ARE COLD...', COL_WHITE, 200);
   else if (r.kind === DG.R_BOSS) set_msg('THE KEEPER IS GONE. THE STAIRS LEAD ON', COL_GOLD);
   else if (barred && g.mon_left) set_msg('THE DOORS SLAM SHUT!', COL_RED, 120);
   else if (barred && k === DG.R_BLOCK) set_msg('THE DOORS SLAM SHUT! PUSH THE BLOCK', COL_RED, 160);
@@ -2714,7 +2742,7 @@ function dg_cleared() {
     for (let dd = 0; dd < 4; ++dd) {
       const e = r.doors[dd];
       if (!e || g.dg_dk[dd] !== DK_SHUT) continue;
-      if (e.kind === DG.E_BOOM && !(g.dg_flags[g.dg_room] & (F_DOOR << dd))) continue;
+      if ((e.kind === DG.E_BOOM || e.kind === DG.E_FIRE) && !(g.dg_flags[g.dg_room] & (F_DOOR << dd))) continue;
       g.dg_dk[dd] = DK_OPEN; g.map[DOOR_C[dd]] = T_DOORWAY;
     }
     sfx('door'); fx('dgdoor', { d: -1 });
@@ -2753,11 +2781,17 @@ function dg_open_chest(k, cx, cy) {
     case DG.C_HOOK:
       g.dg_items |= DG.I_HOOK; g.dg_item = DG.I_HOOK;
       s = 'THE GRAPPLE CHAIN! IT CATCHES ON POSTS AND CHESTS'; break;
+    case DG.C_HAMMER:
+      g.dg_items |= DG.I_HAMMER; g.dg_item = DG.I_HAMMER;
+      s = 'THE IRON HAMMER! IT POUNDS DOWN PEGS'; break;
+    case DG.C_FIRE:
+      g.dg_items |= DG.I_FIRE; g.dg_item = DG.I_FIRE;
+      s = 'THE EMBER WAND! IT LIGHTS BRAZIERS AND BURNS FOES'; break;
     case DG.C_GEAR: drop_gear(cx + 4, cy + 20, 2); s = 'TREASURE! GEAR FELL OUT'; break;
     default: { const v = gold(10 + DEPTH() * 3); s = `+${v} GOLD`; fx('dgget', { c: DG.C_GOLD, v, x: cx, y: cy }); set_msg(s, COL_GOLD); sfx('coin'); save_game(); return; }
   }
   set_msg(s, COL_GOLD, 260);
-  sfx(DG.isGreat(r.content) || r.content === DG.C_BOMBS ? 'legend' : 'rare');
+  sfx(DG.isGreat(r.content) ? 'legend' : 'rare');
   fx('dgget', { c: r.content, x: cx, y: cy });
   save_game();
 }
@@ -2778,7 +2812,8 @@ function dg_player() {
     } else if (dk === DK_BOSS) {
       if (g.dg_big) dg_open_door(dd, 'THE BIG KEY TURNS...');
       else if (!g.dg_said) { g.dg_said = 1; set_msg('THE KEEPER\'S DOOR. FIND THE BIG KEY', COL_RED); sfx('nope'); }
-    } else if (dk === DK_SHUT && !g.dg_said && !g.dg_bar) { g.dg_said = 1; set_msg('SHUT FAST. A SWITCH SOMEWHERE OPENS IT', COL_WHITE); }
+    } else if (dk === DK_SHUT && !g.dg_said && !g.dg_bar) { g.dg_said = 1; set_msg(r.doors[dd] && r.doors[dd].kind === DG.E_FIRE ? 'SEALED. LIGHT THE BRAZIERS TO OPEN IT' : 'SHUT FAST. A SWITCH SOMEWHERE OPENS IT', COL_WHITE); }
+    else if (dk === DK_PEGS && !g.dg_said) { g.dg_said = 1; set_msg(g.dg_items & DG.I_HAMMER ? 'WOODEN PEGS. POUND THEM WITH THE HAMMER' : 'WOODEN PEGS BLOCK THE WAY. SOMETHING HEAVY...', COL_WHITE); }
   }
   if (!near.some(Boolean)) g.dg_said = 0;
   // line up with an open door you're walking at (the old games did this too)
@@ -2828,7 +2863,7 @@ function dg_next() {
   sfx('levelup');
   if (g.pet_type) pet_revive();
   g.hp = g.maxhp;
-  dg_start(g.dg_seed_text, g.dg_no + 1);
+  dg_start(g.dg_seed_text, Math.min(LAST_FLOOR, g.dg_no + 1));
   fx('floor');
 }
 // back to the entrance after a fall (keys and items kept, half the gold)
@@ -2859,6 +2894,14 @@ function use_item() {
     g.hk_t = 1; g.hk_st = 1; g.hk_hit = 0; g.hk_item = 0; g.hk_dx = dx; g.hk_dy = dy;
     g.hk_x = g.px + 8; g.hk_y = g.py + 10;
     sfx('shoot'); fx('hkfire');
+  } else if (g.dg_item === DG.I_HAMMER && (g.dg_items & DG.I_HAMMER)) {
+    if (g.hm_t) return;
+    g.hm_t = HM_LEN; sfx('swing'); fx('hmswing');
+  } else if (g.dg_item === DG.I_FIRE && (g.dg_items & DG.I_FIRE)) {
+    if (g.fb_t) return;
+    const l = g.pdx && g.pdy ? 0.7071 : 1;
+    g.fb_t = 1; g.fb_x = g.px + 8 + g.pdx * 8; g.fb_y = g.py + 10 + g.pdy * 8; g.fb_dx = g.pdx * 4.5 * l; g.fb_dy = g.pdy * 4.5 * l;
+    sfx('cast'); fx('fbfire');
   } else if (g.dg_item === DG.I_BOMBS && (g.dg_items & DG.I_BOMBS)) {
     if (!g.dg_bombs) { set_msg('NO BOMBS LEFT', COL_RED); sfx('nope'); return; }
     let k = 0;
@@ -2871,7 +2914,7 @@ function use_item() {
   }
 }
 function switch_item() {
-  const have = [DG.I_BOOMERANG, DG.I_BOMBS, DG.I_HOOK].filter(i => g.dg_items & i);
+  const have = DG.ITEMS.filter(i => g.dg_items & i);
   if (have.length < 2) return;
   g.dg_item = have[(have.indexOf(g.dg_item) + 1) % have.length];
   sfx('pickup'); fx('itemswap');
@@ -2888,6 +2931,7 @@ function on_pit(x, y) {
   const at = (ax, ay) => map_at(ax, ay) === T_PIT;
   return at(x + 3, y + 6) || at(x + 12, y + 6) || at(x + 3, y + 15) || at(x + 12, y + 15);
 }
+const near_hero = n => abs(g.i_x[n] + 4 - (g.px + 8)) < 20 && abs(g.i_y[n] + 4 - (g.py + 10)) < 20;
 function update_hook() {
   ++g.hk_t;
   const hx = g.hk_x, hy = g.hk_y;
@@ -2929,7 +2973,7 @@ function update_hook() {
       g.hk_st = 2; set_msg('THE CHAIN GLANCES OFF!', COL_WHITE); sfx('block'); return;
     }
     for (let n = 0; n < MAXI; ++n) {
-      if (!g.i_kind[n]) continue;
+      if (!g.i_kind[n] || near_hero(n)) continue; // (not what's already at your feet: a full bag leaves it there)
       if (x + 3 >= g.i_x[n] && x - 3 <= g.i_x[n] + 8 && y + 3 >= g.i_y[n] && y - 3 <= g.i_y[n] + 8) { g.hk_item = n + 1; g.hk_st = 2; return; }
     }
   } else if (g.hk_st === 2) {
@@ -2960,7 +3004,61 @@ function update_hook() {
     }
   }
 }
+// the IRON HAMMER: a heavy overhead swing that lands a moment later, just in front of you: it crushes
+// what's there (and knocks it back, dazed), and pounds wooden pegs into the floor
+const HM_LEN = 24, HM_HIT = 12;
+function update_hammer() {
+  if (--g.hm_t !== HM_HIT) return;
+  const x = g.px + 8 + g.pdx * 14, y = g.py + 10 + g.pdy * 14;
+  fx('hammer', { x, y }); sfx('slam');
+  for (let n = 0; n < MAXM; ++n) {
+    const t = g.m_type[n];
+    if (!t || abs(g.m_x[n] + 8 - x) > 16 + D.MON_HIT_W[t] || abs(g.m_y[n] + 8 - y) > 16 + D.MON_HIT_H[t]) continue;
+    hit_monster(n, roll_damage() * 2 + 2, kdir(g.pdx, g.pdy), 0);
+    if (g.m_type[n]) g.m_frz[n] = Math.max(g.m_frz[n], 45);
+  }
+  if (g.boss_on && abs(g.bx + 16 - x) < 22 && abs(g.by + 18 - y) < 22) hit_boss(roll_damage() * 2, 0);
+  for (let j = 0; j < g.nobj; ++j) {
+    if (g.ob_t[j] !== OBJ_PEGS) continue;
+    const c = g.ob_k[j], cx = ((c & 15) << 4) + 8, cy = PLAY_Y + ((c >> 4) << 4) + 8;
+    if (abs(cx - x) > 14 || abs(cy - y) > 14) continue;
+    g.ob_t[j] = OBJ_GONE; fx('obj', { k: j });
+    const dd = DOOR_C.indexOf(c);
+    if (dd >= 0) dg_open_door(dd, 'THE PEGS GO DOWN. THE WAY IS CLEAR!');
+  }
+}
+// the EMBER WAND: a fireball that flies until it hits something: it burns monsters, lights braziers
+function update_fireball() {
+  ++g.fb_t;
+  g.fb_x += g.fb_dx; g.fb_y += g.fb_dy;
+  const x = g.fb_x | 0, y = g.fb_y | 0;
+  const end = () => { g.fb_t = 0; fx('fbpop', { x, y }); };
+  if (g.fb_t > 60 || x < 2 || x > 254 || y < PLAY_Y + 2 || y > PLAY_Y + 174) { end(); return; }
+  const c = (((y - PLAY_Y) >> 4) << 4) | (x >> 4);
+  for (let j = 0; j < g.nobj; ++j) {
+    if (g.ob_k[j] !== c || (g.ob_t[j] !== OBJ_BRAZIER && g.ob_t[j] !== OBJ_BRAZIER_LIT)) continue;
+    if (g.ob_t[j] === OBJ_BRAZIER) {
+      g.ob_t[j] = OBJ_BRAZIER_LIT; fx('obj', { k: j }); sfx('cast');
+      let cold = 0;
+      for (let i = 0; i < g.nobj; ++i) if (g.ob_t[i] === OBJ_BRAZIER) ++cold;
+      if (!cold) { const r = dg_room(); for (let dd = 0; dd < 4; ++dd) if (r.doors[dd] && r.doors[dd].kind === DG.E_FIRE) dg_open_door(dd, 'THE FLAMES ROAR. THE SEAL BREAKS!'); }
+      else set_msg('ONE MORE BRAZIER...', COL_GOLD, 120);
+    }
+    end(); return;
+  }
+  if (solid(x, y)) { end(); return; }
+  for (let n = 0; n < MAXM; ++n) {
+    const t = g.m_type[n];
+    if (!t || x < g.m_x[n] + 1 - D.MON_HIT_W[t] || x > g.m_x[n] + 15 + D.MON_HIT_W[t] || y < g.m_y[n] - D.MON_HIT_H[t] || y > g.m_y[n] + 15) continue;
+    hit_monster(n, roll_damage() + (roll_damage() >> 1) + 1, kdir(Math.sign(g.fb_dx), Math.sign(g.fb_dy)), 0);
+    if (g.m_type[n]) g.m_burn[n] = 4;
+    end(); return;
+  }
+  if (g.boss_on && x >= g.bx + 3 - g.bhw && x <= g.bx + 28 + g.bhw && y >= g.by + 4 - g.bhh && y <= g.by + 30) { hit_boss(roll_damage() + (roll_damage() >> 1), 0); end(); }
+}
 function update_items() {
+  if (g.hm_t) update_hammer();
+  if (g.fb_t) update_fireball();
   if (g.hk_t) update_hook();
   // the boomerang
   if (g.bm_t) {
@@ -3003,7 +3101,7 @@ function update_items() {
     }
     // loot rides home on it
     if (!g.bm_item) for (let n = 0; n < MAXI; ++n) {
-      if (!g.i_kind[n]) continue;
+      if (!g.i_kind[n] || near_hero(n)) continue;
       if (bx + 7 >= g.i_x[n] && bx <= g.i_x[n] + 8 && by + 7 >= g.i_y[n] && by <= g.i_y[n] + 8) { g.bm_item = n + 1; g.bm_back = 1; break; }
     }
     if (g.bm_item) { const n = g.bm_item - 1; if (g.i_kind[n]) { g.i_x[n] = bx; g.i_y[n] = by; fx('itemmove', { s: n }); } }
@@ -3062,18 +3160,14 @@ export function load_game() {
   tal_sync(); sta_sync();
   if (g.pet_type) pet_revive();
   g.hp = g.maxhp;
-  if (g.mode === 'dungeon' && g.dg_seed_text && g.dg_gen !== DG.GEN) { dg_start(g.dg_seed_text, g.dg_no); return true; } // (laid out by an older generator: that dungeon starts afresh)
-  if (g.mode === 'dungeon' && g.dg_seed_text) {
-    const flags = g.dg_flags.slice(), room = g.dg_room;
-    g.dg = DG.generateDungeon(DG.seedFrom(g.dg_seed_text + (g.dg_no > 1 ? '#' + g.dg_no : '')));
-    g.dg_flags = g.dg.rooms.map((_, i) => flags[i] | 0);
-    g.theme = (g.dg_no - 1) % 10; g.fmod = FM_CALM; g.floor_num = g.dg_no;
-    dg_enter(room < g.dg.rooms.length ? room : g.dg.start, -1);
-    return true;
-  }
-  g.mode = 'floors';
-  setup_floor();
-  start_room();
+  // a tower run from before the floors were dungeons: the same floor, as a dungeon (a new seed)
+  if (g.mode !== 'dungeon' || !g.dg_seed_text) { dg_start(DG.randomSeedText(), Math.max(1, Math.min(LAST_FLOOR, g.floor_num | 0))); return true; }
+  // laid out by an older generator: that floor starts afresh
+  if (g.dg_gen !== DG.GEN) { dg_start(g.dg_seed_text, Math.max(1, Math.min(LAST_FLOOR, g.dg_no | 0))); return true; }
+  const flags = g.dg_flags.slice(), room = g.dg_room;
+  dg_floor(g.dg_no);
+  g.dg_flags = g.dg.rooms.map((_, i) => flags[i] | 0);
+  dg_enter(room < g.dg.rooms.length ? room : g.dg.start, -1);
   return true;
 }
 export function seed(n) { g.rng = (n & 0xFFFF) || 1; }

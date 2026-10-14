@@ -111,7 +111,7 @@ export function closeModal() { S.save_game(); show(null); }
 export function openMap() {
   if (G.mode !== 'dungeon' || !G.dg) return;
   sfx('pickup'); show('sMap');
-  $('mapTitle').textContent = 'DUNGEON ' + G.dg_no + ' · ' + G.dg_seed_text;
+  $('mapTitle').textContent = 'FLOOR ' + G.dg_no + ' · ' + G.dg_seed_text;
   drawDungeonMap($('mapBig'), true);
   $('mapLegend').textContent = (G.dg_map ? 'You have the map: every room is shown. ' : 'Rooms appear as you find them (a map is hidden in a chest). ') + '▲ entrance · ■ chest · ◆ great chest · ☠ the keeper';
 }
@@ -157,7 +157,7 @@ for (const c of document.querySelectorAll('.card')) {
   c.onfocus = c.onmouseenter = () => { classTip(+c.dataset.cls); UI.hooks.classPreview && UI.hooks.classPreview(+c.dataset.cls); };
 }
 $('bClassBack').onclick = () => (UI.dgSeed ? show('sSeed') : title());
-$('bStory').onclick = () => { sfx('door'); fadeThen(() => { S.new_hero(UI.cls); S.start_room(); show(null); }); };
+$('bStory').onclick = () => { sfx('door'); fadeThen(() => { S.new_hero(UI.cls); S.dg_start(DG.randomSeedText(), 1); show(null); }); };
 
 // ---------------------------------------------------------------- options
 const qBtns = [...$('oQual').querySelectorAll('button')];
@@ -181,7 +181,7 @@ $('bPauseOpt').onclick = () => { UI.optBack = 'sPause'; openOptions(); };
 $('bQuit').onclick = () => { S.save_game(); title(); };
 
 // ---------------------------------------------------------------- death, victory
-export function dead() { $('deadWhere').textContent = G.mode === 'dungeon' ? `in dungeon ${G.dg_no} (seed ${G.dg_seed_text}): back to its entrance, keys and items kept` : 'on floor ' + G.floor_num; setTimeout(() => show('sDead'), 900); }
+export function dead() { $('deadWhere').textContent = G.mode === 'dungeon' ? `on floor ${G.dg_no} (seed ${G.dg_seed_text}): back to its entrance, keys and items kept` : 'on floor ' + G.floor_num; setTimeout(() => show('sDead'), 900); }
 $('bRetry').onclick = () => { sfx('door'); fadeThen(() => { S.respawn(); show(null); }); };
 export function win() {
   $('winStats').textContent = `Level ${G.lvl} · ${G.kills} monsters · ${G.gold} gold`;
@@ -524,6 +524,8 @@ export function dgFound(c, v) {
   const swap = touchUI() ? 'the small arrows' : (input.lastDevice === 'pad' ? 'LB / RB' : 'V');
   const t = {
     [DG.C_BOOMERANG]: ['THE RETURN BLADE', `Throw it with ${how}: it stuns, fetches loot, trips crystal switches. ${swap} switches items.`],
+    [DG.C_HAMMER]: ['THE IRON HAMMER', `Swing it with ${how}: it pounds wooden pegs into the floor and crushes what's in front of you.`],
+    [DG.C_FIRE]: ['THE EMBER WAND', `Shoot fire with ${how}: it lights braziers (light them all to break a seal) and burns monsters.`],
     [DG.C_HOOK]: ['THE GRAPPLE CHAIN', `Fire it with ${how}: it catches on posts and chests and pulls you over pits. It stuns, too.`],
     [DG.C_BOMBS]: ['BLAST BOMBS', `Set one down with ${how}. Stand clear! They open cracked walls.`],
     [DG.C_BIGKEY]: ['THE BIG KEY', 'It opens the keeper\'s door.'],
@@ -557,7 +559,7 @@ export function lootCard(e) {
 export function roomStart() {
   if (G.mode === 'dungeon') {
     const id = G.dg_seed_text + '#' + G.dg_no;
-    if (UI.lastDg !== id) { UI.lastDg = id; banner('DUNGEON ' + G.dg_no, 'SEED ' + G.dg_seed_text, 2.4); }
+    if (UI.lastDg !== id) { UI.lastDg = id; banner('FLOOR ' + G.dg_no, D.THEME_NAME[G.theme] + ' · SEED ' + G.dg_seed_text, 2.4); }
     fadeIn(); drawMinimap(); return;
   }
   if (G.room_num === 1) banner('FLOOR ' + G.floor_num, D.THEME_NAME[G.theme] + ' · ' + D.MOD_NAME[G.fmod], 2.2);
@@ -578,6 +580,8 @@ function setW(id, v) { const w = Math.max(0, Math.min(100, v)).toFixed(1) + '%';
 const ITEM_SVG = {
   [DG.I_BOOMERANG]: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M4 26C10 16 14 9 26 5c-6 6-9 12-11 20-3-2-7-1-11 1z" fill="#dfe4ee" stroke="#5a6070" stroke-width="1.6"/><circle cx="14" cy="17" r="3" fill="#f0b73c" stroke="#8a5a10"/><circle cx="14" cy="17" r="1.2" fill="#40e0ff"/></svg>'),
   [DG.I_HOOK]: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><g fill="none" stroke-linecap="round"><path d="M4 28l3-3M9 23l3-3M14 18l2-2" stroke="#5a5a66" stroke-width="3"/><path d="M15 17L24 8M24 8c-4-1-7 1-7 5M24 8c1 4-1 7-5 7M24 8l3-3" stroke="#2a2a30" stroke-width="4.4"/><path d="M15 17L24 8M24 8c-4-1-7 1-7 5M24 8c1 4-1 7-5 7M24 8l3-3" stroke="#dfe4ee" stroke-width="2.2"/></g><circle cx="15" cy="17" r="2.4" fill="#f0b73c" stroke="#8a5a10"/></svg>'),
+  [DG.I_HAMMER]: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M8 27L19 12" stroke="#3a2410" stroke-width="5" stroke-linecap="round"/><path d="M8 27L19 12" stroke="#a8743a" stroke-width="2.6" stroke-linecap="round"/><g transform="rotate(37 20 11)"><rect x="11" y="6" width="18" height="10" rx="2" fill="#5a5a66" stroke="#2a2a30" stroke-width="1.4"/><rect x="11" y="6" width="3" height="10" fill="#8a8a96"/><rect x="26" y="6" width="3" height="10" fill="#8a8a96"/></g></svg>'),
+  [DG.I_FIRE]: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M6 28L18 14" stroke="#2a1608" stroke-width="4.4" stroke-linecap="round"/><path d="M6 28L18 14" stroke="#7a4a26" stroke-width="2.2" stroke-linecap="round"/><circle cx="19" cy="13" r="3.2" fill="#f0b73c" stroke="#8a5a10"/><path d="M22 4c4 4 5 8 1 11-1-3-4-3-4-6 0-2 2-3 3-5z" fill="#ff7a1a"/><path d="M22 8c2 2 2 4 0 6-1-2-2-2-2-4z" fill="#ffd36a"/></svg>'),
   [DG.I_BOMBS]: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="15" cy="19" r="10" fill="#2a2a34" stroke="#8a8a9a" stroke-width="1.4"/><rect x="12" y="7" width="6" height="4" rx="1" fill="#5a5a64"/><path d="M17 7q3-4 7-3" stroke="#c8a070" stroke-width="2" fill="none"/><circle cx="25" cy="4" r="2.6" fill="#ffd36a"/><circle cx="11" cy="15" r="2.2" fill="#fff" opacity=".35"/></svg>'),
 };
 export function drawDungeonMap(c, big) {
@@ -654,7 +658,7 @@ function ctlBar(id, rows) {
   $(id).innerHTML = rows.map(([k, t]) => `<span>${chip(k)}${t}</span>`).join('');
 }
 // the item box: the one in use, big; the others you carry, small and dim (with the switch buttons)
-const ITEM_NAME = { [DG.I_BOOMERANG]: 'RETURN BLADE', [DG.I_BOMBS]: 'BLAST BOMBS', [DG.I_HOOK]: 'GRAPPLE CHAIN' };
+const ITEM_NAME = { [DG.I_BOOMERANG]: 'RETURN BLADE', [DG.I_BOMBS]: 'BLAST BOMBS', [DG.I_HOOK]: 'GRAPPLE CHAIN', [DG.I_HAMMER]: 'IRON HAMMER', [DG.I_FIRE]: 'EMBER WAND' };
 function drawItemBox() {
   const el = $('itemBox'), it = G.mode === 'dungeon' && G.dg_items ? G.dg_item : 0;
   const show = !!it && !UI.modal && G.state === 'play';
@@ -667,7 +671,7 @@ function drawItemBox() {
   const swapped = UI.lastHud.itemBox && UI.lastHud.itemBox.split(':')[0] !== String(it);
   UI.lastHud.itemBox = key;
   $('ibPic').src = ITEM_SVG[it]; $('ibName').textContent = ITEM_NAME[it];
-  const rest = [DG.I_BOOMERANG, DG.I_BOMBS, DG.I_HOOK].filter(i => i !== it && (G.dg_items & i));
+  const rest = DG.ITEMS.filter(i => i !== it && (G.dg_items & i));
   const F = PAD_FACE[padStyle()], sw = input.lastDevice === 'kb' ? 'V' : F.l + '/' + F.r;
   $('ibRest').innerHTML = rest.length ? rest.map(i => `<img alt="" src="${ITEM_SVG[i]}">`).join('') + `<i>${sw}</i>` : '';
   if (swapped) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
@@ -678,7 +682,7 @@ function drawPadHelp() {
   if (el.hidden) return;
   const cls = G.player_class, dg = G.mode === 'dungeon', it = dg && G.dg_items ? G.dg_item : 0;
   const spec = cls === 1 ? 'BLINK' : (cls === 2 && !G.pet_type ? 'TAME' : 'ROLL');
-  const item = it === DG.I_BOMBS ? 'BOMBS' : it === DG.I_BOOMERANG ? 'BLADE' : it === DG.I_HOOK ? 'CHAIN' : '';
+  const item = { [DG.I_BOMBS]: 'BOMBS', [DG.I_BOOMERANG]: 'BLADE', [DG.I_HOOK]: 'CHAIN', [DG.I_HAMMER]: 'HAMMER', [DG.I_FIRE]: 'WAND' }[it] || '';
   const swap = dg && manyItems();
   const style = padStyle(), key = [style, spec, item, swap, dg].join();
   if (UI.lastHud.padHelp === key) return;
@@ -713,7 +717,7 @@ export function frame(dt) {
     const r = G.dg.rooms[G.dg_room], key = 'dg' + G.dg_no + ':' + G.dg_room;
     if (UI.lastHud.where !== key) {
       UI.lastHud.where = key;
-      $('hWhere').innerHTML = `DUNGEON ${G.dg_no}<small>SEED ${G.dg_seed_text} · ${DG.ROOM_KIND_NAME[r.kind]}</small>`;
+      $('hWhere').innerHTML = `FLOOR ${G.dg_no}<small>${D.THEME_NAME[G.theme]} · ${DG.ROOM_KIND_NAME[r.kind]}</small>`;
       drawMinimap();
     }
     $('hDg').hidden = false; $('hMap').hidden = false;

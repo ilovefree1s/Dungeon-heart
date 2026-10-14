@@ -1,9 +1,9 @@
 # Dungeon Heart
 
 A 3D dungeon-crawling loot RPG for the browser. Climb 50 floors of the Tower King's
-tower as a warrior, mage or hunter: clear rooms of monsters, grab gear that glows by
-rarity, pick a boss door (easy, medium or hard) at the end of every floor, and save
-your wife from the King on floor 50.
+tower as a warrior, mage or hunter. Every floor is a seeded dungeon in the style of the
+SNES Zelda games (keys, locks, puzzles, a keeper at the end), you find a new item every
+ten floors, and you save your wife from the King on floor 50.
 
 **Play:** https://ilovefree1s.github.io/Dungeon-heart/
 
@@ -25,25 +25,30 @@ The whole SNES game (`ilovefree1s/dungeon-loot`, folder `snes/`), rebuilt in 3D:
   stat and Stamina.
 - Saves in the browser after every room; Continue on the title screen.
 
-## Dungeon Run (seeded)
-Pick **Dungeon** on the title screen, type a seed or roll one, and pick a class. Every seed makes its own
-dungeon, the same one every time (share a seed with a friend):
-- 20-28 screens on an 11x11 grid, entered through doors in the middle of each wall; the map fills in as you
-  explore (a map chest shows it all).
+## The floors: seeded dungeons
+**New Game** rolls a random seed; **Seeded Run** lets you type one (same seed, same 50 floors: share it).
+- Every floor is a dungeon of screens on a grid, entered through doors in the middle of each wall:
+  10 rooms on floors 1-10, 12 on 11-20, 14 on 21-30, 16 on 31-40 and 20 on 41-50. The map fills in
+  as you explore (a map chest shows it all).
 - Small keys open locked doors, a big key opens the keeper's door; secret rooms hide behind cracked walls.
-- Items, each found in a chest: **Blast Bombs** (blow open cracked walls) and the **Return Blade** (a
-  boomerang: stuns enemies, fetches loot, trips crystal switches across pits) and the **Grapple Chain**
-  (fires straight ahead, catches on grapple posts and chests and pulls you over pits; it stuns and fetches
-  loot too). The keeper is too strong for either: they glance off.
-- Chasm rooms: a pit cuts off one door, with a grapple post on each side, so only the chain crosses it.
-- Guard rooms bar their doors until they're clear; block puzzles, spike halls, treasure rooms.
-- Beat the keeper and the stairs lead to the next dungeon.
+  Beat the keeper and the stairs lead up to the next floor (the merchant comes by first).
+- One item every ten floors, each in a great chest, and every floor after it has gates that need it:
+  | Floor | Item | Opens |
+  |---|---|---|
+  | 1 | **Blast Bombs** | cracked walls (and secret rooms) |
+  | 10 | **Return Blade** (a boomerang: stuns, fetches loot) | crystal switches across pits |
+  | 20 | **Iron Hammer** (a heavy swing that crushes) | wooden pegs blocking a doorway |
+  | 30 | **Grapple Chain** (catches on posts and chests, stuns, fetches loot) | chasms: it pulls you over the pit |
+  | 40 | **Ember Wand** (fireballs that burn monsters) | sealed doors: light both braziers |
+  Keepers are too strong for the Blade and the Chain: they glance off.
+- Guard rooms bar their doors until they're clear; block puzzles, spike halls, treasure rooms. Monsters get
+  tougher floor by floor; floor 50's keeper is the Tower King.
 
-How every seed stays beatable: `src/dungeon.js` builds the dungeon as a chain of zones shut off by gates
-(a locked door, a cracked wall, a crystal-switch shutter, a chasm, the keeper's door), and each gate's key or item is
-always placed before it. `node tests/dungeons.mjs 10000` checks the plans (every order of spending keys);
-`node tests/dgbot.mjs 1000` plays whole dungeons through the game's rules with a bot (fighting, keys, bombs,
-the boomerang, the grapple chain, block puzzles, the keeper); `node tests/dgmech.mjs` checks each mechanic.
+How every floor stays beatable: `src/dungeon.js` builds each floor as a chain of zones shut off by gates
+(locks, and gates for the items you carry or find on that floor), and each gate's key or item is always
+placed before it. `node tests/dungeons.mjs 200` checks every floor of 200 seeds (every order of spending
+keys); `node tests/dgbot.mjs 100` plays 100 whole runs, all 50 floors and the King, through the game's
+rules with a bot; `node tests/dgmech.mjs` checks each mechanic and item on a floor that has it.
 
 ## Controls
 | | Keyboard | Controller | Phone |

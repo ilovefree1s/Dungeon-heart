@@ -1,4 +1,5 @@
-// node tests/dgmech.mjs: each dungeon mechanic, played through the rules (sim.js) step by step
+// node tests/dgmech.mjs: each dungeon mechanic, played through the rules (sim.js) step by step, each on a floor
+// that has it (bombs on floor 1, the boomerang's switch on 10, pegs on 20, a chasm on 30, braziers on 40)
 import * as S from '../src/sim.js';
 import * as DG from '../src/dungeon.js';
 import * as D from '../src/data.js';
@@ -12,8 +13,16 @@ const room = () => G.dg.rooms[G.dg_room];
 const goTo = id => S.dg_enter(id, -1);
 const findRoom = f => G.dg.rooms.find(f);
 
-S.new_hero(0);
-S.dg_start('TEST1');
+// floor f of the first test seed whose floor f has a room like `want`
+function floorWith(f, want = () => true) {
+  for (let i = 1; i < 200; i++) {
+    S.new_hero(0); S.dg_start('TEST' + i, f);
+    G.maxhp = G.hp = 250; // (a deep floor's monsters would kill a new hero in one hit)
+    if (G.dg.rooms.some(want)) return;
+  }
+  throw new Error('no floor ' + f + ' has that');
+}
+floorWith(1);
 ok(G.mode === 'dungeon' && room().kind === DG.R_START, 'starts in the entrance');
 ok(G.dg_dk.some(k => k === D.DK_OPEN), 'the entrance has an open door');
 // walk through the first open door
@@ -56,7 +65,7 @@ ok(G.dg_dk.some(k => k === D.DK_OPEN), 'the entrance has an open door');
   const c = G.ob_k[k]; G.px = (c & 15) * 16; G.py = D.PLAY_Y + (c >> 4) * 16 + 18; step(3);
   ok(G.dg_items & DG.I_BOMBS && G.dg_bombs >= 10 && G.dg_item === DG.I_BOMBS, 'opening it gives the bombs (and selects them)');
   goTo(kr.id);
-  ok([...Array(G.nobj).keys()].some(i => G.ob_t[i] === D.OBJ_CHEST_OPEN), 'the chest stays open on a second visit');
+  ok([...Array(G.nobj).keys()].some(i => G.ob_t[i] === D.OBJ_CHEST_OPEN || G.ob_t[i] === D.OBJ_BIGCHEST_OPEN), 'the chest stays open on a second visit');
 }
 // a bomb opens a cracked wall
 {
@@ -76,6 +85,7 @@ ok(G.dg_dk.some(k => k === D.DK_OPEN), 'the entrance has an open door');
   ok(G.dg_dk[d] === D.DK_OPEN, 'the blast opens the wall');
 }
 // the boomerang trips the crystal switch across the pit
+floorWith(10, r => r.kind === DG.R_BOOMSW);
 {
   const sr = findRoom(r => r.kind === DG.R_BOOMSW);
   goTo(sr.id); killAll();
@@ -95,6 +105,7 @@ ok(G.dg_dk.some(k => k === D.DK_OPEN), 'the entrance has an open door');
   ok(!G.bm_t, 'and the boomerang comes home');
 }
 // the block puzzle
+floorWith(5, r => r.kind === DG.R_BLOCK);
 {
   const pr = findRoom(r => r.kind === DG.R_BLOCK) || null;
   if (!pr) ok(true, '(no block puzzle in this seed)');
@@ -109,6 +120,7 @@ ok(G.dg_dk.some(k => k === D.DK_OPEN), 'the entrance has an open door');
     ok(!G.dg_dk.some(k => k === D.DK_SHUT), 'and the doors open');
   }
 }
+floorWith(30, r => r.kind === DG.R_CHASM && G.dg.rooms.filter(q => q.kind === DG.R_FIGHT).length >= 2);
 // a chasm: only the grapple chain crosses it (both ways), pulling you to the post across the pit
 {
   const cr = findRoom(r => r.kind === DG.R_CHASM);
@@ -154,12 +166,62 @@ ok(G.dg_dk.some(k => k === D.DK_OPEN), 'the entrance has an open door');
 {
   const fr = findRoom(r => r.kind === DG.R_FIGHT && !(G.dg_flags[r.id] & 2));
   goTo(fr.id);
-  const n = [...Array(D.MAXM).keys()].find(i => G.m_type[i]);
+  const n = [...Array(D.MAXM).keys()].find(i => G.m_type[i] && D.MON_NAME[G.m_type[i]] !== 'GHOST');
   G.dg_item = DG.I_HOOK;
+  for (let i = 0; i < D.MAXM; i++) if (i !== n) G.m_type[i] = 0;
   G.m_x[n] = 160; G.m_y[n] = D.PLAY_Y + 80; G.px = 100; G.py = D.PLAY_Y + 78; S.faceDir(D.DIR_RIGHT);
   let stunned = false; step(1, 0, S.PAD_X);
   for (let i = 0; i < 30 && !stunned; i++) { G.m_x[n] = 160; G.m_y[n] = D.PLAY_Y + 80; step(1); stunned = G.m_frz[n] > 0; }
+  if (!stunned) console.log('   ', D.MON_NAME[G.m_type[n]], 'hk', G.hk_t, G.hk_st, G.hk_x, G.hk_y, 'hero', G.px, G.py, 'items', G.dg_items, 'map', G.map.slice(80, 96).join(''));
   ok(stunned, 'the chain stuns a monster it hits');
+}
+// the hammer pounds down the pegs in a doorway
+floorWith(20, r => r.doors.some(e => e && e.kind === DG.E_PEG) && G.dg.rooms.filter(q => q.kind === DG.R_FIGHT).length >= 1);
+{
+  const pr = findRoom(r => r.doors.some(e => e && e.kind === DG.E_PEG) && G.dg.rooms[r.doors.find(e => e && e.kind === DG.E_PEG).to].zone > r.zone);
+  goTo(pr.id); killAll();
+  const d = pr.doors.findIndex(e => e && e.kind === DG.E_PEG);
+  ok(G.dg_dk[d] === D.DK_PEGS && G.map[[7, 95, 167, 80][d]] === D.T_DOOR, 'pegs block the doorway');
+  const pads = [S.PAD_UP, S.PAD_RIGHT, S.PAD_DOWN, S.PAD_LEFT];
+  const pos = [[112, D.PLAY_Y + 14], [222, D.PLAY_Y + 78], [112, D.PLAY_Y + 142], [18, D.PLAY_Y + 78]];
+  G.dg_items = DG.I_BOMBS | DG.I_BOOMERANG; G.dg_item = DG.I_BOMBS;
+  G.px = pos[d][0]; G.py = pos[d][1]; step(30, pads[d]);
+  ok(G.dg_dk[d] === D.DK_PEGS && G.dg_room === pr.id, 'without the hammer they hold');
+  G.dg_items |= DG.I_HAMMER; G.dg_item = DG.I_HAMMER;
+  G.px = pos[d][0]; G.py = pos[d][1]; S.faceDir([D.DIR_UP, D.DIR_RIGHT, D.DIR_DOWN, D.DIR_LEFT][d]);
+  step(1, 0, S.PAD_X); step(30);
+  ok(G.dg_dk[d] === D.DK_OPEN && G.map[[7, 95, 167, 80][d]] === D.T_DOORWAY, 'the hammer pounds them down');
+  const to = pr.doors[d].to;
+  step(60, pads[d]);
+  ok(G.dg_room === to, 'and you walk on through');
+  // it hits hard, too
+  const fr = findRoom(r => r.kind === DG.R_FIGHT && !(G.dg_flags[r.id] & 2));
+  goTo(fr.id);
+  const n = [...Array(D.MAXM).keys()].find(i => G.m_type[i] && D.MON_NAME[G.m_type[i]] !== 'GHOST');
+  G.m_hp[n] = 200; G.m_x[n] = 120; G.m_y[n] = D.PLAY_Y + 80; G.px = 102; G.py = D.PLAY_Y + 78; S.faceDir(D.DIR_RIGHT);
+  const hp0 = G.m_hp[n]; step(1, 0, S.PAD_X);
+  let hit = false; for (let i = 0; i < 20; i++) { G.m_x[n] = 120; G.m_y[n] = D.PLAY_Y + 80; step(1); hit ||= G.m_hp[n] < hp0; }
+  ok(hit, 'the hammer crushes a monster in front of you');
+}
+// the ember wand lights the braziers, and the seal breaks
+floorWith(40, r => r.kind === DG.R_TORCH);
+{
+  const tr = findRoom(r => r.kind === DG.R_TORCH);
+  goTo(tr.id); killAll(); goTo(tr.id);
+  const d = tr.doors.findIndex(e => e && e.kind === DG.E_FIRE);
+  const braz = () => [...Array(G.nobj).keys()].filter(i => G.ob_t[i] === D.OBJ_BRAZIER || G.ob_t[i] === D.OBJ_BRAZIER_LIT);
+  ok(braz().length === 2 && G.dg_dk[d] === D.DK_SHUT, 'two cold braziers and a sealed door');
+  G.dg_items |= DG.I_FIRE; G.dg_item = DG.I_FIRE;
+  for (const k of braz()) {
+    // stand two cells below (or above) it and shoot at it
+    const c = G.ob_k[k], cx = c & 15, cy = c >> 4, below = cy < 5;
+    G.px = cx * 16; G.py = D.PLAY_Y + (below ? cy + 3 : cy - 3) * 16; S.faceDir(below ? D.DIR_UP : D.DIR_DOWN);
+    step(1, 0, S.PAD_X); step(40);
+    ok(G.ob_t[k] === D.OBJ_BRAZIER_LIT, `a fireball lights the brazier at ${cx},${cy}`);
+  }
+  ok(G.dg_dk[d] === D.DK_OPEN, 'both lit: the sealed door opens');
+  goTo(tr.id);
+  ok(braz().every(k => G.ob_t[k] === D.OBJ_BRAZIER_LIT) && G.dg_dk[d] === D.DK_OPEN, 'and they stay lit');
 }
 // the keeper: the boomerang glances off (no stun); beaten, stairs lead to the next dungeon
 {
@@ -176,8 +238,22 @@ ok(G.dg_dk.some(k => k === D.DK_OPEN), 'the entrance has an open door');
   const c = G.door_pos; G.px = 112; G.py = c < 16 ? D.PLAY_Y + 20 : D.PLAY_Y + 140;
   const no = G.dg_no;
   for (let i = 0; i < 100 && G.dg_no === no; i++) step(1, c < 16 ? S.PAD_UP : S.PAD_DOWN);
-  ok(G.dg_no === no + 1 && room().kind === DG.R_START, 'the stairs lead to dungeon 2');
+  ok(G.dg_no === no + 1 && room().kind === DG.R_START, 'the stairs lead to the next floor');
+  ok((G.dg_items & DG.itemsBefore(G.dg_no)) === DG.itemsBefore(G.dg_no), 'carrying everything that floor can ask for');
 }
+// floor 50: the Tower King; beating him frees her
+floorWith(50);
+{
+  goTo(G.dg.boss);
+  ok(G.boss_on && S.boss_name() === 'TOWER KING', 'floor 50\'s keeper is the Tower King');
+  for (let i = 0; i < 6000 && G.state === 'play'; i++) {
+    G.bintro = 0;
+    if (G.boss_on) { G.bhp = 1; G.px = Math.max(16, Math.min(208, G.bx - 14)); G.py = Math.max(D.PLAY_Y + 16, Math.min(D.PLAY_Y + 136, G.by + 10)); S.faceDir(D.DIR_RIGHT); G.swing_cd = 0; G.atk_timer = 0; }
+    step(1, S.PAD_B, S.PAD_B); step(3);
+  }
+  ok(G.state === 'rescue' || G.state === 'win', 'beaten: the rescue (state ' + G.state + ')');
+}
+floorWith(3);
 // saving and loading a dungeon run
 {
   let store = null;

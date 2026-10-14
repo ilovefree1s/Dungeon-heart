@@ -139,6 +139,20 @@ function iconTex(c) {
   else if (c === DG.C_MAP) { x.fillStyle = '#3a2408'; x.fillRect(22, 30, 84, 68); x.fillStyle = '#e8d2a0'; x.fillRect(27, 35, 74, 58); x.strokeStyle = '#7a5a30'; x.lineWidth = 4; x.beginPath(); x.moveTo(52, 35); x.lineTo(52, 93); x.moveTo(76, 35); x.lineTo(76, 93); x.stroke(); x.fillStyle = '#c0202a'; x.font = '900 30px sans-serif'; x.textAlign = 'center'; x.fillText('✕', 64, 75); }
   else if (c === DG.C_BOMBS) { x.fillStyle = '#2a2a34'; x.beginPath(); x.arc(60, 72, 30, 0, 7); x.fill(); x.strokeStyle = '#8a8a9a'; x.lineWidth = 3; x.stroke(); x.fillStyle = '#5a5a64'; x.fillRect(52, 34, 16, 10); x.strokeStyle = '#c8a070'; x.lineWidth = 5; x.beginPath(); x.moveTo(62, 34); x.quadraticCurveTo(70, 20, 84, 22); x.stroke(); x.fillStyle = '#ffd36a'; x.beginPath(); x.arc(86, 21, 7, 0, 7); x.fill(); }
   else if (c === DG.C_BOOMERANG) { x.translate(64, 64); x.rotate(-0.4); x.fillStyle = '#5a6070'; x.beginPath(); x.moveTo(-46, 30); x.quadraticCurveTo(-20, -10, 40, -40); x.quadraticCurveTo(10, -6, 0, 40); x.quadraticCurveTo(-20, 26, -46, 30); x.fill(); x.fillStyle = '#e4e8f0'; x.beginPath(); x.moveTo(-40, 26); x.quadraticCurveTo(-16, -6, 34, -34); x.quadraticCurveTo(6, -4, -2, 34); x.quadraticCurveTo(-20, 22, -40, 26); x.fill(); x.fillStyle = '#f0b73c'; x.beginPath(); x.arc(-8, 6, 9, 0, 7); x.fill(); x.fillStyle = '#40e0ff'; x.beginPath(); x.arc(-8, 6, 4, 0, 7); x.fill(); }
+  else if (c === DG.C_HAMMER) {
+    x.save(); x.translate(64, 64); x.rotate(0.6);
+    x.fillStyle = '#3a2410'; x.fillRect(-9, -20, 18, 72); x.fillStyle = '#a8743a'; x.fillRect(-5, -18, 10, 68);
+    x.fillStyle = '#2a2a30'; x.fillRect(-40, -48, 80, 40); x.fillStyle = '#8a8a96'; x.fillRect(-36, -44, 72, 32); x.fillStyle = '#c8c8d0'; x.fillRect(-36, -44, 10, 32); x.fillRect(26, -44, 10, 32);
+    x.restore();
+  }
+  else if (c === DG.C_FIRE) {
+    x.save(); x.translate(64, 64); x.rotate(0.7);
+    x.fillStyle = '#2a1608'; x.fillRect(-7, -6, 14, 60); x.fillStyle = '#7a4a26'; x.fillRect(-4, -4, 8, 56);
+    x.fillStyle = '#f0b73c'; x.beginPath(); x.arc(0, -10, 10, 0, 7); x.fill();
+    x.restore();
+    x.fillStyle = '#ff6a1a'; x.beginPath(); x.moveTo(78, 6); x.quadraticCurveTo(104, 30, 88, 50); x.quadraticCurveTo(70, 56, 66, 40); x.quadraticCurveTo(64, 22, 78, 6); x.fill();
+    x.fillStyle = '#ffd36a'; x.beginPath(); x.moveTo(80, 22); x.quadraticCurveTo(92, 36, 84, 46); x.quadraticCurveTo(74, 48, 74, 38); x.fill();
+  }
   else if (c === DG.C_HOOK) {
     // the grapple chain: a three-pronged hook trailing links
     x.strokeStyle = '#3a3a44'; x.lineWidth = 7;
@@ -207,6 +221,22 @@ function hookModel() {
   const ring = mesh(new THREE.TorusGeometry(0.18, 0.06, 6, 12), std({ color: '#f0b73c', metalness: 1, roughness: 0.3 })); ring.position.z = -0.55; g.add(ring);
   return g;
 }
+// the Iron Hammer (a big iron-headed maul, raised and brought down in front of you) and the Ember
+// Wand's fireball (a flame with a light of its own)
+function hammerModel() {
+  const g = new THREE.Group();
+  const arm = new THREE.Group(); g.add(arm); // (pivots at the hero's hands)
+  const shaft = mesh(new THREE.CylinderGeometry(0.16, 0.18, 3.0, 8), std({ color: '#8a5a30', roughness: 0.7 })); shaft.position.y = 1.5; arm.add(shaft);
+  const iron = std({ color: '#6a6a76', metalness: 0.9, roughness: 0.35, envMapIntensity: 1.1 });
+  const head = mesh(new THREE.BoxGeometry(1.7, 0.95, 0.95), iron); head.position.y = 3.1; arm.add(head);
+  for (const s of [-1, 1]) { const face = mesh(new THREE.BoxGeometry(0.2, 1.1, 1.1), std({ color: '#9a9aa8', metalness: 1, roughness: 0.25 })); face.position.set(s * 0.9, 3.1, 0); arm.add(face); }
+  g.userData.arm = arm;
+  return g;
+}
+const hammer3d = hammerModel(); hammer3d.visible = false; scene.add(hammer3d);
+const fireball = new THREE.Group(); fireball.visible = false; scene.add(fireball);
+for (let i = 0; i < 2; i++) { const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.flame, color: i ? '#ffe080' : '#ff6a1a', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); f.scale.setScalar(i ? 1.4 : 2.6); fireball.add(f); }
+const fbLight = new GlowLight('#ff8a30', 0, 10, 2); fireball.add(fbLight);
 const HK_LINKS = 18;
 const hook3d = hookModel(); hook3d.scale.setScalar(1.5); hook3d.visible = false; scene.add(hook3d);
 const linkMat = std({ color: '#9a9aa8', metalness: 0.9, roughness: 0.35, envMapIntensity: 1.2 }), linkGeo = new THREE.TorusGeometry(0.3, 0.1, 6, 12);
@@ -214,6 +244,22 @@ const links3d = []; for (let i = 0; i < HK_LINKS; i++) { const l = new THREE.Mes
 const blade = bladeModel(); blade.visible = false; scene.add(blade);
 const bombs3d = [0, 1, 2].map(() => { const b = bombModel(); b.visible = false; scene.add(b); return b; });
 function updateItems(dt, t) {
+  // the hammer: up over your head, then down in front (it lands at the swing's halfway mark)
+  const hm = G.mode === 'dungeon' && G.hm_t > 0;
+  hammer3d.visible = hm;
+  if (hm) {
+    const k = 1 - G.hm_t / 24, a = k < 0.5 ? -1.2 + k * 0.6 : Math.min(1.75, -0.9 + (k - 0.5) * 12);
+    hammer3d.position.set(V.heroPos.x, 1.6, V.heroPos.z);
+    hammer3d.rotation.set(0, Math.atan2(G.pdx, G.pdy), 0);
+    hammer3d.userData.arm.rotation.x = a;
+  }
+  fireball.visible = G.mode === 'dungeon' && G.fb_t > 0;
+  fbLight.intensity = fireball.visible ? 14 : 0;
+  if (fireball.visible) {
+    fireball.position.set(wx(G.fb_x), 2.0, wz(G.fb_y));
+    fireball.children[0].material.rotation = t * 8;
+    if (Math.random() < 0.6) burst(fireball.position.x, 2.0, fireball.position.z, '#ff8a30', 1, 1.2, 0.6, true, 0.35, -2);
+  }
   // the chain: from the hero's hand to the hook, its links laid along the line
   const hk = G.mode === 'dungeon' && G.hk_t > 0;
   hook3d.visible = hk;
@@ -372,6 +418,8 @@ export function onEvents(ev, ui) {
       case 'objmove': { const o = R.objs[e.k]; if (o) { o.from = o.g.position.clone(); o.moveT = 0; const c = G.ob_k[e.k]; o.to = new THREE.Vector3(wx((c & 15) * 16 + 8), 0, wz(D.PLAY_Y + (c >> 4) * 16 + 8)); } break; }
       case 'dgget': ui.drawMinimap && ui.drawMinimap(); ui.dgFound && ui.dgFound(e.c, e.v); riseIcon(e.c, ax(e.x), az(e.y)); burst(ax(e.x), 3, az(e.y), '#ffe9a0', 30, 6, 1.0, true, 0.9, -1); ring(ax(e.x), az(e.y), '#ffd36a', 0.5, 6, 0.6); ui.flash && ui.flash('#fff2c0', 0.25); break;
       case 'bstun': if (V.boss) { const p = V.boss.position; burst(p.x, 7, p.z, '#ffe080', 14, 3, 0.8, true, 0.8, 0); } break;
+      case 'hammer': burst(wx(e.x), 0.6, wz(e.y), '#d8c8a8', 16, 6, 0.9, false, 0.5); ring(wx(e.x), wz(e.y), '#ffffff', 0.4, 4, 0.4); shake.t = 0.25; shake.amp = 0.9; break;
+      case 'fbpop': burst(wx(e.x), 2, wz(e.y), '#ff8a30', 14, 5, 0.8, true, 0.45, 0); break;
       case 'hkcatch': burst(wx(e.x), 2.6, wz(e.y), '#ffd36a', 10, 3, 0.5, true, 0.5, 0); break;
       case 'hkclink': burst(wx(e.x), 1.8, wz(e.y), '#ffffff', 6, 2.5, 0.35, true, 0.35, 0); break;
       case 'stun': { const m = V.mons[e.n]; if (m) burst(m.root.position.x, 2.6, m.root.position.z, '#ffe080', 8, 2.5, 0.6, true, 0.6, 0); break; }
@@ -691,6 +739,11 @@ export function update(dt, input) {
       const on = ot === D.OBJ_PLATE_ON;
       o.parts.plate.position.y = on ? 0.03 : 0.09; o.parts.mark.material.color.set(on ? '#7dff86' : '#ffcf6a');
     } else if (o.parts.wall) { if (ot === D.OBJ_GONE) o.g.visible = false; }
+    else if (o.parts.brazierL) {
+      const lit = ot === D.OBJ_BRAZIER_LIT;
+      o.parts.fire.visible = lit; o.parts.brazierL.intensity = lit ? 12 + Math.sin(t * 9) * 2 : 0; o.parts.coal.emissiveIntensity = lit ? 0.8 : 0;
+      if (lit) o.parts.fire.children.forEach((f, i) => { f.scale.y = (3.2 - i * 0.6) * (0.85 + Math.sin(t * (8 + i * 3) + i) * 0.15); });
+    }
     else if (o.t === D.OBJ_CHEST || o.t === D.OBJ_CHEST_OPEN || ot === D.OBJ_CHEST_OPEN) {
       if (ot === D.OBJ_CHEST_OPEN && o.parts.lidG) { o.parts.lidG.rotation.x = smooth(o.parts.lidG.rotation.x, -1.25, dt, 6); o.parts.shine.material.opacity = 0.1; if (o.parts.glowIn) o.parts.glowIn.material.opacity = 0.35 + Math.sin(t * 3) * 0.1; }
       if (ot === D.OBJ_GONE) o.g.visible = false;
