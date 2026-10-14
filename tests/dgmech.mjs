@@ -110,8 +110,11 @@ floorWith(5, r => r.kind === DG.R_BLOCK);
   const pr = findRoom(r => r.kind === DG.R_BLOCK) || null;
   if (!pr) ok(true, '(no block puzzle in this seed)');
   else {
-    goTo(pr.id); killAll();
+    goTo(pr.id);
+    ok(/PUSH THE BLOCK/.test(G.msg), 'walking in, it says the block opens the doors (not the guard)');
+    killAll();
     ok(G.dg_dk.some(k => k === D.DK_SHUT), 'the puzzle room bars its doors');
+    ok(/STAY SHUT. PUSH THE BLOCK/.test(G.msg), 'the guard gone, it says the doors still wait on the block');
     const kb = [...Array(G.nobj).keys()].find(i => G.ob_t[i] === D.OBJ_BLOCK), kp = [...Array(G.nobj).keys()].find(i => G.ob_t[i] === D.OBJ_PLATE);
     const bc = G.ob_k[kb], pc = G.ob_k[kp], dir = (pc & 15) > (bc & 15) ? 1 : -1;
     G.px = ((bc & 15) - dir) * 16; G.py = D.PLAY_Y + (bc >> 4) * 16 - 4;
@@ -119,6 +122,21 @@ floorWith(5, r => r.kind === DG.R_BLOCK);
     ok(G.dg_flags[G.dg_room] & 8, 'pushing the block onto the plate solves it');
     ok(!G.dg_dk.some(k => k === D.DK_SHUT), 'and the doors open');
   }
+}
+// a hunter tames a guard room's last monster: that clears the room as a kill would
+{
+  const seed = G.dg_seed_text, no = G.dg_no;
+  S.new_hero(2); S.dg_start(seed, no); G.maxhp = G.hp = 250;
+  const fr = findRoom(r => r.kind === DG.R_FIGHT);
+  S.dg_enter(fr.id, -1);
+  const t = [...Array(D.MAXM).keys()].find(n => G.m_type[n]);
+  for (let n = 0; n < D.MAXM; n++) if (G.m_type[n] && n !== t) { G.m_type[n] = 0; G.mon_left--; }
+  G.m_type[t] = D.M_SLIME; G.m_elite[t] = 0; G.m_mhp[t] = 40; G.m_hp[t] = 8; G.m_frz[t] = 3000; G.m_x[t] = 120; G.m_y[t] = D.PLAY_Y + 80;
+  G.px = 104; G.py = D.PLAY_Y + 80;
+  ok(G.dg_dk.some(k => k === D.DK_SHUT), 'a guard room, one weak slime left, doors shut');
+  step(1, 0, S.PAD_A);
+  for (let k = 0; k < 3000 && G.tame_n; k++) { const d = G.tame_pos < 64 ? G.tame_pos : 128 - G.tame_pos; step(1, 0, d <= 2 ? S.PAD_A : 0); }
+  ok(G.pet_type === D.M_SLIME && !G.dg_dk.some(k => k === D.DK_SHUT), 'tamed: it\'s your pet and the doors open');
 }
 floorWith(30, r => r.kind === DG.R_CHASM && G.dg.rooms.filter(q => q.kind === DG.R_FIGHT).length >= 2);
 // a chasm: only the grapple chain crosses it (both ways), pulling you to the post across the pit

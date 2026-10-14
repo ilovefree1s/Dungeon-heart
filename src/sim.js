@@ -2704,8 +2704,8 @@ export function dg_enter(id, from) {
   else if (k === DG.R_TORCH && r.doors.some((e, dd) => e && e.kind === DG.E_FIRE && !(f & (F_DOOR << dd))))
     set_msg(g.dg_items & DG.I_FIRE ? 'A SEALED DOOR. LIGHT BOTH BRAZIERS' : 'A SEALED DOOR. THE BRAZIERS ARE COLD...', COL_WHITE, 200);
   else if (r.kind === DG.R_BOSS) set_msg('THE KEEPER IS GONE. THE STAIRS LEAD ON', COL_GOLD);
+  else if (barred && k === DG.R_BLOCK) set_msg('THE DOORS SLAM SHUT! PUSH THE BLOCK ONTO THE PLATE', COL_RED, 220);
   else if (barred && g.mon_left) set_msg('THE DOORS SLAM SHUT!', COL_RED, 120);
-  else if (barred && k === DG.R_BLOCK) set_msg('THE DOORS SLAM SHUT! PUSH THE BLOCK', COL_RED, 160);
   else if (k === DG.R_CHASM && !(g.dg_flags[id] & F_SOLVED)) { // (until you've crossed it)
     set_msg(g.dg_items & DG.I_HOOK ? 'A CHASM. FIRE THE CHAIN AT A POST' : 'A CHASM. SOMETHING COULD PULL YOU ACROSS...', COL_WHITE, 200);
   }
@@ -2734,7 +2734,12 @@ function dg_open_door(dd, msg) {
 function dg_cleared() {
   const r = dg_room();
   if (!r || g.boss_on) return;
-  if (r.kind === DG.R_BLOCK && !(g.dg_flags[g.dg_room] & F_SOLVED)) { g.dg_flags[g.dg_room] |= F_CLEAR; return; }
+  if (r.kind === DG.R_BLOCK && !(g.dg_flags[g.dg_room] & F_SOLVED)) {
+    // (the guard's gone, but these doors wait on the block, not the monsters: say so)
+    g.dg_flags[g.dg_room] |= F_CLEAR;
+    set_msg('THE DOORS STAY SHUT. PUSH THE BLOCK ONTO THE PLATE', COL_GOLD, 300); sfx('nope');
+    return;
+  }
   if (g.dg_flags[g.dg_room] & F_CLEAR && !g.dg_bar) return;
   g.dg_flags[g.dg_room] |= F_CLEAR;
   if (g.dg_bar) {
