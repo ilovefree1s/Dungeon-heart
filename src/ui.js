@@ -679,7 +679,7 @@ function drawItemBox() {
 // the switch arrows (touch): at the two sides, just under the room's front wall; each shows the item it moves to
 const _v = new V3();
 function placeSwitch(it) {
-  const show = !!it && !$('touch').hidden;
+  const show = !$('touch').hidden; // (always there in the dungeons: faded until you carry two items)
   $('tPrev').hidden = $('tNext').hidden = !show;
   if (!show) return;
   // (where the room's front edge is on screen; it moves with the camera)
@@ -698,7 +698,7 @@ function placeSwitch(it) {
   if (UI.lastHud.swKey === key) return;
   UI.lastHud.swKey = key;
   const prev = have[(k - 1 + have.length) % have.length], next = have[(k + 1) % have.length];
-  $('tPrev').querySelector('img').src = ITEM_SVG[prev]; $('tNext').querySelector('img').src = ITEM_SVG[next];
+  for (const [id, i] of [['tPrev', prev], ['tNext', next]]) { const im = $(id).querySelector('img'); im.hidden = have.length < 2; if (have.length >= 2) im.src = ITEM_SVG[i]; }
   for (const id of ['tPrev', 'tNext']) $(id).classList.toggle('one', have.length < 2);
 }
 const manyItems = () => (G.dg_items & (G.dg_items - 1)) !== 0; // (two or more: they can be switched)
