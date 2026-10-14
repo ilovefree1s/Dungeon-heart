@@ -18,6 +18,9 @@ export function onFirstInput(f) { onAny = f; }
 // the menu cursor is drawn by the game (html.padnav .pfocus), not left to the browser's focus ring,
 // which Safari never shows for a controller
 function navMode(on) { document.documentElement.classList.toggle('padnav', on); }
+// a touch anywhere: this is a touch screen (some phones and tablets also claim a fine pointer)
+addEventListener('touchstart', () => { if (!document.documentElement.classList.contains('touchy')) { document.documentElement.classList.add('touchy'); st.lastDevice = 'touch'; } }, { capture: true, passive: true });
+if (matchMedia('(pointer:coarse)').matches) document.documentElement.classList.add('touchy');
 addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' || e.button === 0) navMode(false); }, true);
 addEventListener('keydown', e => {
   const k = KEYMAP[e.code];

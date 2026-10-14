@@ -518,10 +518,10 @@ function stepNums(dt) {
     n.el.style.transform = `translate(-50%,-50%) scale(${s})`;
   }
 }
-const touchUI = () => input.lastDevice === 'touch';
+const touchUI = () => input.lastDevice === 'touch' || (document.documentElement.classList.contains('touchy') && input.lastDevice !== 'pad');
 export function dgFound(c, v) {
   const how = touchUI() ? 'the green button' : (input.lastDevice === 'pad' ? PAD_FACE[padStyle()].n[3] : 'F or C');
-  const swap = touchUI() ? 'the small arrows' : (input.lastDevice === 'pad' ? 'LB / RB' : 'V');
+  const swap = touchUI() ? 'the SWITCH button' : (input.lastDevice === 'pad' ? 'LB / RB' : 'V');
   const t = {
     [DG.C_BOOMERANG]: ['THE RETURN BLADE', `Throw it with ${how}: it stuns, fetches loot, trips crystal switches. ${swap} switches items.`],
     [DG.C_HAMMER]: ['THE IRON HAMMER', `Swing it with ${how}: it pounds wooden pegs into the floor and crushes what's in front of you.`],
@@ -724,10 +724,13 @@ export function frame(dt) {
     setText('hKeys', G.dg_keys); $('hBig').hidden = !G.dg_big;
     const it = G.dg_items ? G.dg_item : 0;
     $('hItem').hidden = !it;
-    if (it && UI.lastHud.item !== it) { UI.lastHud.item = it; $('hItemPic').src = ITEM_SVG[it]; $('tItemPic').src = ITEM_SVG[it]; }
+    if (it && UI.lastHud.item !== it) { UI.lastHud.item = it; $('hItemPic').src = ITEM_SVG[it]; $('tItemPic').src = ITEM_SVG[it]; setText('tItemL', ITEM_NAME[it].split(' ').pop()); }
     const n = it === DG.I_BOMBS ? String(G.dg_bombs) : '';
     setText('hItemN', n); setText('tItemN', n);
-    $('tItem').hidden = !it || $('touch').hidden; $('tSwap').hidden = !it || !manyItems() || $('touch').hidden;
+    // (on a touch screen the item button is always there in the dungeons: grey until you find one)
+    $('tItem').hidden = $('touch').hidden; $('tItem').classList.toggle('none', !it); $('tItemPic').hidden = !it;
+    if (!it && UI.lastHud.item) { UI.lastHud.item = 0; setText('tItemL', 'ITEM'); }
+    $('tSwap').hidden = !it || !manyItems() || $('touch').hidden;
   } else if (UI.lastHud.dgOn !== 0) { UI.lastHud.dgOn = 0; $('hDg').hidden = true; $('hMap').hidden = true; $('tItem').hidden = true; $('tSwap').hidden = true; }
   if (G.mode === 'dungeon') UI.lastHud.dgOn = 1;
   const wh = G.room_num === D.BOSS_ROOM ? 'BOSS' : 'ROOM ' + G.room_num;

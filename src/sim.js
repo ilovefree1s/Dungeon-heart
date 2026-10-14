@@ -2879,6 +2879,7 @@ function dg_respawn() {
 // (it flies over pits; walls send it home); BLAST BOMBS sit 2 seconds, then blow: they hurt everything near,
 // you too, and open cracked walls
 function use_item() {
+  if (!g.dg_items) { set_msg('NO ITEM YET. YOU\'LL FIND ONE IN A GREAT CHEST', COL_WHITE, 150); sfx('nope'); return; }
   if (g.dg_item === DG.I_BOOMERANG && (g.dg_items & DG.I_BOOMERANG)) {
     if (g.bm_t) return;
     g.bm_t = 1; g.bm_back = 0; g.bm_hit = 0; g.bm_item = 0;
