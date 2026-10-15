@@ -173,7 +173,9 @@ qBtns.forEach(b => b.onclick = () => { UI.quality = +b.dataset.q; qBtns.forEach(
 $('bOptBack').onclick = () => back();
 
 // ---------------------------------------------------------------- pause
-function openPause() { sfx('pickup'); show('sPause'); }
+function openPause() { sfx('pickup'); $('bUnstuck').hidden = G.mode !== 'dungeon'; show('sPause'); }
+// stuck somewhere? back to this floor's entrance (keys, items, opened doors and chests all kept)
+$('bUnstuck').onclick = () => { sfx('door'); fadeThen(() => { S.dg_to_entrance(); show(null); }); };
 $('hPause').onclick = () => openPause();
 $('bResume').onclick = () => closeModal();
 $('bPauseBag').onclick = () => openInv();

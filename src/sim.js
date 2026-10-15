@@ -2871,6 +2871,12 @@ function dg_next() {
   dg_start(g.dg_seed_text, Math.min(LAST_FLOOR, g.dg_no + 1));
   fx('floor');
 }
+// the pause menu's way out if you're ever stuck: this floor's entrance, everything you've done kept
+export function dg_to_entrance() {
+  if (g.mode !== 'dungeon' || !g.dg) return;
+  dg_enter(g.dg.start, -1);
+  set_msg('BACK AT THE ENTRANCE OF FLOOR ' + g.dg_no, COL_GOLD, 180);
+}
 // back to the entrance after a fall (keys and items kept, half the gold)
 function dg_respawn() {
   g.hp = g.maxhp;
