@@ -54,10 +54,10 @@ rules with a bot; `node tests/dgmech.mjs` checks each mechanic and item on a flo
 | | Keyboard | Controller | Phone |
 |---|---|---|---|
 | Move | WASD / arrows | left stick / d-pad | the stick |
-| Attack | Space, J, Z | X / ▢ (and A / ✕ until you carry a dungeon item) | ATTACK |
-| Roll / blink / tame | Shift, K, X, L | Y / △ | the blue button |
-| Potion | Q, E, R | B / ○, Select | POTION |
-| Dungeon item (use / switch) | F or C / V | A / ✕ / LB back, RB on | the green button / the ◀ ▶ arrows under the room |
+| Attack | Space, J, Z | A / ✕ (and X / ▢ until you carry a dungeon item) | ATTACK |
+| Roll / blink / tame | Shift, K, X, L | B / ○ | the blue button |
+| Potion | Q, E, R | Y / △, Select | POTION |
+| Dungeon item (use / switch) | F or C / V | X / ▢ / LB back, RB on | the green button / the ◀ ▶ arrows under the room |
 | Dungeon map | M | Select (in a dungeon) | the map button |
 | Bag & talents | Tab, I, B | Start (in menus: A / ✕ picks, B / ○ backs out, Y / △ sells) | START (or the bag button) |
 | Pause | Esc, P | | SELECT (or the pause button) |

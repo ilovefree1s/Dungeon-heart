@@ -66,10 +66,9 @@ export function initTouch() {
   btn('tAtk', PAD_B, 'tAtk'); btn('tSpec', PAD_A, 'tSpec'); btn('tPot', PAD_SELECT, 'tPot'); btn('tItem', PAD_X, 'tItem'); btn('tPrev', PAD_L, 'tPrev'); btn('tNext', PAD_R, 'tNext');
 }
 
-// controllers (standard mapping, by where the button sits): left (X / square) attacks; bottom (A / cross) uses the
-// dungeon item (attacks until you have one); top (Y / triangle) rolls, blinks or tames; right (B / circle) drinks
-// a potion; LB / RB switch items, select potion (the map in a dungeon), start the bag; d-pad or left stick.
-// In menus: bottom or left confirms, right goes back, top sells (in the bag).
+// controllers (standard mapping): A / cross attacks; X / square uses the dungeon item (attacks until you have one);
+// B / circle rolls, blinks or tames; Y / triangle drinks a potion; LB / RB switch items, select potion (the map in
+// a dungeon), start the bag; d-pad or left stick. In menus: A or X confirms, B goes back, Y sells (in the bag).
 let gp = null;
 function pollPad() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -82,7 +81,7 @@ function pollPad() {
   const dgm = G.mode === 'dungeon';
   const up = on(12) || ay < -0.5, down = on(13) || ay > 0.5, left = on(14) || ax < -0.5, right = on(15) || ax > 0.5;
   // the game's buttons
-  const now = { atk: on(2) || (on(0) && !im), item: on(0) && im, prev: on(4) && im, next: on(5) && im, spec: on(3), pot: on(1) || (on(8) && !dgm), up, down, left, right };
+  const now = { atk: on(0) || (on(2) && !im), item: on(2) && im, prev: on(4) && im, next: on(5) && im, spec: on(1), pot: on(3) || (on(8) && !dgm), up, down, left, right };
   // the menus' (one press, one key)
   const menu = { ok: on(0) || on(2), back: on(1), pot: on(3), map: on(8) && dgm, bag: on(9), up, down, left, right, lb: on(4), rb: on(5) };
   for (const k in now) if (now[k] && !st.gpPrev[k]) {

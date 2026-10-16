@@ -522,7 +522,7 @@ function stepNums(dt) {
 }
 const touchUI = () => input.lastDevice === 'touch' || (document.documentElement.classList.contains('touchy') && input.lastDevice !== 'pad');
 export function dgFound(c, v) {
-  const how = touchUI() ? 'the green button' : (input.lastDevice === 'pad' ? PAD_FACE[padStyle()].n[3] : 'F or C');
+  const how = touchUI() ? 'the green button' : (input.lastDevice === 'pad' ? PAD_FACE[padStyle()].X[0] : 'F or C');
   const swap = touchUI() ? 'the arrows under the room' : (input.lastDevice === 'pad' ? 'LB / RB' : 'V');
   const t = {
     [DG.C_BOOMERANG]: ['THE RETURN BLADE', `Throw it with ${how}: it stuns, fetches loot, trips crystal switches. ${swap} switches items.`],
@@ -643,10 +643,13 @@ export function drawMinimap() {
   }
 }
 // the controller card: each button and what it does right now (PlayStation symbols for a PlayStation pad)
+// each face button (by what the game reads: A attack, B roll, X item, Y potion): [its symbol, its colour]
 const PAD_FACE = {
-  xbox: { n: ['Y', 'X', 'B', 'A'], c: ['#d8a81c', '#2f6ad0', '#c8303a', '#3a9a3a'], l: 'LB', r: 'RB', sel: 'VIEW', start: 'MENU' },
-  ps: { n: ['△', '□', '○', '✕'], c: ['#2a9a7a', '#c0508a', '#c8303a', '#3a6ad0'], l: 'L1', r: 'R1', sel: 'CREATE', start: 'OPTIONS' },
+  xbox: { A: ['A', '#3a9a3a'], B: ['B', '#c8303a'], X: ['X', '#2f6ad0'], Y: ['Y', '#d8a81c'], l: 'LB', r: 'RB', sel: 'VIEW', start: 'MENU' },
+  ps: { A: ['✕', '#3a6ad0'], B: ['○', '#c8303a'], X: ['□', '#c0508a'], Y: ['△', '#2a9a7a'], l: 'L1', r: 'R1', sel: 'CREATE', start: 'OPTIONS' },
 };
+// where the card's drawing puts each one: top, left, right, bottom
+const PAD_DRAW = ['B', 'A', 'Y', 'X'];
 function padStyle() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   for (const p of pads) if (p && p.connected) return /054c|playstation|dualsense|dualshock|wireless controller/i.test(p.id) ? 'ps' : 'xbox';
@@ -655,8 +658,8 @@ function padStyle() {
 // a screen's button row: [[button, what it does]], buttons 'a' 'b' 'x' 'y' 'dpad'; keyboard keys after a key press
 function ctlBar(id, rows) {
   const F = PAD_FACE[padStyle()], kb = input.lastDevice === 'kb' && !(navigator.getGamepads && [...navigator.getGamepads()].some(p => p && p.connected));
-  const FACE = { y: 0, x: 1, b: 2, a: 3 }, KEY = { a: 'ENTER', b: 'ESC', x: 'F', y: 'Q', dpad: '↑ ↓ ← →' };
-  const chip = k => kb ? `<i class="sm">${KEY[k]}</i>` : k === 'dpad' ? '<i class="sm">✚</i>' : `<i style="background:${F.c[FACE[k]]}">${F.n[FACE[k]]}</i>`;
+  const KEY = { a: 'ENTER', b: 'ESC', x: 'F', y: 'Q', dpad: '↑ ↓ ← →' };
+  const chip = k => kb ? `<i class="sm">${KEY[k]}</i>` : k === 'dpad' ? '<i class="sm">✚</i>' : `<i style="background:${F[k.toUpperCase()][1]}">${F[k.toUpperCase()][0]}</i>`;
   $(id).innerHTML = rows.map(([k, t]) => `<span>${chip(k)}${t}</span>`).join('');
 }
 // the item box: the one in use, big; the others you carry, small and dim (with the switch buttons)
@@ -716,12 +719,12 @@ function drawPadHelp() {
   UI.lastHud.padHelp = key;
   const F = PAD_FACE[style];
   const face = el.querySelectorAll('#phFace circle'), txt = el.querySelectorAll('#phFace text');
-  for (let i = 0; i < 4; i++) { face[i].setAttribute('fill', F.c[i]); txt[i].setAttribute('fill', '#fff'); txt[i].textContent = F.n[i]; }
+  for (let i = 0; i < 4; i++) { const [n, c] = F[PAD_DRAW[i]]; face[i].setAttribute('fill', c); txt[i].setAttribute('fill', '#fff'); txt[i].textContent = n; }
   for (const id of ['phL', 'phR']) $(id).setAttribute('fill', swap ? '#8a7a5a' : '#4a4440');
-  const b = i => `<i style="background:${F.c[i]}">${F.n[i]}</i>`, sm = t => `<i class="sm">${t}</i>`;
+  const b = k => `<i style="background:${F[k][1]}">${F[k][0]}</i>`, sm = t => `<i class="sm">${t}</i>`;
   const rows = [
-    [b(1), 'ATTACK'], [b(0), spec],
-    [b(3), item || 'ATTACK'], [b(2), 'POTION'],
+    [b('A'), 'ATTACK'], [b('B'), spec],
+    [b('X'), item || 'ATTACK'], [b('Y'), 'POTION'],
     [sm(F.sel), dg ? 'MAP' : 'POTION'], [sm(F.start), 'BAG'],
   ];
   if (swap) rows.push([sm(F.l) + sm(F.r), 'SWITCH ITEM', 1]);
