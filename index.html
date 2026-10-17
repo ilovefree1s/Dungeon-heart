@@ -330,6 +330,13 @@ h2.t{font-family:var(--display);font-size:clamp(32px,7vw,52px);margin:0;color:va
 .ware:hover,.ware:focus-visible,html.padnav .ware:is(.pfocus){border-color:#ffd75a;background:rgba(255,215,90,.08);outline:none!important}
 .ware:hover::before,.ware:focus-visible::before,html.padnav .ware:is(.pfocus)::before{content:"\25B6";position:absolute;margin-left:-22px;color:#ffd75a;font-size:13px}
 .say{font-weight:900;color:var(--gold);min-height:20px;margin:6px 0 0;text-align:center}
+/* the merchant's gear: each stat against what you wear (green up, red down), and a verdict */
+.ware .chips{display:flex;flex-wrap:wrap;gap:4px;margin:3px 0 2px}
+.ware .chip{display:inline-flex;align-items:baseline;gap:3px;padding:1px 6px;border-radius:6px;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);font-family:var(--display);font-size:12px;letter-spacing:.03em;color:var(--c)}
+.ware .chip b{color:#fff;font-weight:400}.ware .chip i{font-style:normal;font-size:11.5px}
+.ware .vd{display:block;font-weight:900;font-size:10.5px;letter-spacing:.08em}
+.ware .ic{position:relative}
+.ware.up .ic::after{content:"\25B2";position:absolute;right:-3px;top:-4px;font-size:13px;color:#7dff86;text-shadow:0 0 6px #2f8a36,0 1px 0 #000}
 /* trade */
 .trmain{--s:clamp(32px,calc((100vw - 140px) / 7),64px);display:grid;grid-template-columns:auto auto;gap:10px}
 .tpick{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:calc(var(--s) * 3 + 20px)}

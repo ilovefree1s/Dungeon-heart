@@ -352,7 +352,7 @@ function drawTal() {
     if (pet) {
       $('talPetPic').src = petPic(pet); $('talPetPic').hidden = false;
       $('talPetName').textContent = (G.pet_name || D.PET_NAME[pet]).toUpperCase();
-      $('talPetInfo').textContent = `${D.PET_NAME[pet]} · ${G.pet_down ? 'DOWN: back next floor, or drink a potion at full HP' : `HP ${G.pet_hp}/${S.pet_max()}`}`;
+      $('talPetInfo').textContent = `${D.PET_NAME[pet]} · ${G.pet_down ? `DOWN: back in ${Math.ceil(G.pet_down / 60)} s (or drink a potion at full HP)` : `HP ${G.pet_hp}/${S.pet_max()}`}`;
       $('talPetFill').style.width = (G.pet_down ? 0 : G.pet_hp / S.pet_max() * 100) + '%';
       const fb = $('bPetFree'), armed = UI.freeArm === pet;
       fb.textContent = armed ? 'Sure? Tap again' : 'Set free'; fb.classList.toggle('warn', armed);
@@ -407,18 +407,23 @@ function drawShop(focusK) {
   const list = $('shopList');
   list.innerHTML = '';
   for (let k = 0; k < 4; k++) {
-    let ic, name, det, col = '#fff', rc = '#8a6428';
+    let ic, name, det, col = '#fff', rc = '#8a6428', upg = false;
     if (k === 0) { ic = pic(D.K_POTION, 0); name = 'Health potion'; det = 'Restores all your health'; }
     else if (k === 3) { ic = pic(D.K_GOLD, 0); name = 'Mystery chest'; det = G.floor_num < 5 ? 'Uncommon or rare gear (epic if lucky)' : G.floor_num < 10 ? 'Rare or epic gear (legendary if lucky)' : 'Rare, epic or legendary gear'; }
     else {
       const kind = G.sh_kind[k], rar = G.sh_rar[k], lv = G.sh_lvl[k];
       ic = pic(kind, rar, G.sh_tier[k]); col = rc = D.RAR_COLOR[rar];
       name = `${D.RAR_NAME[rar]} ${S.item_name(kind, rar, G.sh_tier[k])}${G.sh_spec[k] ? ' · ' + D.SPEC_NAME[G.sh_spec[k]] : ''}`;
-      const v = S.gear_fine(kind, lv), d = v - S.worn_fine(kind);
-      det = `LV ${lv} · ${S.stat_name(kind)} ${v} (${d >= 0 ? '+' : ''}${d} vs worn)${statText(G.sh_st, k) ? ' · ' + statText(G.sh_st, k) : ''}`;
+      // (every number set against the piece you wear in that slot, as in the bag)
+      const i = kind - 1, has = G.eq_has[i], v = S.gear_fine(kind, lv);
+      let chips = chip(S.stat_name(kind), '#ffd75a', v, v - S.worn_fine(kind));
+      for (let t = 1; t <= 5; t++) { const sv = statOf(G.sh_st, k, t), w = has ? statOf(G.eq_st, i, t) : 0; if (sv || w) chips += chip(D.STAT_NAME[t], D.STAT_COLOR[t], sv, sv - w); }
+      const up = S.shop_better(k);
+      det = `<span class="chips">${chips}</span><span class="vd" style="color:${up ? '#7dff86' : '#ff8a7a'}">${up ? '&#x25B2; UPGRADE' : '&#x25BC; NOT BETTER'} · LV ${lv}${has ? '' : ' · nothing worn there'}</span>`;
+      upg = up;
     }
     const b = document.createElement('button');
-    b.className = 'ware' + (G.sh_sold[k] ? ' sold' : '');
+    b.className = 'ware' + (G.sh_sold[k] ? ' sold' : '') + (upg && !G.sh_sold[k] ? ' up' : '');
     b.innerHTML = `<span class="ic" style="--rc:${rc}"><img alt="" src="${ic}"></span><span><b style="color:${col}">${esc(tc(name))}</b><span>${G.sh_sold[k] ? 'Sold out' : det}</span></span><span class="pr"><span class="coin"></span>${G.sh_price[k]}</span>`;
     b.onclick = () => { const say = S.shop_buy(k); $('shopSay').textContent = say; drawShop(k); };
     list.appendChild(b);
@@ -780,7 +785,7 @@ export function frame(dt) {
   drawPadHelp(); drawItemBox();
   const pet = G.pet_type;
   $('hPet').hidden = !pet;
-  if (pet) { setText('hPetN', G.pet_down ? 'PET DOWN' : (G.pet_name || D.PET_NAME[pet]).toUpperCase()); setW('petfill', G.pet_down ? 0 : G.pet_hp / S.pet_max() * 100); }
+  if (pet) { setText('hPetN', G.pet_down ? `PET DOWN · ${Math.ceil(G.pet_down / 60)}s` : (G.pet_name || D.PET_NAME[pet]).toUpperCase()); setW('petfill', G.pet_down ? 0 : G.pet_hp / S.pet_max() * 100); }
   // the boss bar
   const bb = $('bossbar');
   const showBar = G.boss_on && !G.bintro;

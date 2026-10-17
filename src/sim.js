@@ -786,6 +786,14 @@ export function bag_better(k) {
   if (!g.eq_has[i]) return true;
   return item_score(kind, g.b_lvl[k], g.b_st, k) > item_score(kind, g.eq_lvl[i], g.eq_st, i);
 }
+// a merchant's piece against what's worn in its slot (as bag_better)
+export function shop_better(k) {
+  const kind = g.sh_kind[k];
+  if (!kind || k === 0 || k === 3) return false;
+  const i = kind - 1;
+  if (!g.eq_has[i]) return true;
+  return item_score(kind, g.sh_lvl[k], g.sh_st, k) > item_score(kind, g.eq_lvl[i], g.eq_st, i);
+}
 // the main stat from levels: 12, +3 a level (as the old strength grew)
 export const main_lvl = () => 12 + 3 * (g.lvl - 1);
 export function stat_total(t) {
@@ -1856,22 +1864,33 @@ function pet_step(gx, gy) {
   if (!blocked(nx, g.pet_y)) g.pet_x = nx;
   if (!blocked(g.pet_x, ny)) g.pet_y = ny;
 }
+const PET_UP = 20 * 60; // (a downed pet gets back up after 20 seconds)
 function pet_hurt(atk) {
   if (g.pet_type === M_SLIME) atk >>= 1;
-  // the pet wears your armor the way you do (hurt_player's sum), then shrugs off half of what gets through
+  // the pet wears your armor the way you do (hurt_player's sum) and shrugs off three quarters of what gets
+  // through; no one blow takes more than 6% of it, and it's hit at most once a second
   const q = atk * FINE + total_def();
-  const d = Math.max(1, Math.round(atk * atk * FINE / q / 2));
-  g.pet_inv = 40;
+  const d = Math.max(1, Math.min(Math.round(atk * atk * FINE / q / 4), Math.ceil(pet_max() * 0.06)));
+  g.pet_inv = 60;
   sfx('hurt'); fx('pethurt', { d });
   if (g.pet_hp > d) { g.pet_hp -= d; return; }
-  g.pet_hp = 0; g.pet_down = 1;
+  g.pet_hp = 0; g.pet_down = PET_UP;
   puff(g.pet_x, g.pet_y);
-  set_msg('PET DOWN! BACK NEXT FLOOR', COL_RED);
+  set_msg('PET DOWN! IT\'LL BE BACK IN 20 SECONDS', COL_RED);
+}
+// a downed pet's count to getting back up (called each step while it's down)
+function pet_wake() {
+  if (g.pet_down > 1 && --g.pet_down > 1) return;
+  g.pet_down = 0; g.pet_hp = Math.max(1, pet_max() >> 1);
+  g.pet_x = g.px; g.pet_y = g.py; g.pet_inv = 90; g.pet_cd = 30;
+  set_msg((g.pet_name || D.PET_NAME[g.pet_type]).toUpperCase() + ' IS BACK!', COL_GOLD);
+  fx('petfree', { x: g.pet_x, y: g.pet_y }); sfx('pickup');
 }
 function update_pet() {
   if (g.pet_cd) --g.pet_cd;
   if (g.pet_inv) --g.pet_inv;
-  if (T.MEND && g.pet_hp < pet_max()) { g.pet_regen += T.MEND; if (g.pet_regen >= 40) { g.pet_regen = 0; ++g.pet_hp; } }
+  // it heals by itself: all of it in about a minute (faster with Mend)
+  if (g.pet_hp < pet_max()) { g.pet_regen += 1 + T.MEND; if (g.pet_regen * pet_max() >= 3600) { g.pet_regen = 0; ++g.pet_hp; } }
   let best = 0, bd = 255, gx, gy;
   for (let k = 0; k < MAXM; ++k) {
     if (!g.m_type[k] || faded(k)) continue;
@@ -1885,7 +1904,8 @@ function update_pet() {
   if (!best && adiff(gx, g.pet_x) < 20 && adiff(gy, g.pet_y) < 20) steps = 0;
   while (steps--) pet_step(gx, gy);
   if (best && !g.pet_cd && adiff(gx, g.pet_x) < 12 && adiff(gy, g.pet_y) < 12) {
-    let dmg = ((g.lvl + 1 + g.eq_val[0]) * (g.pet_type === M_BAT ? 3 : 4)) >> 3;
+    // (a bite is a share of your own blow, so a pet keeps up as you grow)
+    let dmg = Math.max(((g.lvl + 1 + g.eq_val[0]) * (g.pet_type === M_BAT ? 3 : 4)) >> 3, Math.round(fine_pts(atk_fine()) * (g.pet_type === M_BAT ? 0.35 : 0.45)));
     dmg += Math.floor(dmg * T.FERO / 5);
     if (!dmg) dmg = 1;
     let dir;
@@ -2483,6 +2503,7 @@ export function tick(pad = 0, padNew = 0) {
     g.m_x[n] = Math.max(13, Math.min(227, x)); g.m_y[n] = Math.max(PLAY_Y + 10, Math.min(PLAY_Y + 144, g.m_y[n]));
   }
   if (g.pet_type && !g.pet_down) update_pet();
+  else if (g.pet_type && g.pet_down) pet_wake();
   update_projectiles();
   update_bolts();
   if (g.mode === 'dungeon') update_items();
