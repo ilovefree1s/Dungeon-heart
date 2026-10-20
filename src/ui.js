@@ -352,7 +352,8 @@ function drawTal() {
     if (pet) {
       $('talPetPic').src = petPic(pet); $('talPetPic').hidden = false;
       $('talPetName').textContent = (G.pet_name || D.PET_NAME[pet]).toUpperCase();
-      $('talPetInfo').textContent = `${D.PET_NAME[pet]} · ${G.pet_down ? `DOWN: back in ${Math.ceil(G.pet_down / 60)} s (or drink a potion at full HP)` : `HP ${G.pet_hp}/${S.pet_max()}`}`;
+      const [b0, b1] = S.pet_bite_range();
+      $('talPetInfo').textContent = `${D.PET_NAME[pet]} · ${G.pet_down ? `DOWN: back in ${Math.ceil(G.pet_down / 60)} s (or drink a potion at full HP)` : `HP ${G.pet_hp}/${S.pet_max()} · BITE ${b0}-${b1} (${S.pet_share()}% of yours)`}`;
       $('talPetFill').style.width = (G.pet_down ? 0 : G.pet_hp / S.pet_max() * 100) + '%';
       const fb = $('bPetFree'), armed = UI.freeArm === pet;
       fb.textContent = armed ? 'Sure? Tap again' : 'Set free'; fb.classList.toggle('warn', armed);

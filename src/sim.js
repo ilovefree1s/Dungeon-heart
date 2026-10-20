@@ -1593,7 +1593,7 @@ export function kill_monster(n) {
 function roll_damage() {
   let dmg = fine_pts(atk_fine() + ((rnd() & 0x40) ? FINE : 0));
   if (T.RAGE && g.hp < (g.maxhp >> 1)) dmg += Math.floor(dmg * T.RAGE / 10);
-  const s = (g.eq_spec[0] === SP_CRIT || g.eq_spec[4] === SP_CRIT || g.eq_spec[2] === SP_CRIT ? 64 : 0) + T.KEEN * 15 + Math.min(64, Math.floor(gear_stat(D.ST_DEX) * 256 / 1000));
+  const s = crit_chance();
   let crit = 0;
   if (s && rnd() < s) { dmg <<= 1; crit = 1; sfx('crit'); } else sfx('hit');
   if (g.hp < g.maxhp && (g.eq_spec[0] === SP_VAMPIRE || g.eq_spec[4] === SP_VAMPIRE || g.eq_spec[2] === SP_VAMPIRE || (T.BLOODLUST && rnd() < T.BLOODLUST * 51))) ++g.hp;
@@ -1602,15 +1602,24 @@ function roll_damage() {
 }
 export const roll_damage_test = roll_damage;
 // the range a normal (not critical) hit lands in, for the bag screen: as roll_damage, then the class's own bonus
+// one of your blows from its base (Rage, and the warrior's sword or the hunter's Long Shot)
+function hit_one(v) {
+  let d = v;
+  if (T.RAGE && g.hp < (g.maxhp >> 1)) d += Math.floor(d * T.RAGE / 10);
+  if (IS_WARRIOR()) d += d >> 1; else d += (d * T.LONG * 5) >> 5;
+  return d;
+}
 export function dmg_range() {
   const a = atk_fine();
-  const one = v => {
-    let d = v;
-    if (T.RAGE && g.hp < (g.maxhp >> 1)) d += Math.floor(d * T.RAGE / 10);
-    if (IS_WARRIOR()) d += d >> 1; else d += (d * T.LONG * 5) >> 5;
-    return d;
-  };
-  return [one(Math.floor(a / FINE)), one(Math.ceil((a + FINE) / FINE))];
+  return [hit_one(Math.floor(a / FINE)), hit_one(Math.ceil((a + FINE) / FINE))];
+}
+// your crit chance (of 256): crit gear, Keen, Dexterity
+const crit_chance = () => (g.eq_spec[0] === SP_CRIT || g.eq_spec[4] === SP_CRIT || g.eq_spec[2] === SP_CRIT ? 64 : 0) + T.KEEN * 15 + Math.min(64, Math.floor(gear_stat(D.ST_DEX) * 256 / 1000));
+// a pet's bite: this share (%) of your own blow (the bat bites fastest, the slime hardest)
+export const pet_share = (t = g.pet_type) => (t === M_SLIME ? 40 : t === M_SPIDER ? 35 : 30);
+export function pet_bite_range() {
+  const [a, b] = dmg_range(), k = pet_share() / 100 * (1 + T.FERO / 5);
+  return [Math.max(1, Math.round(a * k)), Math.max(1, Math.round(b * k))];
 }
 function hit_monster(n, dmg, dir, crit = 0) {
   g.m_hit[n] = 1;
@@ -1904,10 +1913,12 @@ function update_pet() {
   if (!best && adiff(gx, g.pet_x) < 20 && adiff(gy, g.pet_y) < 20) steps = 0;
   while (steps--) pet_step(gx, gy);
   if (best && !g.pet_cd && adiff(gx, g.pet_x) < 12 && adiff(gy, g.pet_y) < 12) {
-    // (a bite is a share of your own blow, so a pet keeps up as you grow)
-    let dmg = Math.max(((g.lvl + 1 + g.eq_val[0]) * (g.pet_type === M_BAT ? 3 : 4)) >> 3, Math.round(fine_pts(atk_fine()) * (g.pet_type === M_BAT ? 0.35 : 0.45)));
+    // (a bite is a share of your own shot, talents and crits and all: it grows as you do)
+    let dmg = hit_one(fine_pts(atk_fine() + ((rnd() & 0x40) ? FINE : 0)));
+    dmg = Math.max(1, Math.round(dmg * pet_share() / 100));
     dmg += Math.floor(dmg * T.FERO / 5);
-    if (!dmg) dmg = 1;
+    const crit = rnd() < crit_chance() ? 1 : 0;
+    if (crit) dmg <<= 1;
     let dir;
     if (adiff(gx, g.pet_x) > adiff(gy, g.pet_y)) dir = gx > g.pet_x ? DIR_RIGHT : DIR_LEFT;
     else dir = gy > g.pet_y ? DIR_DOWN : DIR_UP;
@@ -1916,7 +1927,7 @@ function update_pet() {
     if (T.KIN && g.hp < g.maxhp && rnd() < T.KIN * 64) ++g.hp;
     sfx('bite'); fx('petbite');
     if (best === 0xFF) { if (g.boss_on) hit_boss(dmg); }
-    else if (g.m_type[best - 1]) hit_monster(best - 1, dmg, dir);
+    else if (g.m_type[best - 1]) hit_monster(best - 1, dmg, dir, crit);
   }
   if (g.pet_inv) return;
   for (let k = 0; k < MAXM; ++k) {
