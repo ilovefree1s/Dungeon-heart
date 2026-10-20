@@ -91,7 +91,7 @@ export const G = {
   // the boomerang in flight, and lit bombs
   bm_t: 0, bm_x: 0, bm_y: 0, bm_dx: 0, bm_dy: 0, bm_back: 0, bm_hit: 0, bm_item: 0,
   bb_t: u8(3), bb_x: u8(3), bb_y: u8(3), moving_try: 0,
-  hm_t: 0, fb_t: 0, fb_x: 0, fb_y: 0, fb_dx: 0, fb_dy: 0, hk_t: 0, hk_st: 0, hk_x: 0, hk_y: 0, hk_dx: 0, hk_dy: 0, hk_hit: 0, hk_item: 0, hk_ox: 0, hk_oy: 0, dg_gen: 0,
+  hm_t: 0, dg_slide: 0, dg_sdx: 0, dg_sdy: 0, dg_sx: 0, dg_sy: 0, dg_sk: 0, fb_t: 0, fb_x: 0, fb_y: 0, fb_dx: 0, fb_dy: 0, hk_t: 0, hk_st: 0, hk_x: 0, hk_y: 0, hk_dx: 0, hk_dy: 0, hk_hit: 0, hk_item: 0, hk_ox: 0, hk_oy: 0, dg_gen: 0,
   // messages and events for the view / UI / sound
   msg: '', msg_color: COL_WHITE, msg_t: 0, msg_id: 0,
   ev: [],
@@ -2252,7 +2252,7 @@ function update_player(pad, padNew) {
           hit_monster(k, ((g.lvl + 1 + g.eq_val[0]) * T.CHARGE) >> 1, g.pdir);
       }
     }
-  } else if (g.hk_t || g.hm_t) {
+  } else if (g.hk_t || g.hm_t || g.dg_slide) {
     g.moving_try = 0; // (the chain is out: you hold on until it's back, or it has pulled you over)
   } else {
     let spd = 1;
@@ -2602,7 +2602,7 @@ export function dg_enter(id, from) {
   for (let i = 0; i < MAXP; ++i) g.pr_t[i] = 0;
   for (let i = 0; i < MAXB; ++i) g.bo_t[i] = 0;
   for (let i = 0; i < 3; ++i) g.bb_t[i] = 0;
-  g.bm_t = 0; g.bm_item = 0; g.hk_t = 0; g.hk_item = 0; g.hm_t = 0; g.fb_t = 0;
+  g.bm_t = 0; g.bm_item = 0; g.hk_t = 0; g.hk_item = 0; g.hm_t = 0; g.fb_t = 0; g.dg_slide = 0;
   for (let i = 0; i < MAXM; ++i) { g.m_frz[i] = 0; g.m_slow[i] = 0; g.m_burn[i] = 0; g.m_type[i] = 0; }
   for (let i = 0; i < MAXBN; ++i) g.bn_t[i] = 0;
   g.full_item = 0; g.tame_n = 0; g.mimic_chest = 0; g.mimic_n = 0; g.arena_left = 0; g.elite_said = 0; g.any_elite = 0;
@@ -2822,9 +2822,26 @@ function dg_open_chest(k, cx, cy) {
   save_game();
 }
 // each step in a dungeon: locked doors you walk into, blocks you push, the doors you walk out of
+const SLIDE_T = 24;
+function dg_slide_step() {
+  const t = SLIDE_T - --g.dg_slide;
+  // (you follow it a cell's width, unless something's in your way)
+  const tx = g.dg_sx + Math.round(g.dg_sdx * 16 * t / SLIDE_T), ty = g.dg_sy + Math.round(g.dg_sdy * 16 * t / SLIDE_T);
+  if (!blocked(tx, ty)) { g.px = tx; g.py = ty; }
+  if (g.dg_slide) return;
+  sfx('slam');
+  const nc = g.ob_k[g.dg_sk];
+  for (let j = 0; j < g.nobj; ++j) if (g.ob_t[j] === OBJ_PLATE && g.ob_k[j] === nc) {
+    g.ob_t[j] = OBJ_PLATE_ON; fx('obj', { k: j });
+    g.dg_flags[g.dg_room] |= F_SOLVED;
+    set_msg('CLICK!', COL_GOLD); sfx('rare');
+    g.dg_bar = 1; dg_cleared();
+  }
+}
 function dg_player() {
   const r = dg_room();
   if (!r) return;
+  if (g.dg_slide) { dg_slide_step(); return; }
   const facing = [g.pdy < 0, g.pdx > 0, g.pdy > 0, g.pdx < 0];
   const near = [
     g.py <= PLAY_Y + 20 && abs(g.px - 112) <= 8, g.px >= 220 && abs(g.py - (PLAY_Y + 80)) <= 8,
@@ -2848,29 +2865,46 @@ function dg_player() {
     if ((facing[0] && g.dg_dk[0] === DK_OPEN && g.py <= PLAY_Y + 24) || (facing[2] && g.dg_dk[2] === DK_OPEN && g.py >= PLAY_Y + 136)) { if (abs(g.px - 112) <= 10) g.px = nudge(g.px, 112); }
     if ((facing[1] && g.dg_dk[1] === DK_OPEN && g.px >= 216) || (facing[3] && g.dg_dk[3] === DK_OPEN && g.px <= 24)) { if (abs(g.py - (PLAY_Y + 80)) <= 10) g.py = nudge(g.py, PLAY_Y + 80); }
   }
-  // push a block: lean on it for a moment
+  // push a block: lean on it for a moment. Forgiving, as a thumb is: a diagonal counts for either of its two
+  // directions, and you needn't be exactly in line (you're eased into line while you lean)
   let pushed = false;
-  if (g.moving_try && (g.pdx === 0 || g.pdy === 0)) {
-    const cx = (g.px + 8 + g.pdx * 12) >> 4, cy = (g.py + 11 + g.pdy * 10 - PLAY_Y) >> 4;
-    for (let k = 0; k < g.nobj; ++k) {
-      if (g.ob_t[k] !== OBJ_BLOCK || g.ob_k[k] !== ((cy << 4) | cx)) continue;
-      pushed = true;
-      if (++g.dg_push >= 18) {
+  if (g.moving_try && !(g.dg_flags[g.dg_room] & F_SOLVED)) {
+    const hx = g.px + 8, hy = g.py + 11;
+    const dirs = [];
+    if (g.pdx) dirs.push([g.pdx, 0]);
+    if (g.pdy) dirs.push([0, g.pdy]);
+    for (const [dx, dy] of dirs) {
+      if (pushed) break;
+      for (let k = 0; k < g.nobj; ++k) {
+        if (g.ob_t[k] !== OBJ_BLOCK) continue;
+        const bc = g.ob_k[k], bx = bc & 15, by = bc >> 4;
+        const cx = (bx << 4) + 8, cy = PLAY_Y + (by << 4) + 8;
+        // right up against it on that side, and roughly in its row (or column)
+        // (and actually held up by it: walking past its corner isn't a push)
+        const touching = dx ? abs(hx + dx * 12 - cx) < 8 && abs(hy - cy) <= 8 && blocked(g.px + dx, g.py)
+          : abs(hy + dy * 10 - cy) < 8 && abs(hx - cx) <= 8 && blocked(g.px, g.py + dy);
+        if (!touching) continue;
+        pushed = true;
+        if (dx) { const ty = PLAY_Y + (by << 4); if (g.py !== ty && !blocked(g.px, g.py + Math.sign(ty - g.py))) g.py += Math.sign(ty - g.py); }
+        else { const tx = bx << 4; if (g.px !== tx && !blocked(g.px + Math.sign(tx - g.px), g.py)) g.px += Math.sign(tx - g.px); }
+        if (++g.dg_push < 18) break;
         g.dg_push = 0;
-        const nx = cx + g.pdx, ny = cy + g.pdy, nc = (ny << 4) | nx;
-        let free = nx > 0 && nx < 15 && ny > 0 && ny < 10 && (dg_floor_free(nc));
-        for (let n = 0; free && n < MAXM; ++n) if (g.m_type[n] && ((g.m_x[n] + 8) >> 4) === nx && ((g.m_y[n] + 8 - PLAY_Y) >> 4) === ny) free = false;
-        if (free) {
-          const oc = g.ob_k[k];
-          g.map[oc] = T_FLOOR; g.map[nc] = T_OBJ; g.ob_k[k] = nc;
-          sfx('slam'); fx('objmove', { k, from: oc });
-          for (let j = 0; j < g.nobj; ++j) if (g.ob_t[j] === OBJ_PLATE && g.ob_k[j] === nc) {
-            g.ob_t[j] = OBJ_PLATE_ON; fx('obj', { k: j });
-            g.dg_flags[g.dg_room] |= F_SOLVED;
-            set_msg('CLICK!', COL_GOLD); sfx('rare');
-            g.dg_bar = 1; dg_cleared();
-          }
+        const nx = bx + dx, ny = by + dy, nc = (ny << 4) | nx;
+        // (it only slides toward its plate, so it can never be wedged where it can't reach it)
+        let toward = true;
+        for (let j = 0; j < g.nobj; ++j) if (g.ob_t[j] === OBJ_PLATE) {
+          const qx = g.ob_k[j] & 15, qy = g.ob_k[j] >> 4;
+          toward = abs(qx - nx) + abs(qy - ny) < abs(qx - bx) + abs(qy - by) && (qx === nx || qy === ny);
         }
+        if (!toward) { if (!g.dg_said) { g.dg_said = 1; set_msg('IT ONLY SLIDES TOWARD THE PLATE', COL_WHITE, 150); sfx('nope'); } break; }
+        let free = nx > 0 && nx < 15 && ny > 0 && ny < 10 && dg_floor_free(nc);
+        for (let n = 0; free && n < MAXM; ++n) if (g.m_type[n] && ((g.m_x[n] + 8) >> 4) === nx && ((g.m_y[n] + 8 - PLAY_Y) >> 4) === ny) free = false;
+        if (!free) { if (!g.dg_said) { g.dg_said = 1; sfx('nope'); } break; }
+        // it slides a whole cell over the next moments, you stepping along behind it
+        g.map[bc] = T_FLOOR; g.map[nc] = T_OBJ; g.ob_k[k] = nc;
+        g.dg_slide = SLIDE_T; g.dg_sdx = dx; g.dg_sdy = dy; g.dg_sx = g.px; g.dg_sy = g.py; g.dg_sk = k;
+        sfx('roll'); fx('objmove', { k, from: bc, t: SLIDE_T });
+        break;
       }
     }
   }

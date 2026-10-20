@@ -415,7 +415,7 @@ export function onEvents(ev, ui) {
       case 'room': onRoom(e.dg ? e.from : -2); if (e.dg && V.warmed !== G.dg_seed_text + G.dg_no) { V.warmed = G.dg_seed_text + G.dg_no; prewarmDungeon(G); } ui.roomStart(); break;
       // a dungeon door opened, a chest appeared: the room's stonework is rebuilt (the monsters stay)
       case 'dgdoor': case 'dgref': buildRoom(G, V.roomSeed); ui.drawMinimap && ui.drawMinimap(); if (e.k === 'dgdoor' && e.d >= 0) { const c = [7, 95, 167, 80][e.d]; burst(wx((c & 15) * 16 + 8), 2, wz(D.PLAY_Y + (c >> 4) * 16 + 8), '#ffd36a', 16, 5, 0.7, true, 0.5); } break;
-      case 'objmove': { const o = R.objs[e.k]; if (o) { o.from = o.g.position.clone(); o.moveT = 0; const c = G.ob_k[e.k]; o.to = new THREE.Vector3(wx((c & 15) * 16 + 8), 0, wz(D.PLAY_Y + (c >> 4) * 16 + 8)); } break; }
+      case 'objmove': { const o = R.objs[e.k]; if (o) { o.from = o.g.position.clone(); o.moveT = 0; o.moveLen = (e.t || 12) / 60; const c = G.ob_k[e.k]; o.to = new THREE.Vector3(wx((c & 15) * 16 + 8), 0, wz(D.PLAY_Y + (c >> 4) * 16 + 8)); } break; }
       case 'dgget': ui.drawMinimap && ui.drawMinimap(); ui.dgFound && ui.dgFound(e.c, e.v); riseIcon(e.c, ax(e.x), az(e.y)); burst(ax(e.x), 3, az(e.y), '#ffe9a0', 30, 6, 1.0, true, 0.9, -1); ring(ax(e.x), az(e.y), '#ffd36a', 0.5, 6, 0.6); ui.flash && ui.flash('#fff2c0', 0.25); break;
       case 'bstun': if (V.boss) { const p = V.boss.position; burst(p.x, 7, p.z, '#ffe080', 14, 3, 0.8, true, 0.8, 0); } break;
       case 'hammer': burst(wx(e.x), 0.6, wz(e.y), '#d8c8a8', 16, 6, 0.9, false, 0.5); ring(wx(e.x), wz(e.y), '#ffffff', 0.4, 4, 0.4); shake.t = 0.25; shake.amp = 0.9; break;
@@ -727,7 +727,7 @@ export function update(dt, input) {
   for (const o of R.objs) {
     if (!o) continue;
     const ot = G.ob_t[o.k];
-    if (o.moveT !== undefined && o.moveT < 1) { o.moveT = Math.min(1, o.moveT + dt * 5); o.g.position.lerpVectors(o.from, o.to, o.moveT); }
+    if (o.moveT !== undefined && o.moveT < 1) { o.moveT = Math.min(1, o.moveT + dt / (o.moveLen || 0.2)); o.g.position.lerpVectors(o.from, o.to, o.moveT); }
     if (o.t === D.OBJ_BIGCHEST || o.t === D.OBJ_BIGCHEST_OPEN) {
       if (ot === D.OBJ_BIGCHEST_OPEN) { o.parts.lidG.rotation.x = smooth(o.parts.lidG.rotation.x, -1.25, dt, 5); o.parts.shine.material.opacity = 0.1; }
       else o.parts.shine.material.opacity = 0.35 + Math.sin(t * 3) * 0.12;
